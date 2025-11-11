@@ -1,0 +1,45 @@
+﻿# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+
+# Node / JS
+node_modules/
+dist/
+coverage/
+*.log
+npm-debug.log*
+yarn-error.log*
+.pnpm-store/
+.next/
+out/
+
+# Env
+.env
+.env.*.local
+
+# .NET
+bin/
+obj/
+.vs/
+
+# Flutter / Mobile
+build/
+.dart_tool/
+.packages
+.pub/
+ios/Pods/
+android/.gradle/
+android/app/release/
+android/build/
+ios/DerivedData/
+
+# PHP (if any)
+vendor/
+storage/
+
+# Tools
+.claude/

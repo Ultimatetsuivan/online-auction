@@ -1,0 +1,142 @@
+/* Base Skeleton */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    #f0f0f0 0%,
+    #f8f8f8 50%,
+    #f0f0f0 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Skeleton Card */
+.skeleton-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
+  background: white;
+}
+
+.skeleton-card-image {
+  margin-bottom: 12px;
+}
+
+.skeleton-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skeleton-card-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+/* Skeleton Product Detail */
+.skeleton-product-detail {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  padding: 20px;
+}
+
+.skeleton-detail-left {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.skeleton-detail-thumbnails {
+  display: flex;
+  gap: 12px;
+}
+
+.skeleton-detail-right {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.skeleton-detail-title {
+  margin-bottom: 8px;
+}
+
+.skeleton-detail-divider {
+  background: #e5e7eb;
+  margin: 12px 0;
+}
+
+@media (max-width: 768px) {
+  .skeleton-product-detail {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+
+/* Skeleton List */
+.skeleton-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.skeleton-list-item {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: white;
+}
+
+.skeleton-list-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Skeleton Text */
+.skeleton-text {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skeleton-text-line {
+  margin-bottom: 4px;
+}
+
+/* Dark mode support (optional) */
+@media (prefers-color-scheme: dark) {
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      #2a2a2a 0%,
+      #333333 50%,
+      #2a2a2a 100%
+    );
+  }
+
+  .skeleton-card,
+  .skeleton-list-item {
+    background: #1a1a1a;
+    border-color: #333;
+  }
+
+  .skeleton-detail-divider {
+    background: #333;
+  }
+}

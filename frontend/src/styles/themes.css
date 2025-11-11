@@ -1,0 +1,513 @@
+/* Theme Variables */
+:root {
+  /* Light Theme (Default) */
+  --color-primary: #FFA239;
+  --color-primary-light: #FFB464;
+  --color-primary-dark: #E68A1F;
+  --color-secondary: #8CE4FF;
+  --color-secondary-dark: #66D4F7;
+  --color-warning: #FEEE91;
+  --color-warning-dark: #F5E370;
+  --color-danger: #FF5656;
+  --color-danger-dark: #F73838;
+  --color-background: #FFFFFF;
+  --color-surface: #F8FAFC;
+  --color-text: #0F172A;
+  --color-text-secondary: #64748B;
+  --color-border: #E2E8F0;
+  --color-hover: #FFF5EB;
+  --color-card-bg: #FFFFFF;
+  --color-input-bg: #FFFFFF;
+  --color-input-border: #E2E8F0;
+  --color-input-text: #0F172A;
+}
+
+/* Dark Theme */
+.theme-dark {
+  --color-primary: #FFA239;
+  --color-primary-light: #FFB464;
+  --color-primary-dark: #E68A1F;
+  --color-secondary: #8CE4FF;
+  --color-secondary-dark: #66D4F7;
+  --color-warning: #FEEE91;
+  --color-warning-dark: #F5E370;
+  --color-danger: #FF5656;
+  --color-danger-dark: #F73838;
+  --color-background: #0F172A;
+  --color-surface: #1E293B;
+  --color-text: #F1F5F9;
+  --color-text-secondary: #CBD5E1;
+  --color-border: #334155;
+  --color-hover: #334155;
+  --color-card-bg: #1E293B;
+  --color-input-bg: #2D3748;
+  --color-input-border: #4A5568;
+  --color-input-text: #F1F5F9;
+}
+
+/* Apply theme colors to body and common elements */
+body {
+  background-color: var(--color-background);
+  color: var(--color-text);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Cards */
+.theme-dark .card {
+  background-color: var(--color-card-bg);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.theme-dark .card-header {
+  background-color: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.theme-dark .card-body {
+  background-color: var(--color-card-bg);
+  color: var(--color-text);
+}
+
+.theme-dark .card-footer {
+  background-color: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+/* Buttons */
+.theme-dark .btn-primary {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #FFFFFF;
+}
+
+.theme-dark .btn-primary:hover {
+  background-color: var(--color-primary-light);
+  border-color: var(--color-primary-light);
+}
+
+.theme-dark .btn-outline-primary {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.theme-dark .btn-outline-primary:hover {
+  background-color: var(--color-primary);
+  color: #FFFFFF;
+}
+
+/* Forms */
+.theme-dark .form-control,
+.theme-dark .form-select {
+  background-color: var(--color-input-bg);
+  border-color: var(--color-input-border);
+  color: var(--color-text);
+}
+
+.theme-dark .form-control:focus,
+.theme-dark .form-select:focus {
+  background-color: var(--color-input-bg);
+  border-color: var(--color-primary);
+  color: var(--color-text);
+  box-shadow: 0 0 0 0.25rem rgba(0, 140, 255, 0.25);
+}
+
+.theme-dark .form-control::placeholder {
+  color: var(--color-text-secondary);
+}
+
+.theme-dark .form-label {
+  color: var(--color-text);
+}
+
+/* Navigation */
+.theme-dark .navbar {
+  background-color: var(--color-surface) !important;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.theme-dark .navbar-brand,
+.theme-dark .nav-link {
+  color: var(--color-text) !important;
+}
+
+.theme-dark .nav-link:hover {
+  color: var(--color-primary) !important;
+}
+
+/* Dropdowns */
+.theme-dark .dropdown-menu {
+  background-color: var(--color-surface);
+  border-color: var(--color-border);
+}
+
+.theme-dark .dropdown-item {
+  color: var(--color-text);
+}
+
+.theme-dark .dropdown-item:hover {
+  background-color: var(--color-hover);
+  color: var(--color-text);
+}
+
+.theme-dark .dropdown-divider {
+  border-color: var(--color-border);
+}
+
+/* Badges */
+.theme-dark .badge {
+  background-color: var(--color-primary);
+  color: #FFFFFF;
+}
+
+/* Alerts */
+.theme-dark .alert {
+  background-color: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.theme-dark .alert-success {
+  background-color: rgba(34, 197, 94, 0.1);
+  border-color: #22c55e;
+  color: #22c55e;
+}
+
+.theme-dark .alert-danger {
+  background-color: rgba(239, 68, 68, 0.1);
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.theme-dark .alert-warning {
+  background-color: rgba(245, 158, 11, 0.1);
+  border-color: #f59e0b;
+  color: #f59e0b;
+}
+
+.theme-dark .alert-info {
+  background-color: rgba(0, 140, 255, 0.1);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* Tables */
+.theme-dark .table {
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+.theme-dark .table-striped > tbody > tr:nth-of-type(odd) > * {
+  background-color: var(--color-surface);
+}
+
+.theme-dark .table-hover > tbody > tr:hover > * {
+  background-color: var(--color-hover);
+}
+
+.theme-dark thead {
+  background-color: var(--color-surface);
+  color: var(--color-text);
+}
+
+/* Modals */
+.theme-dark .modal-content {
+  background-color: var(--color-card-bg);
+  border-color: var(--color-border);
+}
+
+.theme-dark .modal-header {
+  background-color: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.theme-dark .modal-body {
+  background-color: var(--color-card-bg);
+  color: var(--color-text);
+}
+
+.theme-dark .modal-footer {
+  background-color: var(--color-surface);
+  border-color: var(--color-border);
+}
+
+.theme-dark .btn-close {
+  filter: invert(1);
+}
+
+/* List Groups */
+.theme-dark .list-group-item {
+  background-color: var(--color-card-bg);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.theme-dark .list-group-item:hover {
+  background-color: var(--color-hover);
+}
+
+.theme-dark .list-group-item.active {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #FFFFFF;
+}
+
+/* Pagination */
+.theme-dark .pagination .page-link {
+  background-color: var(--color-card-bg);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.theme-dark .pagination .page-link:hover {
+  background-color: var(--color-hover);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.theme-dark .pagination .page-item.active .page-link {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #FFFFFF;
+}
+
+/* Breadcrumbs */
+.theme-dark .breadcrumb {
+  background-color: var(--color-surface);
+}
+
+.theme-dark .breadcrumb-item a {
+  color: var(--color-primary);
+}
+
+.theme-dark .breadcrumb-item.active {
+  color: var(--color-text);
+}
+
+/* Progress Bars */
+.theme-dark .progress {
+  background-color: var(--color-surface);
+}
+
+.theme-dark .progress-bar {
+  background-color: var(--color-primary);
+}
+
+/* Spinners */
+.theme-dark .spinner-border {
+  color: var(--color-primary);
+}
+
+/* Text Colors */
+.theme-dark .text-primary {
+  color: var(--color-primary) !important;
+}
+
+.theme-dark .text-muted {
+  color: var(--color-text-secondary) !important;
+}
+
+/* Background Colors */
+.theme-dark .bg-light {
+  background-color: var(--color-surface) !important;
+}
+
+.theme-dark .bg-white {
+  background-color: var(--color-card-bg) !important;
+}
+
+/* Borders */
+.theme-dark .border {
+  border-color: var(--color-border) !important;
+}
+
+/* Custom Components */
+.theme-dark .product-card {
+  background-color: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.theme-dark .product-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 140, 255, 0.2);
+}
+
+.theme-dark .category-chip {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+.theme-dark .category-chip:hover {
+  background-color: var(--color-hover);
+  border-color: var(--color-primary);
+}
+
+.theme-dark .category-chip.active {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #FFFFFF;
+}
+
+/* Footer */
+.theme-dark footer {
+  background-color: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+/* Scrollbar */
+.theme-dark ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.theme-dark ::-webkit-scrollbar-track {
+  background: var(--color-surface);
+}
+
+.theme-dark ::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 5px;
+}
+
+.theme-dark ::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary);
+}
+
+/* Theme Toggle Button */
+.theme-toggle-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: 2px solid var(--color-border);
+  border-radius: 24px;
+  background-color: var(--color-card-bg);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.theme-toggle-btn:hover {
+  border-color: var(--color-primary);
+  transform: scale(1.05);
+}
+
+.theme-toggle-btn.active {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #FFFFFF;
+}
+
+.theme-toggle-icon {
+  font-size: 20px;
+  transition: transform 0.3s ease;
+}
+
+.theme-toggle-btn:hover .theme-toggle-icon {
+  transform: rotate(10deg);
+}
+
+/* Car-specific badges */
+.car-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 600;
+  background-color: rgba(0, 140, 255, 0.1);
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+}
+
+/* Additional Dark Mode Text Visibility Fixes */
+.theme-dark h1,
+.theme-dark h2,
+.theme-dark h3,
+.theme-dark h4,
+.theme-dark h5,
+.theme-dark h6 {
+  color: var(--color-text);
+}
+
+.theme-dark p,
+.theme-dark span,
+.theme-dark div,
+.theme-dark label,
+.theme-dark a {
+  color: var(--color-text);
+}
+
+.theme-dark a:hover {
+  color: var(--color-primary);
+}
+
+.theme-dark .text-dark {
+  color: var(--color-text) !important;
+}
+
+.theme-dark .text-secondary {
+  color: var(--color-text-secondary) !important;
+}
+
+.theme-dark .bg-dark {
+  background-color: var(--color-surface) !important;
+}
+
+.theme-dark small,
+.theme-dark .small {
+  color: var(--color-text-secondary);
+}
+
+/* Header in dark mode */
+.theme-dark .header {
+  background-color: var(--color-surface) !important;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* Input placeholders in dark mode */
+.theme-dark input::placeholder,
+.theme-dark textarea::placeholder {
+  color: var(--color-text-secondary);
+  opacity: 0.7;
+}
+
+/* Links in dark mode */
+.theme-dark .btn-link {
+  color: var(--color-primary);
+}
+
+.theme-dark .btn-link:hover {
+  color: var(--color-primary-light);
+}
+
+/* Ensure all input text is visible */
+.theme-dark input,
+.theme-dark textarea,
+.theme-dark select {
+  color: var(--color-input-text) !important;
+}
+
+/* Fix any white backgrounds that shouldn't be white */
+.theme-dark .bg-white {
+  background-color: var(--color-card-bg) !important;
+}
+
+/* Fix shadows in dark mode */
+.theme-dark .shadow,
+.theme-dark .shadow-sm,
+.theme-dark .shadow-lg {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Smooth transitions */
+* {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
