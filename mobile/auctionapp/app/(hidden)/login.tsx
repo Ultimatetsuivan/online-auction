@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -18,12 +18,106 @@ import { router } from "expo-router";
 import { api } from "../../src/api";
 import theme from "../theme";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as WebBrowser from "expo-web-browser";
+import * as Google from "expo-auth-session/providers/google";
+import { makeRedirectUri } from "expo-auth-session";
+
+type GoogleClientIds = {
+  web?: string | null;
+  android?: string | null;
+  ios?: string | null;
+  expo?: string | null;
+};
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleClients, setGoogleClients] = useState<GoogleClientIds>({});
+
+  const resolvedGoogleIds = useMemo(() => {
+    const web = googleClients.web ?? null;
+    const android = googleClients.android ?? null;
+    const ios = googleClients.ios ?? null;
+    const expo = googleClients.expo ?? null;
+    return { web, android, ios, expo };
+  }, [googleClients]);
+
+  const defaultGoogleClientId =
+    resolvedGoogleIds.expo ||
+    resolvedGoogleIds.android ||
+    resolvedGoogleIds.ios ||
+    resolvedGoogleIds.web ||
+    "DUMMY.apps.googleusercontent.com";
+  const hasGoogleClientConfig = Boolean(
+    resolvedGoogleIds.expo ||
+      resolvedGoogleIds.android ||
+      resolvedGoogleIds.ios ||
+      resolvedGoogleIds.web
+  );
+
+  const redirectUri = useMemo(() => {
+    if (Platform.OS === 'web') {
+      return makeRedirectUri({
+        scheme: 'https',
+        path: 'auth/callback'
+      });
+    }
+    // For mobile, we must use the proxy
+    return 'https://auth.expo.io/@buhuu/auctionapp';
+  }, []);
+
+  console.log("Google OAuth redirectUri =>", redirectUri);
+
+  const [googleRequest, googleResponse, googlePromptAsync] =
+    Google.useAuthRequest({
+      expoClientId: resolvedGoogleIds.expo || "377856194024-6ud79er14h5nnfhgpqbtuh2umldrk156.apps.googleusercontent.com",
+      iosClientId: resolvedGoogleIds.ios || "377856194024-6ud79er14h5nnfhgpqbtuh2umldrk156.apps.googleusercontent.com",
+      androidClientId: resolvedGoogleIds.android || undefined,
+      webClientId: resolvedGoogleIds.web || "377856194024-6ud79er14h5nnfhgpqbtuh2umldrk156.apps.googleusercontent.com",
+      redirectUri,
+    });
+
+  useEffect(() => {
+    const fetchClientId = async () => {
+      try {
+        const response = await api.get("/api/users/google/client-id");
+        if (response.data) {
+          const ids = response.data.clientIds || {};
+          console.log("Fetched Google Client IDs:", ids);
+          setGoogleClients({
+            web: ids.web ?? response.data.clientId ?? null,
+            android: ids.android ?? null,
+            ios: ids.ios ?? null,
+            expo: ids.expo ?? null,
+          });
+        }
+      } catch (error) {
+        console.error("Failed to fetch Google client ID:", error);
+      }
+    };
+    fetchClientId();
+  }, []);
+
+  const persistUserSession = async (userData: any) => {
+    await AsyncStorage.setItem("user", JSON.stringify(userData));
+    if (userData?.token) {
+      await AsyncStorage.setItem("token", userData.token);
+    }
+  };
+
+  const navigateHome = () => {
+    Alert.alert("Амжилттай", "Нэвтрэлт амжилттай боллоо", [
+      {
+        text: "OK",
+        onPress: () => router.replace("/(tabs)"),
+      },
+    ]);
+  };
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -39,19 +133,8 @@ export default function LoginScreen() {
       });
 
       if (response.status === 200) {
-        // Save user data
-        await AsyncStorage.setItem("user", JSON.stringify(response.data));
-        await AsyncStorage.setItem("token", response.data.token);
-
-        Alert.alert("Амжилттай", "Нэвтрэлт амжилттай боллоо", [
-          {
-            text: "OK",
-            onPress: () => {
-              // Navigate to home or main screen
-              router.replace("/(tabs)");
-            },
-          },
-        ]);
+        await persistUserSession(response.data);
+        navigateHome();
       }
     } catch (error: any) {
       console.error("Login error:", error);
@@ -64,6 +147,87 @@ export default function LoginScreen() {
       setLoading(false);
     }
   };
+
+  const handleGoogleCredential = async (accessToken: string) => {
+    try {
+      // Get user info from Google
+      const userInfoResponse = await fetch(
+        "https://www.googleapis.com/oauth2/v2/userinfo",
+        {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }
+      );
+
+      const userInfo = await userInfoResponse.json();
+      console.log("Google user info:", userInfo);
+
+      // Send user info to backend
+      const response = await api.post("/api/users/google-mobile", {
+        googleId: userInfo.id,
+        email: userInfo.email,
+        name: userInfo.name,
+        picture: userInfo.picture,
+      });
+
+      if (response.status === 200) {
+        await persistUserSession(response.data);
+        navigateHome();
+      }
+    } catch (error: any) {
+      console.error("Google login error:", error);
+      console.error("Error response:", error.response?.data);
+      const errorMessage =
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        error.message ||
+        "Google нэвтрэх үед алдаа гарлаа.";
+      Alert.alert("Алдаа", errorMessage);
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleGoogleLoginPress = async () => {
+    if (!hasGoogleClientConfig || !googleRequest) {
+      Alert.alert(
+        "Анхааруулга",
+        "Google нэвтрэх тохиргоо байхгүй байна. Энэ функцийг дараа ашиглах боломжтой."
+      );
+      return;
+    }
+    try {
+      setGoogleLoading(true);
+      const result = await googlePromptAsync({ useProxy: true });
+      if (!result || result.type !== "success") {
+        setGoogleLoading(false);
+      }
+    } catch (error) {
+      console.error("Google prompt error:", error);
+      Alert.alert(
+        "Алдаа",
+        "Google нэвтрэх явцад алдаа гарлаа. Дахин оролдоно уу."
+      );
+      setGoogleLoading(false);
+    }
+  };
+  useEffect(() => {
+    if (googleResponse?.type === "success") {
+      const accessToken = googleResponse.authentication?.accessToken;
+      console.log("Google auth success, access token:", accessToken ? "present" : "missing");
+      if (accessToken) {
+        handleGoogleCredential(accessToken);
+        return;
+      } else {
+        Alert.alert("Алдаа", "Google access token олдсонгүй");
+        setGoogleLoading(false);
+      }
+    }
+
+    if (googleResponse && googleResponse.type !== "success") {
+      console.log("Google auth not successful:", googleResponse.type);
+      setGoogleLoading(false);
+    }
+  }, [googleResponse]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -189,9 +353,20 @@ export default function LoginScreen() {
             </TouchableOpacity>
 
             {/* Google Auth Button */}
-            <TouchableOpacity style={styles.googleButton}>
+            <TouchableOpacity
+              style={[
+                styles.googleButton,
+                (!hasGoogleClientConfig || googleLoading) && styles.googleButtonDisabled,
+              ]}
+              onPress={handleGoogleLoginPress}
+              disabled={!hasGoogleClientConfig || googleLoading}
+            >
               <Ionicons name="logo-google" size={20} color="#EA4335" />
-              <Text style={styles.googleButtonText}>Google-ээр нэвтрэх</Text>
+              {googleLoading ? (
+                <ActivityIndicator color={theme.gray700} />
+              ) : (
+                <Text style={styles.googleButtonText}>Google-ээр нэвтрэх</Text>
+              )}
             </TouchableOpacity>
 
             {/* Register Link */}
@@ -392,5 +567,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: theme.gray700,
+  },
+  googleButtonDisabled: {
+    opacity: 0.6,
   },
 });

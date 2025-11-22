@@ -1,225 +1,175 @@
-# 🚀 QUICK START GUIDE
+# 🚀 Quick Start Guide - MyList Features
 
-## ✅ Everything Is Fixed and Working!
+## ✅ What's Ready
 
-The password issue is resolved. You can now login!
-
----
-
-## 🔑 Login Credentials (WORKING NOW!)
-
-### Admin Account
-```
-Email: admin@auction.mn
-Password: admin123
-Phone: 99001122
-```
-
-### Test Users
-```
-buyer1@test.mn / test123 (Phone: 88001122)
-buyer2@test.mn / test123 (Phone: 77001122)
-seller1@test.mn / test123 (Phone: 95001122)
-newuser@test.mn / test123 (Phone: 94001122)
-```
+All features are implemented and ready to test:
+- ❤️ **Liked Products** - Heart button on product cards
+- 🔖 **Saved Filters** - Save filter combinations
+- 📋 **MyList Page** - 4 tabs showing your saved items
+- 🧪 **Test Page** - Debug page to verify everything works
 
 ---
 
-## 🌐 URLs
+## 🎯 Start Testing NOW (3 Steps)
 
-- **Frontend (Web)**: http://localhost:5173
-- **Backend API**: http://localhost:5000
-- **Health Check**: http://localhost:5000/health
+### Step 1: Restart Dev Server (IMPORTANT!)
 
----
-
-## 📱 HOW TO LOGIN (3 Methods)
-
-### Method 1: Email Login (WEB)
-
-1. Open: http://localhost:5173
-2. Click "Login" or "Admin"
-3. Enter:
-   - Email: `admin@auction.mn`
-   - Password: `admin123`
-4. Click "Нэвтрэх" (Login)
-5. ✅ You're in!
-
-### Method 2: Email Login (MOBILE)
-
-1. Open mobile app (Expo Go)
-2. You'll see login screen
-3. Enter:
-   - Email: `admin@auction.mn`
-   - Password: `admin123`
-4. Click "Нэвтрэх" (Login)
-5. ✅ Redirects to home!
-
-### Method 3: Phone Login (MOBILE) ⭐ NEW
-
-1. Open mobile app
-2. On login screen, click:
-   **"Утасны дугаараар нэвтрэх"**
-   (Login with phone number)
-
-3. Enter phone: `99001122`
-
-4. Click "Үргэлжлүүлэх" (Continue)
-
-5. **LOOK AT YOUR TERMINAL/CONSOLE** where backend is running
-   You'll see something like:
-   ```
-   [DEV MODE] OTP for 99001122: 123456
-   ```
-
-6. Type the 6-digit code (e.g., `123456`)
-
-7. Click "Баталгаажуулах" (Verify)
-
-8. ✅ Login successful!
-
----
-
-## 📋 WHERE TO FIND OTP CODE
-
-### ⚠️ IMPORTANT: OTP appears in BACKEND CONSOLE, not mobile app!
-
-**Look here** ↓
-
-1. Open the terminal/console where you ran `npm start` in the **backend** folder
-
-2. Look for this line:
-   ```
-   [DEV MODE] OTP for 99001122: 427951
-                                 ^^^^^^
-                                 This is your code!
-   ```
-
-3. The 6-digit number after "OTP for" is your verification code
-
-4. Type this code in the mobile app
-
-### Example:
-```
-Backend console shows:
-[DEV MODE] OTP for 88001122: 847362
-
-You type in mobile: 8 4 7 3 6 2
-```
-
----
-
-## 🧪 Test Scenarios
-
-### Scenario 1: Login as Admin (Web)
-1. Go to http://localhost:5173
-2. Email: `admin@auction.mn`, Password: `admin123`
-3. Access admin dashboard
-4. See stats, users, categories
-
-### Scenario 2: Login with Phone (Mobile)
-1. Click "Утасны дугаараар нэвтрэх"
-2. Phone: `99001122`
-3. Check backend console for OTP
-4. Enter OTP code
-5. Login success!
-
-### Scenario 3: Test Different Users
-- Login as `buyer1@test.mn` → Can place deposits (trust score: 85)
-- Login as `buyer2@test.mn` → Cannot place deposits (trust score: 65)
-- Login as `seller1@test.mn` → High trust seller (score: 92)
-
----
-
-## ❓ Troubleshooting
-
-### "Email or password is wrong"
-**✅ FIXED!** Run this again:
 ```bash
-cd backend
-node scripts/createTestUsers.js
+# Stop current server: Press Ctrl+C in terminal
+
+# Then start:
+cd C:\Users\bukhbtu01\Downloads\onlineauction-clean\frontend
+npm run dev
 ```
 
-### "OTP code is wrong"
-- Make sure you're looking at **backend console**, not mobile app
-- Look for the LATEST OTP (bottom of console)
-- OTP expires after 3 minutes - request new one if expired
+Wait for "ready" or "compiled successfully" message.
 
-### "Cannot find phone auth button"
-- Make sure you're on the login screen (not register screen)
-- Look for "Утасны дугаараар нэвтрэх" below email login
-- Scroll down if you don't see it
+### Step 2: Open Test Page
 
-### "Google login not working"
-- Google button is visible but needs OAuth setup
-- Use email or phone login instead for now
-
----
-
-## 🎯 Quick Commands
-
-### Recreate Test Users
-```bash
-cd backend
-node scripts/createTestUsers.js
+Open browser and go to:
+```
+http://localhost:5173/test
 ```
 
-### Check Backend Logs for OTP
-- Just look at the terminal where backend is running
-- OTPs will appear like: `[DEV MODE] OTP for 99001122: 123456`
+Click the **"Add Test Data"** button.
 
-### Test Login with curl
-```bash
-# Admin login
-curl -X POST http://localhost:5000/api/users/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@auction.mn","password":"admin123"}'
+You should see:
+- ✅ LikedProductsContext is loaded
+- ✅ likedProducts (Count: 1)
+- ✅ savedFilters (Count: 1)
 
-# Should return user data + token
+### Step 3: Go to MyList
+
+Navigate to:
+```
+http://localhost:5173/mylist
 ```
 
-### Send OTP
-```bash
-curl -X POST http://localhost:5000/api/auth/send-otp \
-  -H "Content-Type: application/json" \
-  -d '{"phone":"99001122"}'
-
-# Check backend console for OTP code
+You should see **4 TABS**:
+```
+[❤️ Liked Products (1)] [🔖 Saved Filters (1)] [👥 Following (0)] [📦 New Products (0)]
 ```
 
----
-
-## 📊 What Works Now
-
-✅ Email login (web & mobile)
-✅ Phone auth with OTP (mobile)
-✅ Admin panel access
-✅ User management
-✅ Password: admin123 ✅
-✅ OTP generation ✅
-✅ Google button (UI ready)
+Click each tab to see your data!
 
 ---
 
-## 🎉 You're Ready!
+## 🎨 What You'll See
 
-1. **Web**: Open http://localhost:5173
-2. **Login**: Use `admin@auction.mn` / `admin123`
-3. **Mobile**: Use phone auth with `99001122`
-4. **OTP**: Look at backend console
+### On MyList Page (`/mylist`)
 
-**Everything works now!** 🚀
+**Liked Products Tab**:
+- Product cards with images
+- Product titles and prices
+- "Remove" button to unlike
+
+**Saved Filters Tab**:
+- Filter name and creation date
+- Number of active filters
+- "Apply Filter" button
+- Delete button (trash icon)
+
+### On Product Page (`/allproduct`)
+
+**Top area has TWO new buttons**:
+1. 🔖 **"Шүүлтүүр хадгалах"** - Save current filter
+2. 📑 **"Хадгалсан шүүлтүүр"** - View saved filters
+
+**Each product card has**:
+- ❤️ Heart button (top-right corner)
+- Click to like/unlike
+- Red when liked, white when not liked
 
 ---
 
-## 🆘 Still Having Issues?
+## 📝 How to Use Features
 
-1. Make sure backend is running: `cd backend && npm start`
-2. Make sure frontend is running: `cd frontend && npm run dev`
-3. Recreate users: `node scripts/createTestUsers.js`
-4. Check backend console for errors or OTP codes
-5. Try email login first before phone auth
+### Save a Filter
+
+1. Go to `/allproduct`
+2. Apply some filters (category, price, etc.)
+3. Click "Шүүлтүүр хадгалах" button
+4. Enter a name (e.g., "Toyota under 50k")
+5. Click save
+6. Filter appears in MyList "Saved Filters" tab
+
+### Load a Saved Filter
+
+**Option A - From dropdown**:
+1. Go to `/allproduct`
+2. Click "Хадгалсан шүүлтүүр" button
+3. Click "Ашиглах" on any filter
+
+**Option B - From MyList**:
+1. Go to `/mylist`
+2. Click "Saved Filters" tab
+3. Click "Apply Filter" button
+4. You'll be redirected to `/allproduct` with filter applied
+
+### Like a Product
+
+1. Go to `/allproduct`
+2. Click ❤️ heart on any product card
+3. Heart turns red
+4. Product appears in MyList "Liked Products" tab
+
+### Unlike a Product
+
+**Option A - From product page**:
+- Click the red heart again
+
+**Option B - From MyList**:
+1. Go to `/mylist`
+2. Click "Liked Products" tab
+3. Click "Remove" button on product
 
 ---
 
-**Happy Testing! 🎊**
+## ⚠️ If Not Working
+
+### 1. Server Not Restarted
+**Solution**: Stop (Ctrl+C) and restart server
+
+### 2. Browser Cache
+**Solution**:
+- Hard refresh: `Ctrl + F5`
+- Or use incognito: `Ctrl + Shift + N`
+
+### 3. Test Page Shows Red ❌
+**Solution**: Restart dev server
+
+### 4. Still Not Working
+Take screenshots of:
+1. `/test` page
+2. Browser console (F12 → Console tab)
+3. `/mylist` page
+
+---
+
+## 📂 All Files Created
+
+New components:
+- ✅ `frontend/src/components/SavedFilters.jsx`
+- ✅ `frontend/src/components/LikeButton.jsx`
+- ✅ `frontend/src/context/LikedProductsContext.jsx`
+- ✅ `frontend/src/screen/mylist/MyListSimple.jsx`
+- ✅ `frontend/src/screen/test/TestPage.jsx`
+
+Modified files:
+- ✅ `frontend/src/App.jsx` - Added provider and route
+- ✅ `frontend/src/routes/index.js` - Using MyListSimple
+- ✅ `frontend/src/screen/product/product.jsx` - Added buttons
+
+---
+
+## 🎯 Bottom Line
+
+1. **Restart server** ← Most important!
+2. **Go to `/test`**
+3. **Click "Add Test Data"**
+4. **Go to `/mylist`**
+5. **See 4 tabs with data**
+
+That's it! 🚀
+
+For detailed documentation, see: `CURRENT_STATUS.md`

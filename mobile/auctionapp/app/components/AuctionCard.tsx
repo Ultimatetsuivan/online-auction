@@ -2,6 +2,7 @@ import React from "react";
 import { View, Text, Image, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import CountdownTimer from "./CountdownTimer";
+import LikeButton from "./LikeButton";
 import theme from "../../app/theme";
 
 type AuctionCardProps = {
@@ -15,20 +16,22 @@ type AuctionCardProps = {
     bidDeadline?: string;
     bids?: number;
     timeLeft?: { days: number; hours: number; minutes: number; seconds: number };
+    sold?: boolean;
+    available?: boolean;
   };
   onPress?: () => void;
 };
 
 export default function AuctionCard({ product, onPress }: AuctionCardProps) {
-  const imageSource = product.localImage 
-    ? product.localImage 
-    : product.image 
-    ? { uri: product.image } 
+  const imageSource = product.localImage
+    ? product.localImage
+    : product.image
+    ? { uri: product.image }
     : require("../../assets/images/default.png");
 
   const price = product.currentBid || product.price || 0;
   const formattedPrice = typeof price === 'number' ? price.toLocaleString() : price;
-
+  const isSold = product.sold || !product.available;
 
   const isEndingSoon = () => {
     if (!product.timeLeft) return false;
@@ -45,19 +48,28 @@ export default function AuctionCard({ product, onPress }: AuctionCardProps) {
       {/* Image Container */}
       <View style={styles.imageContainer}>
         <Image source={imageSource} style={styles.image} resizeMode="cover" />
-        
+
+        {/* SOLD Overlay */}
+        {isSold && (
+          <View style={styles.soldOverlay}>
+            <Text style={styles.soldText}>ЗАРАГДСАН</Text>
+          </View>
+        )}
+
         {/* Badge Overlay */}
-        <View style={styles.gradientOverlay}>
-          {isEndingSoon() && (
-            <View style={styles.endingBadge}>
-              <Ionicons name="time" size={12} color="#fff" />
-              <Text style={styles.endingText}>Ending Soon</Text>
-            </View>
-          )}
-        </View>
+        {!isSold && (
+          <View style={styles.gradientOverlay}>
+            {isEndingSoon() && (
+              <View style={styles.endingBadge}>
+                <Ionicons name="time" size={12} color="#fff" />
+                <Text style={styles.endingText}>Дуусах гэж байна</Text>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* Time Left Badge */}
-        {product.bidDeadline && (
+        {product.bidDeadline && !isSold && (
           <View style={styles.timeBadge}>
             <CountdownTimer
               deadline={product.bidDeadline}
@@ -67,6 +79,11 @@ export default function AuctionCard({ product, onPress }: AuctionCardProps) {
             />
           </View>
         )}
+
+        {/* Like Button */}
+        <View style={styles.likeButtonContainer}>
+          <LikeButton productId={product.id} size="sm" />
+        </View>
       </View>
 
       {/* Content */}
@@ -89,10 +106,12 @@ export default function AuctionCard({ product, onPress }: AuctionCardProps) {
         </View>
 
         {/* Bid Button */}
-        <TouchableOpacity style={styles.bidButton} onPress={onPress}>
-          <Text style={styles.bidButtonText}>Place Bid</Text>
-          <Ionicons name="arrow-forward" size={16} color="#fff" />
-        </TouchableOpacity>
+        {!isSold && (
+          <TouchableOpacity style={styles.bidButton} onPress={onPress}>
+            <Text style={styles.bidButtonText}>Үнийн санал өгөх</Text>
+            <Ionicons name="arrow-forward" size={16} color="#fff" />
+          </TouchableOpacity>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -188,6 +207,33 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "800",
     color: theme.brand600,
+  },
+  soldOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 5,
+  },
+  soldText: {
+    color: "#fff",
+    fontSize: 28,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 2,
+    textShadowColor: "rgba(0, 0, 0, 0.75)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  likeButtonContainer: {
+    position: "absolute",
+    top: 12,
+    left: 12,
+    zIndex: 10,
   },
   bidsContainer: {
     flexDirection: "row",

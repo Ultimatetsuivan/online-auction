@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Switch,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -29,6 +31,29 @@ export default function RegisterScreen() {
   const [step, setStep] = useState(1); // 1: email verification, 2: registration
   const [verificationCode, setVerificationCode] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
+  const [agreeEula, setAgreeEula] = useState(false);
+  const [eula, setEula] = useState<any>(null);
+  const [eulaModalVisible, setEulaModalVisible] = useState(false);
+  const [eulaError, setEulaError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchEula = async () => {
+      try {
+        const response = await api.get("/api/legal/eula/current");
+        setEula(response.data?.eula || null);
+      } catch (error) {
+        console.error("EULA fetch error:", error);
+      }
+    };
+
+    fetchEula();
+  }, []);
+
+  const eulaPlainText = useMemo(() => {
+    if (!eula) return "";
+    const raw = eula?.contentMn || eula?.content || "";
+    return raw.replace(/<[^>]+>/g, "");
+  }, [eula]);
 
   const handleSendCode = async () => {
     if (!email) {
@@ -76,6 +101,12 @@ export default function RegisterScreen() {
       Alert.alert("Алдаа", "Нууц үг хамгийн багадаа 6 тэмдэгтээс бүрдэнэ");
       return;
     }
+
+    if (!agreeEula) {
+      setEulaError("Үйлчилгээний нөхцөлийг зөвшөөрнө үү.");
+      return;
+    }
+    setEulaError(null);
 
     setIsVerifying(true);
     try {
@@ -299,6 +330,32 @@ export default function RegisterScreen() {
                   </View>
                 </View>
 
+                <View style={styles.eulaContainer}>
+                  <View style={styles.eulaHeader}>
+                    <Text style={styles.eulaTitle}>
+                      {(eula?.titleMn || eula?.title || 'EULA')} {eula?.version ? `(v${eula.version})` : ''}
+                    </Text>
+                    {eula ? (
+                      <TouchableOpacity onPress={() => setEulaModalVisible(true)}>
+                        <Text style={styles.eulaLink}>Дэлгэрэнгүй</Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <Text style={styles.eulaLink}>Ачааллаж байна...</Text>
+                    )}
+                  </View>
+                  <View style={styles.eulaToggle}>
+                    <Text style={styles.eulaToggleText}>Үйлчилгээний нөхцөлийг зөвшөөрнө үү</Text>
+                    <Switch
+                      value={agreeEula}
+                      onValueChange={(value) => {
+                        setAgreeEula(value);
+                        if (value) setEulaError(null);
+                      }}
+                    />
+                  </View>
+                  {eulaError && <Text style={styles.eulaError}>{eulaError}</Text>}
+                </View>
+
                 <TouchableOpacity
                   style={[styles.button, isVerifying && styles.buttonDisabled]}
                   onPress={handleVerifyAndRegister}
@@ -323,6 +380,25 @@ export default function RegisterScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      <Modal
+        visible={Boolean(eula) && eulaModalVisible}
+        animationType="slide"
+        onRequestClose={() => setEulaModalVisible(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{eula?.titleMn || eula?.title || 'EULA'}</Text>
+            <TouchableOpacity onPress={() => setEulaModalVisible(false)}>
+              <Text style={styles.modalCloseText}>Хаах</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalContent}>
+            <Text style={styles.modalBody}>
+              {eulaPlainText || 'EULA-ийн агуулга одоогоор бэлэн биш байна.'}
+            </Text>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -476,5 +552,77 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.brand600,
     fontWeight: "600",
+  },
+  eulaContainer: {
+    backgroundColor: theme.gray50,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: theme.gray200,
+  },
+  eulaHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  eulaTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: theme.gray900,
+    flex: 1,
+    marginRight: 12,
+  },
+  eulaLink: {
+    fontSize: 14,
+    color: theme.brand600,
+    fontWeight: "600",
+  },
+  eulaToggle: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  eulaToggleText: {
+    flex: 1,
+    marginRight: 12,
+    color: theme.gray700,
+  },
+  eulaError: {
+    color: "#dc3545",
+    marginTop: 8,
+    fontSize: 13,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: theme.white,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.gray200,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: theme.gray900,
+  },
+  modalCloseText: {
+    fontSize: 16,
+    color: theme.brand600,
+    fontWeight: "600",
+  },
+  modalContent: {
+    padding: 20,
+  },
+  modalBody: {
+    fontSize: 14,
+    color: theme.gray800,
+    lineHeight: 20,
   },
 });

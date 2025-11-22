@@ -7,7 +7,9 @@ const {
     refreshAccessToken,
     registerFCMToken,
     removeFCMToken,
-    logout
+    logout,
+    requestPhoneLink,
+    verifyPhoneLink
 } = require('../controllers/phoneAuthController');
 const { protect } = require('../middleware/authMiddleware');
 const { otpLimiter, loginLimiter } = require('../middleware/rateLimiter');
@@ -17,6 +19,8 @@ const { validatePhone, validateOTP, validateRegistration } = require('../middlew
 router.post('/send-otp', otpLimiter, validatePhone, sendPhoneOTP);
 router.post('/verify-otp', loginLimiter, validateOTP, verifyPhoneOTP);
 router.post('/register-phone', loginLimiter, validateRegistration, validateOTP, registerWithPhone);
+router.post('/link/request', protect, requestPhoneLink);
+router.post('/link/verify', protect, verifyPhoneLink);
 
 // Token management
 router.post('/refresh-token', refreshAccessToken);

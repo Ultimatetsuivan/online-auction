@@ -1,13 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { FiUser, FiShoppingBag, FiPlusCircle, FiClock, FiCreditCard, FiSettings, FiSearch } from 'react-icons/fi';
+import { FiUser, FiShoppingBag, FiPlusCircle, FiClock, FiCreditCard, FiSettings, FiSearch, FiMoon, FiSun } from 'react-icons/fi';
 import { BsArrowRightShort, BsCheckCircleFill } from 'react-icons/bs';
 import "../../index.css";
 import { useToast } from '../../components/common/Toast';
+import { useTheme } from '../../context/ThemeContext';
+import { useLanguage } from '../../context/LanguageContext';
+
+const MAX_IMAGE_UPLOADS = 20;
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+const IMAGE_LIMIT_MESSAGE = 'You can upload up to 20 images (5MB max each).';
 
 export const Admin = () => {
   const toast = useToast();
+  const { isDarkMode, toggleTheme } = useTheme();
+  const { t, language } = useLanguage();
   const [user, setUser] = useState(null);
   const [users, setUsers] = useState([]);
   const [products, setProducts] = useState([]);
@@ -21,6 +29,8 @@ export const Admin = () => {
   const [balanceAmount, setBalanceAmount] = useState(0);
   const [requests, setRequests] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [parentCategory, setParentCategory] = useState('');
+  const [subcategories, setSubcategories] = useState([]);
   const [newCategory, setNewCategory] = useState('');
   const [categoryError, setCategoryError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -275,29 +285,85 @@ export const Admin = () => {
 
 const handleChange = (e) => {
   const { name, value, files } = e.target;
-  
-  if (name === 'images') {
-    if (files && files.length > 0) {
-      const validFiles = Array.from(files).filter(file =>
-        file.type.startsWith('image/') && file.size <= 5 * 1024 * 1024
-      );
 
-      if (validFiles.length !== files.length) {
-        toast.warning('Зөвхөн зураг файл (JPG, PNG) оруулна уу. Файлын хэмжээ 5MB-аас ихгүй байх ёстой.');
+  if (name === 'images') {
+    if (!files || files.length === 0) {
+      return;
+    }
+
+    const attachedFiles = Array.from(files);
+    const validFiles = attachedFiles.filter(file =>
+      file.type.startsWith('image/') && file.size <= MAX_IMAGE_SIZE_BYTES
+    );
+
+    if (validFiles.length !== attachedFiles.length) {
+      toast.warning('?????? ????? ???? (JPG, PNG) ??????? ??. ?????? ?????? 5MB-??? ????? ???? ?????.');
+    }
+
+    if (validFiles.length === 0) {
+      return;
+    }
+
+    let limitReached = false;
+    let selectionTrimmed = false;
+
+    setFormData(prev => {
+      const remainingSlots = MAX_IMAGE_UPLOADS - prev.images.length;
+      if (remainingSlots <= 0) {
+        limitReached = true;
+        return prev;
       }
-      
-      const imagePreviews = validFiles.map(file => ({
+
+      const filesToAdd = validFiles.slice(0, remainingSlots);
+      if (filesToAdd.length < validFiles.length) {
+        selectionTrimmed = true;
+      }
+
+      if (filesToAdd.length === 0) {
+        limitReached = true;
+        return prev;
+      }
+
+      const imagePreviews = filesToAdd.map(file => ({
         file,
         preview: URL.createObjectURL(file)
       }));
-      
-      setFormData(prev => ({
+
+      return {
         ...prev,
         images: [...prev.images, ...imagePreviews]
-      }));
+      };
+    });
+
+    if (limitReached) {
+      toast.warning(IMAGE_LIMIT_MESSAGE);
+    } else if (selectionTrimmed) {
+      toast.info(IMAGE_LIMIT_MESSAGE);
     }
   } else {
     setFormData(prev => ({ ...prev, [name]: value }));
+  }
+};
+n// Handle parent category change
+const handleParentCategoryChange = (e) => {
+  const parentId = e.target.value;
+  setParentCategory(parentId);
+
+  // Clear subcategory selection
+  setFormData(prev => ({ ...prev, category: "" }));
+
+  // Find subcategories for this parent
+  if (parentId) {
+    const subs = categories.filter(cat => {
+      if (!cat.parent) return false;
+      const parentCategoryId = typeof cat.parent === "object" && cat.parent !== null
+        ? cat.parent._id?.toString()
+        : cat.parent?.toString();
+      return parentCategoryId === parentId;
+    });
+    setSubcategories(subs);
+  } else {
+    setSubcategories([]);
   }
 };
 
@@ -572,12 +638,22 @@ const removeImage = (index) => {
                        </button>
                      </li>
                      <li className="nav-item">
-                       <button 
+                       <button
                          className={`nav-link d-flex align-items-center ${activeTab === 'requests' ? 'active' : ''}`}
                          onClick={() => setActiveTab('requests')}
                        >
                          <FiPlusCircle className="me-2" />
                          Ирсэн хүсэлтүүд
+                         <BsArrowRightShort className="ms-auto" />
+                       </button>
+                     </li>
+                     <li className="nav-item">
+                       <button
+                         className={`nav-link d-flex align-items-center ${activeTab === 'settings' ? 'active' : ''}`}
+                         onClick={() => setActiveTab('settings')}
+                       >
+                         <FiSettings className="me-2" />
+                         {t('settings') || 'Тохиргоо'}
                          <BsArrowRightShort className="ms-auto" />
                        </button>
                      </li>
@@ -653,6 +729,30 @@ const removeImage = (index) => {
                            </h5>
                          </div>
    
+                         {/* Parent Category */}
+                         <div className="col-md-6">
+                           <div className="form-floating">
+                             <select
+                               className="form-select"
+                               id="parentCategory"
+                               value={parentCategory}
+                               onChange={handleParentCategoryChange}
+                               required
+                             >
+                               <option value="">Үндсэн ангилал сонгох</option>
+                               {categories
+                                 .filter(cat => !cat.parent || (typeof cat.parent === 'object' && cat.parent === null))
+                                 .map((parentCat) => (
+                                   <option key={parentCat._id} value={parentCat._id}>
+                                     {language === 'MN' ? (parentCat.titleMn || parentCat.title) : parentCat.title}
+                                   </option>
+                                 ))}
+                             </select>
+                             <label htmlFor="parentCategory">Үндсэн ангилал*</label>
+                           </div>
+                         </div>
+
+                         {/* Subcategory */}
                          <div className="col-md-6">
                            <div className="form-floating">
                              <select
@@ -662,15 +762,21 @@ const removeImage = (index) => {
                                value={formData.category}
                                onChange={handleChange}
                                required
+                               disabled={!parentCategory || subcategories.length === 0}
                              >
-                               <option value="">Ангилал сонгох</option>
-                               {categories.map((cat) => (
-                                 <option key={cat._id} value={cat._id}>
-                                   {cat.title}
+                               <option value="">Дэд ангилал сонгох</option>
+                               {subcategories.map((subCat) => (
+                                 <option key={subCat._id} value={subCat._id}>
+                                   {language === 'MN' ? (subCat.titleMn || subCat.title) : subCat.title}
                                  </option>
                                ))}
                              </select>
-                             <label htmlFor="category">Ангилал*</label>
+                             <label htmlFor="category">Дэд ангилал*</label>
+                             {parentCategory && subcategories.length === 0 && (
+                               <small className="text-muted">
+                                 Дэд ангилал байхгүй байна
+                               </small>
+                             )}
                            </div>
                          </div>
    
@@ -1335,8 +1441,51 @@ const removeImage = (index) => {
     </div>
   </div>
 )}
-   
-           
+
+{activeTab === 'settings' && (
+  <div className="card border-0 shadow-sm">
+    <div className="card-body p-4">
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h4 className="mb-0">
+          <FiSettings className="me-2" />
+          {t('settings') || 'Тохиргоо'}
+        </h4>
+      </div>
+
+      <div className="settings-section">
+        <h5 className="mb-3 text-primary">{t('appearance') || 'Харагдац'}</h5>
+
+        <div className="card bg-light border-0 p-4 mb-4">
+          <div className="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 className="mb-0">
+                {isDarkMode ? <FiMoon className="me-2" /> : <FiSun className="me-2" />}
+                {t('darkMode') || 'Харанхуй горим'}
+              </h6>
+            </div>
+            <div className="form-check form-switch">
+              <input
+                className="form-check-input"
+                type="checkbox"
+                role="switch"
+                id="darkModeSwitch"
+                checked={isDarkMode}
+                onChange={toggleTheme}
+                style={{
+                  width: '3em',
+                  height: '1.5em',
+                  cursor: 'pointer'
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
+
              </div>
            </div>
          </div></div>

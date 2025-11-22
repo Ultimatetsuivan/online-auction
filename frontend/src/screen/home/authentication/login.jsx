@@ -3,6 +3,7 @@ import axios from 'axios';
 import "bootstrap/dist/css/bootstrap.min.css";
 import { Link, useNavigate } from 'react-router-dom';
 import { buildApiUrl } from '../../../config/api';
+import { useTheme } from '../../../context/ThemeContext';
 
 export const Login = () => {
   const [formData, setFormData] = useState({
@@ -15,6 +16,7 @@ export const Login = () => {
   const [googleClientId, setGoogleClientId] = useState('');
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const navigate = useNavigate();
+  const { isDarkMode } = useTheme();
 
   // Load Google Client ID and initialize
   useEffect(() => {
@@ -64,16 +66,20 @@ export const Login = () => {
         callback: handleGoogleResponse
       });
 
-      window.google.accounts.id.renderButton(
-        document.getElementById('googleSignInButton'),
-        { 
-          theme: 'outline', 
-          size: 'large',
-          width: '400'
-        }
-      );
+      const container = document.getElementById('googleSignInButton');
+      if (container) {
+        container.innerHTML = '';
+        window.google.accounts.id.renderButton(
+          container,
+          { 
+            theme: isDarkMode ? 'filled_black' : 'outline',
+            size: 'large',
+            width: '400'
+          }
+        );
+      }
     }
-  }, [googleClientId]);
+  }, [googleClientId, isDarkMode]);
 
   const handleGoogleResponse = async (response) => {
     setIsGoogleLoading(true);
@@ -117,18 +123,23 @@ export const Login = () => {
 
   const validateForm = () => {
     const newErrors = {};
-    
+
     if (!formData.email.trim()) {
-      newErrors.email = 'Имэйл ээ бөглөнө үү';
-    } 
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Зөв утга оруулна уу';
+      newErrors.email = 'Имэйл эсвэл утасны дугаар оруулна уу';
     }
-    
+    else {
+      const isPhoneNumber = /^[0-9]{8}$/.test(formData.email.trim());
+      const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim());
+
+      if (!isPhoneNumber && !isEmail) {
+        newErrors.email = 'Зөв имэйл эсвэл 8 оронтой утасны дугаар оруулна уу';
+      }
+    }
+
     if (!formData.password) {
       newErrors.password = 'Нууц үгээ оруулна уу';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -166,7 +177,7 @@ export const Login = () => {
           case 401:
             setErrors({
               ...errors,
-              submit: 'Нууц үг эсвэл имэйл буруу байна'
+              submit: 'Нууц үг эсвэл имэйл/утас буруу байна'
             });
             break;
           default:
@@ -218,14 +229,15 @@ export const Login = () => {
 
               <form onSubmit={handleSubmit}>
                 <div className="mb-3">
-                  <label htmlFor="email" className="form-label">Email</label>
+                  <label htmlFor="email" className="form-label">Email / Утасны дугаар</label>
                   <input
-                    type="email"
+                    type="text"
                     className={`form-control ${errors.email ? 'is-invalid' : ''}`}
                     id="email"
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
+                    placeholder="example@mail.com эсвэл 99123456"
                     required
                   />
                   {errors.email && (

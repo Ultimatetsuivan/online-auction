@@ -24,8 +24,8 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: "Нүүр",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? "home" : "home-outline"} color={color} size={size} />
           ),
         }}
       />
@@ -33,17 +33,17 @@ export default function TabsLayout() {
         name="search"
         options={{
           title: "Зар нэмэх",
-          tabBarIcon: ({ color, size}) => (
-            <Ionicons name="add-circle" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? "add-circle" : "add-circle-outline"} color={color} size={size} />
           ),
         }}
       />
        <Tabs.Screen
         name="notifications"
         options={{
-          title: "Хадгалсан",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="heart" color={color} size={size} />
+          title: "Миний жагсаалт",
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? "heart" : "heart-outline"} color={color} size={size} />
           ),
         }}
       />
@@ -51,8 +51,8 @@ export default function TabsLayout() {
         name="selling"
         options={{
           title: "Миний зар",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="cube" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? "cube" : "cube-outline"} color={color} size={size} />
           ),
         }}
       />
@@ -60,8 +60,8 @@ export default function TabsLayout() {
         name="profile"
         options={{
           title: "Профайл",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? "person" : "person-outline"} color={color} size={size} />
           ),
         }}
       />

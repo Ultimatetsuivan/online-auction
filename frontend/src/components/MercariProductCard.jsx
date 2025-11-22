@@ -1,11 +1,15 @@
 import { Link } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
+import { LikeButton } from './LikeButton';
 
-export const MercariProductCard = ({ product, showLikeButton = false, onLikeClick }) => {
+export const MercariProductCard = ({ product, showLikeButton = true, onLikeClick }) => {
   const { isDarkMode } = useTheme();
+  const { language } = useLanguage();
   
   const imageUrl = product.images?.find(img => img.isPrimary)?.url || product.images?.[0]?.url || '/default.png';
-  const price = product.currentBid || product.price;
+  const price = product.currentBid ?? product.price ?? 0;
+  const formattedPrice = typeof price === 'number' ? price.toLocaleString() : price;
   const isSold = product.sold || !product.available;
 
   return (
@@ -29,29 +33,19 @@ export const MercariProductCard = ({ product, showLikeButton = false, onLikeClic
           
           {/* SOLD Badge */}
           {isSold && (
-            <span className="mercari-sold-text">SOLD</span>
+            <span className="mercari-sold-text">{language === 'MN' ? 'ЗАРАГДСАН' : 'SOLD'}</span>
           )}
           
           {/* Price Overlay */}
           <div className="mercari-price-overlay">
-            <span className="mercari-price-text">₮{price.toLocaleString()}</span>
+            <span className="mercari-price-text">₮{formattedPrice}</span>
           </div>
           
           {/* Like Button */}
           {showLikeButton && (
-            <button
-              className="mercari-like-button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (onLikeClick) {
-                  onLikeClick(product);
-                }
-              }}
-              aria-label="Like product"
-            >
-              <i className="bi bi-heart-fill"></i>
-            </button>
+            <div className="position-absolute" style={{ top: '0.5rem', right: '0.5rem', zIndex: 10 }}>
+              <LikeButton product={product} size="sm" />
+            </div>
           )}
           
           {/* Additional Badges */}

@@ -3,41 +3,102 @@ const Product = require("../models/product");
 const slugify = require("slugify");
 const cloudinary = require("cloudinary").v2;
 const fs = require('fs');
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+// Call static methods to update auction statuses
 Product.updateExpiredAuctions();
+Product.activateScheduledAuctions();
+
 const postProduct = asyncHandler(async (req, res) => {
     try {
         console.log('Request files:', req.files); // Debug log
-        
-        const { 
+        console.log('Request body:', req.body); // Debug log
+
+        const {
             title,
-            description, 
-            price, 
-            category, 
-            height, 
+            description,
+            price,
+            category,
+            height,
             length,
             width,
             weight,
-            bidThreshold, 
-            bidDeadline, 
+            bidThreshold,
+            // New Yahoo Auctions-style fields
+            startMode,           // 'immediate' or 'scheduled'
+            scheduledDate,       // Date string (YYYY-MM-DD) for scheduled auctions
+            scheduledTime,       // Time string (HH:MM) for scheduled auctions
+            auctionDuration      // Duration in days
         } = req.body;
-        
+
         const userId = req.user.id;
 
-        // Validation
-        if(!title || !description || !price || !bidDeadline) {
+        // ===== Basic Validation =====
+        if(!title || !description || !price) {
             return res.status(400).json({
                 success: false,
-                error: "Бүрэн гүйцэд бөглөнө үү"
+                error: "Нэр, тайлбар, үнэ заавал шаardлагатай"
             });
         }
 
-        const deadlineDate = new Date(bidDeadline);
-        if(deadlineDate <= new Date()) {
+        // Validate auction duration
+        if(!auctionDuration || auctionDuration <= 0) {
             return res.status(400).json({
                 success: false,
-                error: "Дуусах хугацаа ирээдүйн огноо байх ёстой"
+                error: "Аукционы үргэлжлэх хугацааг сонгоно уу"
             });
         }
+
+        // ===== Handle Start Mode =====
+        let auctionStart;
+        let auctionStatus;
+        const now = new Date();
+
+        if(startMode === 'scheduled') {
+            // Scheduled start: validate and combine date + time
+            if(!scheduledDate || !scheduledTime) {
+                return res.status(400).json({
+                    success: false,
+                    error: "Эхлэх огноо болон цагийг оруулна уу"
+                });
+            }
+
+            // Combine date and time into single datetime (UTC)
+            const dateTimeString = `${scheduledDate}T${scheduledTime}:00`;
+            auctionStart = new Date(dateTimeString);
+
+            // Validate that scheduled start is in the future
+            if(auctionStart <= now) {
+                return res.status(400).json({
+                    success: false,
+                    error: "Эхлэх огноо ирээдүйд байх ёстой"
+                });
+            }
+
+            auctionStatus = 'scheduled';
+            console.log(`[Create Product] Scheduled auction: starts at ${auctionStart.toISOString()}`);
+
+        } else {
+            // Immediate start: auction starts now
+            auctionStart = now;
+            auctionStatus = 'active';
+            console.log(`[Create Product] Immediate auction: starts now`);
+        }
+
+        // ===== Calculate Auction End Time =====
+        // bidDeadline = auctionStart + duration (in days)
+        const durationMs = parseInt(auctionDuration) * 24 * 60 * 60 * 1000;
+        const bidDeadline = new Date(auctionStart.getTime() + durationMs);
+
+        console.log(`[Create Product] Auction duration: ${auctionDuration} days`);
+        console.log(`[Create Product] Auction ends at: ${bidDeadline.toISOString()}`);
+        // ===== End of Start Mode Handling =====
 
         // Generate unique slug
         const originalSlug = slugify(title, { lower: true, strict: true });
@@ -100,20 +161,26 @@ if(req.files && req.files.length > 0) {
     }
   }
 }
-        // Create product
+        // Create product with new Yahoo Auctions-style fields
         const product = await Product.create({
             user: userId,
             title,
             slug,
-            description, 
-            price, 
+            description,
+            price,
             category: category || "General",
-            height, 
+            height,
             length,
             width,
             weight,
             bidThreshold: bidThreshold || null,
-            bidDeadline: deadlineDate,
+            // New start system fields
+            startMode: startMode || 'immediate',
+            auctionStart: auctionStart,
+            auctionDuration: parseInt(auctionDuration),
+            bidDeadline: bidDeadline,
+            auctionStatus: auctionStatus,
+            available: auctionStatus === 'active', // Only active auctions are available
             images: fileData,
         });
 
@@ -142,11 +209,11 @@ if(req.files && req.files.length > 0) {
 });
 const getAllProducts = asyncHandler(async (req, res) => {
     try {
-        const products = await Product.find({}).sort("-createdAt").populate("user");
+        const products = await Product.find({}).sort("-createdAt").populate("user").populate("category");
         res.json(products);
     } catch (error) {
         console.error('Error fetching all products:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             success: false,
             message: error.message || "Error fetching products"
         });
@@ -330,14 +397,15 @@ const getAllProductsUser = asyncHandler(async (req, res) => {
   
     const products = await Product.find(query)
       .sort("-createdAt")
-      .populate("user");
+      .populate("user")
+      .populate("category");
   
     res.json(products);
   });
 
 const getAllProductsAdmin = async (req, res) => {
     try {
-        const products = await Product.find({ user: req.params.userId });
+        const products = await Product.find({ user: req.params.userId }).populate("category");
         res.json(products);
       } catch (error) {
         res.status(500).json({ error: error.message });
@@ -347,18 +415,18 @@ const getAllProductsAdmin = async (req, res) => {
 
 const getProduct = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const product = await Product.findById(id).populate("user");
+    const product = await Product.findById(id).populate("user").populate("category");
 
     if(!product){
         res.status(400);
         throw new Error("Ийм бараа олдсонгүй");
        }
-    
+
        res.status(200).json(product)
 });
 
 const getAllSoldProduct = asyncHandler(async (req, res) => {
-    const products = await Product.find({ Sold: true}).sort("-createdAt").populate("user");
+    const products = await Product.find({ Sold: true}).sort("-createdAt").populate("user").populate("category");
     res.json(products);
 });
 module.exports = {

@@ -25,6 +25,11 @@ const userSchema = mongoose.Schema({
         sparse: true,
         match: /^[0-9]{8}$/
     },
+    pendingPhone: {
+        type: String,
+        sparse: true,
+        match: /^[0-9]{8}$/
+    },
     phoneVerified: {
         type: Boolean,
         default: false

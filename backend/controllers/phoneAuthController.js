@@ -102,11 +102,23 @@ exports.verifyPhoneOTP = async (req, res) => {
             });
         }
 
+        // Get active EULA
+        const LegalDocument = require('../models/LegalDocument');
+        const activeEula = await LegalDocument.findOne({ type: 'eula', isActive: true });
+
         // Mark phone as verified
         user.phoneVerified = true;
         user.otpCode = undefined;
         user.otpExpires = undefined;
         user.otpAttempts = 0;
+
+        // Auto-accept EULA for phone auth users on login
+        if (!user.eulaAccepted && activeEula) {
+            user.eulaAccepted = true;
+            user.eulaAcceptedAt = new Date();
+            user.eulaVersion = activeEula.version;
+        }
+
         await user.save();
 
         // Generate tokens
@@ -154,6 +166,123 @@ exports.verifyPhoneOTP = async (req, res) => {
     }
 };
 
+// Request OTP to link phone number to existing account
+exports.requestPhoneLink = async (req, res) => {
+    try {
+        const { phone } = req.body;
+        const userId = req.user._id;
+
+        if (!phone || !/^[0-9]{8}$/.test(phone.trim())) {
+            return res.status(400).json({
+                error: 'D��,D��?D��< D\'��D3D�D��? 8 D_�?D_D��,D_D1 D�D�D1�. �`�?�,D_D1'
+            });
+        }
+
+        const normalizedPhone = phone.trim();
+
+        const existing = await User.findOne({ phone: normalizedPhone });
+        if (existing && existing._id.toString() !== userId.toString()) {
+            return res.status(409).json({
+                error: 'D-D��? ���,D��?D��< D\'��D3D�D��? D�D��O �.�?D\'D,D1D� D�O_�?�,D3�?D��,�?D1 D�D�D1D�D�'
+            });
+        }
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({
+                error: 'D��?�?�?D3D��?D3�� D_D�D\'�?D_D�D3O_D1'
+            });
+        }
+
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = new Date(Date.now() + 3 * 60 * 1000);
+
+        user.pendingPhone = normalizedPhone;
+        user.otpCode = code;
+        user.otpExpires = expiresAt;
+        user.otpAttempts = 0;
+        user.otpLastAttempt = new Date();
+        await user.save();
+
+        await sendOTP(normalizedPhone, code);
+
+        res.json({
+            success: true,
+            message: 'D`D��,D�D�D3D�D�D����D�D��. D�D_D\' D,D�D3�?�?D3D\'D��?�?',
+            expiresIn: 180
+        });
+
+    } catch (error) {
+        console.error('Link phone OTP error:', error);
+        res.status(500).json({
+            error: 'DsD_D\' D,D�D3�?�?�.�?D\' D�D�D\'D�D� D3D��?D�D�D�',
+            details: error.message
+        });
+    }
+};
+
+// Verify OTP and attach phone number to current user
+exports.verifyPhoneLink = async (req, res) => {
+    try {
+        const { code } = req.body;
+        const user = await User.findById(req.user._id);
+
+        if (!user) {
+            return res.status(404).json({
+                error: 'D��?�?�?D3D��?D3�� D_D�D\'�?D_D�D3O_D1'
+            });
+        }
+
+        if (!user.pendingPhone) {
+            return res.status(400).json({
+                error: 'D`D��?�?D�D� D�O_�?�,D3�?D3D\'D��?�? ���?�?'
+            });
+        }
+
+        if (!code || code.length !== 6 || user.otpCode !== code) {
+            return res.status(400).json({
+                error: 'DsD_D\' D񥟥?���� D�D�D1D�D�'
+            });
+        }
+
+        if (!user.otpExpires || user.otpExpires < new Date()) {
+            return res.status(400).json({
+                error: 'DsD_D\' �.��D3D��+D�D� D\'�����?�?D�D�. D"D��.D,D� D,D�D3�?�?D��? O_O_.'
+            });
+        }
+
+        user.phone = user.pendingPhone;
+        user.pendingPhone = undefined;
+        user.phoneVerified = true;
+        user.otpCode = undefined;
+        user.otpExpires = undefined;
+        user.otpAttempts = 0;
+        await user.save();
+
+        res.json({
+            success: true,
+            message: 'D��,D��?D��< D\'��D3D�D��? D�D�DD,D��,�,D�D1 �^D,D��?��D��?D3D\'D��?�?',
+            user: {
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                phone: user.phone,
+                phoneVerified: user.phoneVerified,
+                photo: user.photo,
+                role: user.role,
+                balance: user.balance
+            }
+        });
+
+    } catch (error) {
+        console.error('Verify phone link error:', error);
+        res.status(500).json({
+            error: 'D`O_�?�,D3�?D�D\' D�D�D\'D�D� D3D��?D�D�D�',
+            details: error.message
+        });
+    }
+};
+
 // Register with phone number
 exports.registerWithPhone = async (req, res) => {
     try {
@@ -180,12 +309,24 @@ exports.registerWithPhone = async (req, res) => {
             });
         }
 
+        // Get active EULA
+        const LegalDocument = require('../models/LegalDocument');
+        const activeEula = await LegalDocument.findOne({ type: 'eula', isActive: true });
+
         // Update user with name and verify phone
         user.name = name;
         user.phoneVerified = true;
         user.otpCode = undefined;
         user.otpExpires = undefined;
         user.otpAttempts = 0;
+
+        // Auto-accept EULA for phone auth users
+        if (!user.eulaAccepted && activeEula) {
+            user.eulaAccepted = true;
+            user.eulaAcceptedAt = new Date();
+            user.eulaVersion = activeEula.version;
+        }
+
         await user.save();
 
         // Generate tokens

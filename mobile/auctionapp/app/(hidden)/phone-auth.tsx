@@ -78,22 +78,15 @@ export default function PhoneAuthScreen() {
       });
 
       if (response.status === 200) {
-        // Check if user exists (has name)
-        if (response.data.user.name) {
-          // Existing user - login successful
-          await AsyncStorage.setItem("user", JSON.stringify(response.data.user));
-          await AsyncStorage.setItem("token", response.data.accessToken);
+        await AsyncStorage.setItem("user", JSON.stringify(response.data.user));
+        await AsyncStorage.setItem("token", response.data.accessToken);
 
-          Alert.alert("Амжилттай", "Нэвтрэлт амжилттай боллоо", [
-            {
-              text: "OK",
-              onPress: () => router.replace("/(tabs)"),
-            },
-          ]);
-        } else {
-          // New user - need to register
-          setStep("register");
-        }
+        Alert.alert("Амжилттай", "Нэвтрэлт амжилттай боллоо", [
+          {
+            text: "OK",
+            onPress: () => router.replace("/(tabs)"),
+          },
+        ]);
       }
     } catch (error: any) {
       console.error("Verify OTP error:", error);

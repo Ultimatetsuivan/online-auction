@@ -1,765 +1,1283 @@
 import "bootstrap/dist/css/bootstrap.min.css";
+
 import "../../index.css";
+
 import { useEffect, useState, useMemo } from "react";
+
 import axios from "axios";
+
 import { Link } from "react-router-dom";
+
 import { CountdownTimer } from '../../components/Timer';
+
 import { useNavigate, useLocation } from 'react-router-dom';
+
 import { buildApiUrl } from '../../config/api';
+
 import { useLanguage } from '../../context/LanguageContext';
+
 import { useTheme } from '../../context/ThemeContext';
+
 import { MercariProductCard } from '../../components/MercariProductCard';
-import { useToast } from '../../components/common/Toast';
+import { LikeButton } from '../../components/LikeButton';
+import { MyList as MyListContent } from '../mylist/MyList';
+
 
 export const Home = () => {
+
   const navigate = useNavigate();
+
   const location = useLocation();
+
   const { t, language } = useLanguage();
   const { isDarkMode } = useTheme();
-  const toast = useToast();
   
+
   // Only show quick links on home page - ensure exact match
+
   const isHomePage = location.pathname === '/' || location.pathname === '';
 
+
+
   const [allProducts, setAllProducts] = useState([]);
+
   const [loading, setLoading] = useState(true);
+
   const [error, setError] = useState(null);
+
   const [categories, setCategories] = useState([]);
+
   const [allCategories, setAllCategories] = useState([]);
+
   const [recentlyViewed, setRecentlyViewed] = useState([]);
+
   const [selectedFilter, setSelectedFilter] = useState('recommended');
-  const [myListProducts, setMyListProducts] = useState([]);
-  const [loadingMyList, setLoadingMyList] = useState(false);
-  const [savedFilters, setSavedFilters] = useState([]);
-  const [followedUsers, setFollowedUsers] = useState([]);
-  const [filterProducts, setFilterProducts] = useState({});
-  const [loadingProducts, setLoadingProducts] = useState({});
+
+  const [expiringProducts, setExpiringProducts] = useState([]);
+
+
 
   useEffect(() => {
+
     const fetchAllData = async () => {
+
       try {
-        const [productsResponse, categoriesResponse] = await Promise.all([
+
+        const [productsResponse, categoriesResponse, expiringResponse] = await Promise.all([
+
           axios.get(buildApiUrl('/api/product/products')),
-          axios.get(buildApiUrl('/api/category/'))
+
+          axios.get(buildApiUrl('/api/category/')),
+
+          axios.get(buildApiUrl('/api/product/products?filter=ending'))
+
         ]);
 
+
+
         const products = Array.isArray(productsResponse.data)
+
           ? productsResponse.data
+
           : productsResponse.data?.data || [];
+
         const cats = Array.isArray(categoriesResponse.data)
+
           ? categoriesResponse.data
+
           : categoriesResponse.data?.data || [];
 
+        const expiring = Array.isArray(expiringResponse.data)
+
+          ? expiringResponse.data
+
+          : expiringResponse.data?.data || [];
+
+
+
         setAllProducts(products);
+
         setAllCategories(cats); // Store all categories
+
         setCategories(cats.filter(c => {
+
           // Filter parent categories - handle both null and populated null cases
+
           if (!c.parent) return true;
+
           if (typeof c.parent === 'object' && (c.parent === null || !c.parent._id)) return true;
+
           return false;
+
         })); // Only parent categories
 
+        setExpiringProducts(expiring);
+
+
+
         // Load recently viewed from localStorage
+
         const viewed = JSON.parse(localStorage.getItem('recentlyViewed') || '[]');
+
         const viewedProducts = products.filter(p => viewed.includes(p._id));
+
         setRecentlyViewed(viewedProducts.slice(0, 6));
 
+
+
         setLoading(false);
+
       } catch (err) {
+
         setError(err.message || "Failed to fetch data");
+
         setLoading(false);
+
       }
+
     };
 
+
+
     fetchAllData();
+
   }, []);
 
+
+
   // Trending products (most bids)
+
   const trendingProducts = useMemo(() => {
+
     if (!Array.isArray(allProducts) || allProducts.length === 0) return [];
+
     const sorted = [...allProducts].sort((a, b) => {
+
       const aBids = a.bids?.length || 0;
+
       const bBids = b.bids?.length || 0;
+
       return bBids - aBids;
+
     });
+
     return sorted.slice(0, 6);
+
   }, [allProducts]);
+
+
 
   // Recommended products
+
   const recommendedProducts = useMemo(() => {
+
     if (!Array.isArray(allProducts) || allProducts.length === 0) return [];
+
     return [...allProducts].slice(0, 6);
+
   }, [allProducts]);
 
+
+
   // Filtered products based on selectedFilter
+
   const filteredProducts = useMemo(() => {
+
     if (!Array.isArray(allProducts) || allProducts.length === 0) return [];
+
     
+
     if (selectedFilter === 'recommended') {
+
       return [...allProducts].slice(0, 20);
-    } else if (selectedFilter === 'mylist') {
-      return myListProducts;
+
     } else {
+
       // For other filters, show all products (they navigate to allproduct page)
+
       return allProducts;
-    }
-  }, [allProducts, selectedFilter, myListProducts]);
 
-  // Load My List data when filter is selected
-  useEffect(() => {
-    if (selectedFilter === 'mylist') {
-      loadMyListData();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedFilter]);
-
-  const loadMyListData = async () => {
-    const userData = localStorage.getItem('user');
-    if (!userData) {
-      setMyListProducts([]);
-      setSavedFilters([]);
-      setFollowedUsers([]);
-      setLoadingMyList(false);
-      return;
     }
 
-    setLoadingMyList(true);
-    try {
-      const user = JSON.parse(userData);
-      const token = user.token;
+  }, [allProducts, selectedFilter]);
 
-      // Fetch all MyList data
-      const [filtersRes, followingRes, followedProductsRes] = await Promise.all([
-        axios.get(buildApiUrl('/api/mylist/filters'), {
-          headers: { Authorization: `Bearer ${token}` }
-        }).catch(() => ({ data: [] })),
-        axios.get(buildApiUrl('/api/mylist/following'), {
-          headers: { Authorization: `Bearer ${token}` }
-        }).catch(() => ({ data: [] })),
-        axios.get(buildApiUrl('/api/mylist/following/products'), {
-          headers: { Authorization: `Bearer ${token}` }
-        }).catch(() => ({ data: [] }))
-      ]);
 
-      setSavedFilters(filtersRes.data || []);
-      setFollowedUsers(followingRes.data || []);
-      setMyListProducts(followedProductsRes.data || []);
-      
-      // Load products for each saved filter
-      if (filtersRes.data && filtersRes.data.length > 0) {
-        loadFilterProducts(filtersRes.data, token);
-      }
-    } catch (err) {
-      console.error('Error loading my list data:', err);
-      setMyListProducts([]);
-      setSavedFilters([]);
-      setFollowedUsers([]);
-    } finally {
-      setLoadingMyList(false);
-    }
-  };
-
-  const loadFilterProducts = async (filters, token) => {
-    const loadingStates = {};
-    const productsMap = {};
-    
-    for (const filter of filters) {
-      loadingStates[filter._id] = true;
-      try {
-        const response = await axios.get(buildApiUrl(`/api/mylist/filters/${filter._id}/products`), {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        productsMap[filter._id] = response.data || [];
-      } catch (err) {
-        console.error(`Error loading products for filter ${filter._id}:`, err);
-        productsMap[filter._id] = [];
-      } finally {
-        loadingStates[filter._id] = false;
-      }
-    }
-    
-    setFilterProducts(productsMap);
-    setLoadingProducts(loadingStates);
-  };
 
   // Trending categories (most products)
+
   const trendingCategories = useMemo(() => {
+
     if (!categories.length || !allProducts.length) return [];
+
     return categories.map(cat => ({
+
       ...cat,
-      count: allProducts.filter(p => p.category === cat.title || p.category === cat.titleMn).length
+
+      count: allProducts.filter(p => {
+        // Handle both populated and non-populated category field
+        const productCategoryId = typeof p.category === 'object' && p.category !== null
+          ? p.category._id
+          : p.category;
+        return productCategoryId === cat._id;
+      }).length
+
     })).sort((a, b) => b.count - a.count).slice(0, 6);
+
   }, [categories, allProducts]);
 
+
+
   const AuctionCard = ({ auction }) => {
+
+    // Check if product is new (created within last 7 days)
+
+    const isNew = useMemo(() => {
+      const createdDate = new Date(auction.createdAt);
+      const daysSinceCreated = (new Date() - createdDate) / (1000 * 60 * 60 * 24);
+      return daysSinceCreated <= 7;
+    }, [auction.createdAt]);
+
+
+
+    const handleCardClick = () => {
+
+      navigate(`/products/${auction._id}`);
+
+    };
+
+
+
     return (
-      <div className="col-lg-3 col-md-4 col-sm-6 mb-3">
-        <div className="card h-100 auction-card shadow-sm hover-effect">
-          <div className="card-image-container">
+
+      <div style={{ width: '100%' }}>
+
+        <div
+
+          className="card h-100 auction-card border-0"
+
+          style={{
+
+            cursor: 'pointer',
+
+            transition: 'all 0.2s ease',
+
+            boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+
+            borderRadius: '10px',
+
+            overflow: 'hidden',
+
+            width: '100%'
+
+          }}
+
+          onClick={handleCardClick}
+
+          onMouseEnter={(e) => {
+
+            e.currentTarget.style.transform = 'translateY(-4px)';
+
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+
+          }}
+
+          onMouseLeave={(e) => {
+
+            e.currentTarget.style.transform = 'translateY(0)';
+
+            e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.08)';
+
+          }}
+
+        >
+
+          <div className="card-image-container position-relative" style={{ overflow: 'hidden' }}>
+
             <img
+
               src={auction.images?.find(img => img.isPrimary)?.url || '/default.png'}
+
               className="card-img-top"
+
               alt={auction.title}
+
               loading="lazy"
-              style={{ height: '160px', objectFit: 'cover' }}
+
+              style={{
+
+                height: '180px',
+
+                objectFit: 'cover',
+
+                transition: 'transform 0.2s ease'
+
+              }}
+
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+
             />
-          </div>
-          <div className="card-body d-flex flex-column p-3">
-            <h6 className="card-title text-truncate mb-2">{auction.title}</h6>
-            <p className="card-text text-muted small mb-2">{auction.description?.substring(0, 50)}...</p>
 
-            <div className="mt-auto">
-              <div className="d-flex justify-content-between align-items-center mb-2">
-                <span className="text-muted small">{t('currentBid')}</span>
-                <span className="fw-bold" style={{ color: '#FF6A00', fontSize: '1rem' }}>
-                  ₮{auction.currentBid || auction.price}
-                </span>
-              </div>
 
-              <div className="time-remaining mb-2">
-                <div className="d-flex justify-content-between align-items-center">
-                  <span className="text-muted small">{t('timeLeft')}</span>
-                  <CountdownTimer deadline={auction.bidDeadline} />
-                </div>
-              </div>
 
-              <Link
-                to={`/products/${auction._id}`}
-                className="btn w-100 btn-sm details-button hover-grow text-white fw-bold"
-                style={{ backgroundColor: '#FF6A00', borderColor: '#FF6A00' }}
+            {/* SOLD Ribbon */}
+
+            {auction.status === 'sold' && (
+
+              <div
+
+                className="position-absolute top-0 start-0"
+
+                style={{
+
+                  zIndex: 10,
+
+                  width: '0',
+
+                  height: '0',
+
+                  borderTop: '60px solid #ff3b30',
+
+                  borderRight: '60px solid transparent'
+
+                }}
+
               >
-                <i className="bi bi-arrow-right-circle me-1"></i>{t('placeBid')}
-              </Link>
+
+                <span
+
+                  style={{
+
+                    position: 'absolute',
+
+                    top: '-52px',
+
+                    left: '8px',
+
+                    transform: 'rotate(-45deg)',
+
+                    color: '#fff',
+
+                    fontSize: '0.7rem',
+
+                    fontWeight: '700',
+
+                    letterSpacing: '0.05em'
+
+                  }}
+
+                >
+
+                  SOLD
+
+                </span>
+
+              </div>
+
+            )}
+
+
+
+            {/* Badges Top-Left */}
+
+            <div className="position-absolute top-0 start-0 m-2 d-flex flex-column gap-1" style={{ zIndex: 5 }}>
+
+              {isNew && (
+
+                <span className="badge" style={{
+
+                  backgroundColor: '#28a745',
+
+                  color: 'white',
+
+                  fontSize: '0.65rem',
+
+                  fontWeight: '600',
+
+                  padding: '0.35rem 0.6rem',
+
+                  borderRadius: '6px',
+
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
+
+                }}>
+
+                  {language === 'MN' ? 'ШИНЭ' : 'NEW'}
+
+                </span>
+
+              )}
+
             </div>
+
+
+
+            {/* Like Button */}
+
+            <div className="position-absolute top-0 end-0 m-2" style={{ zIndex: 10 }}>
+
+              <LikeButton product={auction} size="sm" />
+
+            </div>
+
           </div>
+
+
+
+          <div className="card-body" style={{ padding: '0.75rem 0.9rem' }}>
+
+            <h6
+
+              className="card-title mb-1"
+
+              style={{
+
+                fontWeight: '500',
+
+                fontSize: '0.9rem',
+
+                overflow: 'hidden',
+
+                textOverflow: 'ellipsis',
+
+                whiteSpace: 'nowrap'
+
+              }}
+
+            >
+
+              {auction.title}
+
+            </h6>
+
+
+
+            <div className="d-flex align-items-center justify-content-between mt-1">
+
+              <div
+
+                style={{
+
+                  color: '#FF6A00',
+
+                  fontSize: '1.1rem',
+
+                  fontWeight: '700'
+
+                }}
+
+              >
+
+                ₮{(auction.currentBid || auction.price)?.toLocaleString()}
+
+              </div>
+
+            </div>
+
+          </div>
+
         </div>
+
       </div>
+
     );
+
   };
+
+
 
   const CategoryCard = ({ category }) => {
+
     return (
+
       <div className="col-lg-2 col-md-3 col-sm-4 col-6 mb-3">
+
         <Link to={`/allproduct?category=${category._id}`} className="text-decoration-none">
+
           <div className="card h-100 text-center p-3 hover-effect">
+
             {category.icon && (
+
               <div className="mb-2">
+
                 <i className={`bi bi-${category.icon.replace('-outline', '')} fs-1`} style={{ color: '#FF6A00' }}></i>
+
               </div>
+
             )}
+
             <h6 className="mb-1 fw-semibold">{category.titleMn || category.title}</h6>
+
             <p className="text-muted small mb-0">{category.count || 0} {t('items')}</p>
+
           </div>
+
         </Link>
+
       </div>
+
     );
+
   };
 
+
+
   if (loading) {
+
     return (
+
       <div className="d-flex justify-content-center align-items-center" style={{height: '80vh'}}>
+
         <div className="text-center">
+
           <div className="spinner-grow" role="status" style={{width: '3rem', height: '3rem', color: '#FF6A00'}}>
+
             <span className="visually-hidden">Loading...</span>
+
           </div>
+
           <p className="mt-3 fs-5 text-muted">{t('loading')}</p>
+
         </div>
+
       </div>
+
     );
+
   }
+
+
 
   if (error) {
+
     return (
+
       <div className="container my-5">
+
         <div className="alert alert-danger alert-dismissible fade show" role="alert">
+
           <i className="bi bi-exclamation-octagon-fill me-2"></i>
+
           {error}
+
           <button type="button" className="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+
         </div>
+
       </div>
+
     );
+
   }
 
+
+
   return (
-    <div className="home-page">
-      {/* Quick Links - Only show on home page */}
+
+    <div className="home-page" style={{
+
+      background: isDarkMode
+
+        ? 'linear-gradient(180deg, rgba(20, 20, 20, 1) 0%, rgba(30, 30, 30, 1) 100%)'
+
+        : 'linear-gradient(180deg, rgba(255, 250, 245, 1) 0%, rgba(255, 255, 255, 1) 50%, rgba(250, 245, 240, 1) 100%)',
+
+      minHeight: '100vh'
+
+    }}>
+
+      <section
+
+  className="hero-banner"
+
+  style={{
+
+    backgroundColor: '#f5222d', // red-ish, like Mercari
+
+    color: 'white',
+
+    padding: '1.5rem 0 0',
+
+  }}
+
+>
+
+  <div className="container">
+
+    <div
+
+      className="position-relative rounded-3"
+
+      style={{
+
+        backgroundImage: 'url(/images/mercari-banner.png)', // create this image
+
+        backgroundSize: 'cover',
+
+        backgroundPosition: 'center',
+
+        height: '260px',
+
+      }}
+
+    >
+
+      {/* Optional overlay text */}
+
+      <div
+
+        className="position-absolute top-50 start-50 translate-middle text-center"
+
+        style={{ textShadow: '0 2px 4px rgba(0,0,0,0.4)' }}
+
+      >
+
+        <h2 className="fw-bold mb-2" style={{ fontSize: '1.8rem' }}>
+
+          МОНГОЛЫН АНХНЫ ДУУДЛАГА ХУДАЛДААНЫ ПЛАТФОРМ
+
+        </h2>
+
+        <p className="mb-0" style={{ fontSize: '1rem' }}>
+
+          ӨНӨӨДӨР ШИМТГЭЛГҮЙ БҮХ БАРААГАА ХУДАЛДААРАЙ
+
+        </p>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</section>
+
+      {/* Mercari-Style Tab Bar - Only show on home page */}
+
       {isHomePage && (
-      <section className="quick-links-section py-4 border-bottom">
+
+      <section
+
+        className="home-tabs border-bottom"
+
+        style={{
+
+          backgroundColor: isDarkMode ? '#222' : '#fff'
+
+        }}
+
+      >
+
         <div className="container">
-          <div className="d-flex flex-wrap gap-2 align-items-center justify-content-center">
+
+          <div className="d-flex align-items-center gap-4" style={{ overflowX: 'auto', whiteSpace: 'nowrap' }}>
+
             <button
-              className={`btn btn-sm ${selectedFilter === 'recommended' ? 'text-white' : 'btn-outline-secondary'}`}
-              style={selectedFilter === 'recommended' ? {
-                backgroundColor: '#FF6A00',
-                borderColor: '#FF6A00'
-              } : {}}
+
+              className="btn border-0 rounded-0 py-3 px-2"
+
+              style={{
+
+                borderBottom: selectedFilter === 'recommended' ? '3px solid #FF6A00' : '3px solid transparent',
+
+                color: selectedFilter === 'recommended' ? '#FF6A00' : (isDarkMode ? '#ccc' : '#333'),
+
+                background: 'transparent',
+
+                fontWeight: selectedFilter === 'recommended' ? '700' : '500',
+
+                whiteSpace: 'nowrap'
+
+              }}
+
               onClick={() => setSelectedFilter('recommended')}
+
             >
-              <i className="bi bi-star me-1"></i> {t('recommended')}
+
+              {t('recommended')}
+
             </button>
+
             <button
-              className={`btn btn-sm ${selectedFilter === 'mylist' ? 'text-white' : 'btn-outline-secondary'}`}
-              style={selectedFilter === 'mylist' ? {
-                backgroundColor: '#FF6A00',
-                borderColor: '#FF6A00'
-              } : {}}
+
+              className="btn border-0 rounded-0 py-3 px-2"
+
+              style={{
+
+                borderBottom: selectedFilter === 'mylist' ? '3px solid #FF6A00' : '3px solid transparent',
+
+                color: selectedFilter === 'mylist' ? '#FF6A00' : (isDarkMode ? '#ccc' : '#333'),
+
+                background: 'transparent',
+
+                fontWeight: selectedFilter === 'mylist' ? '700' : '500',
+
+                whiteSpace: 'nowrap'
+
+              }}
+
               onClick={() => setSelectedFilter('mylist')}
+
             >
-              <i className="bi bi-heart me-1"></i> {t('myList')}
+
+              {t('myList')}
+
             </button>
+
             <button
-              className="btn btn-sm btn-outline-secondary"
+
+              className="btn border-0 rounded-0 py-3 px-2"
+
+              style={{
+
+                borderBottom: '3px solid transparent',
+
+                color: isDarkMode ? '#ccc' : '#333',
+
+                background: 'transparent',
+
+                fontWeight: '500',
+
+                whiteSpace: 'nowrap'
+
+              }}
+
               onClick={() => {
-                // Find Automotive category directly
+
                 const automotiveCategory = allCategories.find(c => {
+
                   const isAutomotive = (c.title === 'Automotive' || c.titleMn === 'Тээврийн хэрэгсэл');
+
                   const hasNoParent = !c.parent ||
+
                     (typeof c.parent === 'object' && (c.parent === null || !c.parent._id));
+
                   return isAutomotive && hasNoParent;
+
                 });
 
+
+
                 if (automotiveCategory) {
+
                   navigate(`/allproduct?category=${automotiveCategory._id}`);
+
                 } else {
-                  console.warn('Automotive category not found, navigating to categories page');
+
                   navigate('/categories');
+
                 }
+
               }}
+
             >
-              <i className="bi bi-car-front me-1"></i> {language === 'MN' ? 'Машин' : 'Cars'}
+
+              {language === 'MN' ? 'Машин' : 'Car'}
+
             </button>
+
             {(() => {
-              // Find categories dynamically for quick links
-              const gamingCategory = allCategories.find(c => 
+
+              const gamingCategory = allCategories.find(c =>
+
                 (c.title === 'Gaming' || c.titleMn === 'Тоглоом') && !c.parent
+
               );
-              const booksCategory = allCategories.find(c => 
+
+              const booksCategory = allCategories.find(c =>
+
                 (c.title === 'Books' || c.titleMn === 'Ном') && !c.parent
+
               );
-              
+
+
+
               return (
+
                 <>
+
                   {gamingCategory && (
-                    <Link
-                      to={`/allproduct?category=${gamingCategory._id}`}
-                      className="btn btn-sm btn-outline-secondary"
+
+                    <button
+
+                      className="btn border-0 rounded-0 py-3 px-2"
+
+                      style={{
+
+                        borderBottom: '3px solid transparent',
+
+                        color: isDarkMode ? '#ccc' : '#333',
+
+                        background: 'transparent',
+
+                        fontWeight: '500',
+
+                        whiteSpace: 'nowrap'
+
+                      }}
+
+                      onClick={() => navigate(`/allproduct?category=${gamingCategory._id}`)}
+
                     >
-                      <i className="bi bi-controller me-1"></i> {language === 'MN' ? (gamingCategory.titleMn || gamingCategory.title) : (gamingCategory.title || gamingCategory.titleMn)}
-                    </Link>
+
+                      {gamingCategory.titleMn || gamingCategory.title}
+
+                    </button>
+
                   )}
+
                   {booksCategory && (
-                    <Link
-                      to={`/allproduct?category=${booksCategory._id}`}
-                      className="btn btn-sm btn-outline-secondary"
+
+                    <button
+
+                      className="btn border-0 rounded-0 py-3 px-2"
+
+                      style={{
+
+                        borderBottom: '3px solid transparent',
+
+                        color: isDarkMode ? '#ccc' : '#333',
+
+                        background: 'transparent',
+
+                        fontWeight: '500',
+
+                        whiteSpace: 'nowrap'
+
+                      }}
+
+                      onClick={() => navigate(`/allproduct?category=${booksCategory._id}`)}
+
                     >
-                      <i className="bi bi-book me-1"></i> {language === 'MN' ? (booksCategory.titleMn || booksCategory.title) : (booksCategory.title || booksCategory.titleMn)}
-                    </Link>
+
+                      {booksCategory.titleMn || booksCategory.title}
+
+                    </button>
+
                   )}
+
                 </>
+
               );
+
             })()}
-            <Link
-              to="/allproduct"
-              className="btn btn-sm text-white"
-              style={{ backgroundColor: '#FF6A00', borderColor: '#FF6A00' }}
-              onClick={() => setSelectedFilter('all')}
-            >
-              <i className="bi bi-grid-3x3-gap me-1"></i> {t('viewAll')}
-            </Link>
+
           </div>
+
         </div>
+
       </section>
+
       )}
+
+
+
+      {/* Expiring Soon Section - Only show on home page and when not in mylist */}
+
+      {isHomePage && selectedFilter !== 'mylist' && expiringProducts.length > 0 && (
+
+      <section className="expiring-soon-section py-5" style={{
+
+        background: isDarkMode
+
+          ? 'linear-gradient(135deg, rgba(255, 106, 0, 0.1) 0%, rgba(255, 106, 0, 0.05) 100%)'
+
+          : 'linear-gradient(135deg, rgba(255, 106, 0, 0.08) 0%, rgba(255, 235, 220, 0.5) 100%)',
+
+        borderTop: '2px solid rgba(255, 106, 0, 0.3)',
+
+        borderBottom: '2px solid rgba(255, 106, 0, 0.3)'
+
+      }}>
+
+        <div className="container">
+
+          <div className="d-flex justify-content-between align-items-center mb-4">
+
+            <h2 className="section-title d-flex align-items-center">
+
+              <i className="bi bi-clock-history me-2" style={{ color: '#FF6A00', fontSize: '2rem' }}></i>
+
+              <span style={{ color: '#FF6A00', fontWeight: 'bold' }}>
+
+                {t('expiringSoon')}
+
+              </span>
+
+              <span className="badge ms-3" style={{
+
+                backgroundColor: '#FF6A00',
+
+                color: 'white',
+
+                fontSize: '0.8rem',
+
+                padding: '0.5rem 0.8rem'
+
+              }}>
+
+                {t('endingIn24Hours')}
+
+              </span>
+
+            </h2>
+
+            <Link to="/allproduct?filter=ending" className="view-all-link" style={{ color: '#FF6A00', fontWeight: 'bold' }}>
+
+              {t('viewAll')} <i className="bi bi-arrow-right"></i>
+
+            </Link>
+
+          </div>
+
+
+
+          <div className="d-flex flex-row flex-nowrap overflow-auto pb-2">
+
+            {expiringProducts.slice(0, 8).map((product, index) => (
+
+              <div key={product._id} className="me-3" style={{ minWidth: '220px' }}>
+
+                <AuctionCard auction={product} />
+
+              </div>
+
+            ))}
+
+          </div>
+
+
+
+          {expiringProducts.length === 0 && (
+
+            <div className="alert alert-info text-center">
+
+              <i className="bi bi-info-circle me-2"></i>
+
+              {t('noExpiringAuctions')}
+
+            </div>
+
+          )}
+
+        </div>
+
+      </section>
+
+      )}
+
+
 
       {/* Trending Items - Hide when My List is selected */}
+
       {selectedFilter !== 'mylist' && (
-      <section className="trending-items-section py-5">
+
+      <section className="trending-items-section py-5" style={{
+
+        backgroundColor: isDarkMode ? 'transparent' : 'rgba(255, 255, 255, 0.5)'
+
+      }}>
+
         <div className="container">
+
           <div className="d-flex justify-content-between align-items-center mb-4">
+
             <h2 className="section-title">
+
               <i className="bi bi-fire" style={{ color: '#FF6A00' }}></i>
+
               <span>{t('trendingItems')}</span>
+
             </h2>
+
             <Link to="/allproduct?filter=trending" className="view-all-link">
+
               {t('viewAll')} <i className="bi bi-arrow-right"></i>
+
             </Link>
+
           </div>
 
-          <div className="row">
-            {trendingProducts.length > 0 ? (
-              trendingProducts.map(product => (
-                <AuctionCard key={product._id} auction={product} />
-              ))
-            ) : (
-              <div className="col-12">
-                <div className="alert alert-info text-center">{t('noItemsFound')}</div>
-              </div>
-            )}
-          </div>
+
+
+          {trendingProducts.length > 0 ? (
+
+            <div className="d-flex flex-row flex-nowrap overflow-auto pb-2">
+
+              {trendingProducts.map((product, index) => (
+
+                <div key={product._id} className="me-3" style={{ minWidth: '220px' }}>
+
+                  <AuctionCard auction={product} />
+
+                </div>
+
+              ))}
+
+            </div>
+
+          ) : (
+
+            <div className="alert alert-info text-center">{t('noItemsFound')}</div>
+
+          )}
+
         </div>
+
       </section>
+
       )}
+
+
 
       {/* Trending Categories - Hide when My List is selected */}
+
       {selectedFilter !== 'mylist' && (
+
       <section className={`trending-categories-section py-5 ${isDarkMode ? 'theme-dark' : 'bg-light'}`}>
+
         <div className="container">
+
           <div className="d-flex justify-content-between align-items-center mb-4">
+
             <h2 className="section-title">
+
               <i className="bi bi-grid-3x3-gap" style={{ color: '#FF6A00' }}></i>
+
               <span>{t('trendingCategories')}</span>
+
             </h2>
+
             <Link to="/allproduct" className="view-all-link">
+
               {t('viewAll')} <i className="bi bi-arrow-right"></i>
+
             </Link>
+
           </div>
 
+
+
           <div className="row">
+
             {trendingCategories.length > 0 ? (
+
               trendingCategories.map(category => (
+
                 <CategoryCard key={category._id} category={category} />
+
               ))
+
             ) : (
+
               <div className="col-12">
+
                 <div className="alert alert-info text-center">{t('noItemsFound')}</div>
+
               </div>
+
             )}
-          </div>
-        </div>
-      </section>
-      )}
 
-      {/* Trending Brands - Placeholder - Hide when My List is selected */}
-      {selectedFilter !== 'mylist' && (
-      <section className="trending-brands-section py-5">
-        <div className="container">
-          <div className="d-flex justify-content-between align-items-center mb-4">
-            <h2 className="section-title">
-              <i className="bi bi-award" style={{ color: '#FF6A00' }}></i>
-              <span>{t('trendingBrands')}</span>
-            </h2>
-            <Link to="/allproduct" className="view-all-link">
-              {t('viewAll')} <i className="bi bi-arrow-right"></i>
-            </Link>
           </div>
 
-          <div className="row">
-            {['Apple', 'Samsung', 'Nike', 'Adidas', 'Sony', 'LG'].map((brand, index) => (
-              <div key={index} className="col-lg-2 col-md-3 col-sm-4 col-6 mb-3">
-                <div className="card text-center p-3 hover-effect">
-                  <div className="mb-2">
-                    <i className="bi bi-award fs-1" style={{ color: '#FF6A00' }}></i>
-                  </div>
-                  <h6 className="mb-0 fw-semibold">{brand}</h6>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
+
       </section>
+
       )}
+
+
+
+
 
       {/* Recently Viewed - Hide when My List is selected */}
-      {selectedFilter !== 'mylist' && recentlyViewed.length > 0 && (
-        <section className={`recently-viewed-section py-5 ${isDarkMode ? 'theme-dark' : 'bg-light'}`}>
-          <div className="container">
-            <div className="d-flex justify-content-between align-items-center mb-4">
-              <h2 className="section-title">
-              <i className="bi bi-clock-history" style={{ color: '#FF6A00' }}></i>
-              <span>{t('recentlyViewed')}</span>
-              </h2>
-            </div>
 
-            <div className="row">
-              {recentlyViewed.map(product => (
-                <AuctionCard key={product._id} auction={product} />
-              ))}
-            </div>
+    {selectedFilter !== 'mylist' && recentlyViewed.length > 0 && (
+
+  <section className={`recently-viewed-section py-5 ${isDarkMode ? 'theme-dark' : 'bg-light'}`}>
+
+    <div className="container">
+
+      <div className="d-flex justify-content-between align-items-center mb-3">
+
+        <h2 className="section-title mb-0">
+
+          <i className="bi bi-clock-history" style={{ color: '#FF6A00' }}></i>
+
+          <span className="ms-2">{t('recentlyViewed')}</span>
+
+        </h2>
+
+        <Link to="/allproduct?filter=liked" className="view-all-link">
+
+          {t('viewAll')} <i className="bi bi-arrow-right"></i>
+
+        </Link>
+
+      </div>
+
+
+
+      <div className="d-flex flex-row flex-nowrap overflow-auto pb-2">
+
+        {recentlyViewed.map((product, index) => (
+
+          <div key={product._id} className="me-3" style={{ minWidth: '220px' }}>
+
+            <AuctionCard auction={product} />
+
           </div>
-        </section>
-      )}
+
+        ))}
+
+      </div>
+
+    </div>
+
+  </section>
+
+)}
+
+
+
+
 
       {/* Recommended Content */}
+
       {selectedFilter === 'recommended' && (
-      <section className="recommended-section py-5">
+
+      <section className="recommended-section py-5" style={{
+
+        backgroundColor: isDarkMode ? 'transparent' : 'rgba(255, 255, 255, 0.5)'
+
+      }}>
+
         <div className="container">
+
           <div className="d-flex justify-content-between align-items-center mb-4">
+
             <h2 className="section-title">
+
                 <i className="bi bi-star" style={{ color: '#FF6A00' }}></i>
+
                 <span>{t('recommendedProducts')}</span>
+
             </h2>
+
               <Link to="/allproduct" className="view-all-link">
+
                 {t('viewAll')} <i className="bi bi-arrow-right"></i>
+
               </Link>
+
             </div>
+
+
 
             <div className="row">
+
               {filteredProducts.length > 0 ? (
-                filteredProducts.slice(0, 12).map(product => (
+
+                filteredProducts.slice(0, 12).map((product, index) => (
+
                   <AuctionCard key={product._id} auction={product} />
+
                 ))
+
               ) : (
+
                 <div className="col-12">
+
                   <div className="alert alert-info text-center">{t('noItemsFound')}</div>
+
                 </div>
+
               )}
+
             </div>
+
           </div>
+
         </section>
+
       )}
 
-      {/* My List Content - All sections directly without tabs */}
+
+
+      {/* My List Content - reuse MyList screen inside Home */}
+
       {selectedFilter === 'mylist' && (
-        <div className="container my-4">
-          <h2 className="mb-4">
-            <i className="bi bi-heart me-2" style={{ color: '#FF6A00' }}></i>
-            {t('myList')}
-          </h2>
 
-          {loadingMyList ? (
-            <div className="text-center py-5">
-              <div className="spinner-border" role="status" style={{ color: '#FF6A00' }}>
-                <span className="visually-hidden">Loading...</span>
-              </div>
-            </div>
-          ) : !localStorage.getItem('user') ? (
-            <div className="alert alert-info">
-              <i className="bi bi-info-circle me-2"></i>
-              {t('login')} {t('myList').toLowerCase()}
-            </div>
-          ) : (
-            <>
-              {/* Saved Filters Section */}
-              <section className="mb-5">
-                <h3 className="mb-4 fw-bold" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
-                  <i className="bi bi-funnel me-2" style={{ color: '#FF6A00' }}></i>
-                  Saved Filters
-                </h3>
-                {savedFilters.length === 0 ? (
-                  <div className="alert alert-info">
-                    <i className="bi bi-info-circle me-2"></i>
-                    {t('noSavedFilters')}
-                  </div>
-                ) : (
-                  <div>
-                    {savedFilters.map(filter => {
-                      const products = filterProducts[filter._id] || [];
-                      const isLoading = loadingProducts[filter._id];
-                      const filterQuery = filter.filterData?.searchQuery || filter.name;
-                      
-                      return (
-                        <div key={filter._id} className="mb-5">
-                          <div className="d-flex justify-content-between align-items-center mb-3">
-                            <div>
-                              <h4 className="mb-1 fw-bold" style={{ 
-                                color: isDarkMode ? 'var(--color-text)' : '#2c3e50',
-                                fontSize: '1.5rem'
-                              }}>
-                                {filter.name || filterQuery}
-                              </h4>
-                              {filter.filterData?.searchQuery && (
-                                <p className="mb-0 text-muted" style={{
-                                  color: isDarkMode ? 'var(--color-text-secondary)' : '#6c757d',
-                                  fontSize: '1.1rem'
-                                }}>
-                                  {filter.filterData.searchQuery}
-                                </p>
-                              )}
-                            </div>
-                            <div className="d-flex gap-2">
-                              {filter.notifyOnNewProducts && (
-                                <span className="badge bg-success align-self-center">
-                                  <i className="bi bi-bell-fill me-1"></i>
-                                  {t('notificationsEnabled')}
-                                </span>
-                              )}
-                              <Link
-                                to={`/allproduct?${new URLSearchParams({
-                                  ...(filter.filterData?.category && { category: filter.filterData.category }),
-                                  ...(filter.filterData?.brand && { brand: filter.filterData.brand }),
-                                  ...(filter.filterData?.searchQuery && { search: filter.filterData.searchQuery }),
-                                  ...(filter.filterData?.minPrice && { minPrice: filter.filterData.minPrice }),
-                                  ...(filter.filterData?.maxPrice && { maxPrice: filter.filterData.maxPrice })
-                                }).toString()}`}
-                                className="btn btn-sm text-white"
-                                style={{ backgroundColor: '#FF6A00', borderColor: '#FF6A00' }}
-                              >
-                                {t('viewAll')} &gt;
-                              </Link>
-                            </div>
-                          </div>
+        <section className="mylist-embedded-section py-4">
 
-                          {(filter.filterData?.category || filter.filterData?.brand || filter.filterData?.minPrice || filter.filterData?.maxPrice) && (
-                            <div className="mb-3">
-                              {filter.filterData.category && (
-                                <span className="badge bg-secondary me-2 mb-2">
-                                  <i className="bi bi-tag me-1"></i>{filter.filterData.category}
-                                </span>
-                              )}
-                              {filter.filterData.brand && (
-                                <span className="badge bg-secondary me-2 mb-2">
-                                  <i className="bi bi-award me-1"></i>{filter.filterData.brand}
-                                </span>
-                              )}
-                              {(filter.filterData.minPrice || filter.filterData.maxPrice) && (
-                                <span className="badge bg-secondary me-2 mb-2">
-                                  <i className="bi bi-currency-dollar me-1"></i>
-                                  {filter.filterData.minPrice || '0'} - {filter.filterData.maxPrice || '∞'}
-                                </span>
-                              )}
-                            </div>
-                          )}
+          <MyListContent />
 
-                          {isLoading ? (
-                            <div className="text-center py-4">
-                              <div className="spinner-border spinner-border-sm" role="status" style={{ color: '#FF6A00' }}>
-                                <span className="visually-hidden">Loading...</span>
-                              </div>
-                            </div>
-                          ) : products.length > 0 ? (
-                            <div className="mercari-product-grid">
-                              {products.slice(0, 10).map(product => (
-                                <MercariProductCard 
-                                  key={product._id} 
-                                  product={product}
-                                  showLikeButton={false}
-                                />
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="alert alert-info mb-0">
-                              <i className="bi bi-info-circle me-2"></i>
-                              {t('noProductsInFilter')}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </section>
+        </section>
 
-              {/* Following Section */}
-              <section className="mb-5">
-                <h3 className="mb-4 fw-bold" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
-                  <i className="bi bi-people me-2" style={{ color: '#FF6A00' }}></i>
-                  Following
-                </h3>
-                {followedUsers.length === 0 ? (
-                  <div className="alert alert-info">
-                    <i className="bi bi-info-circle me-2"></i>
-                    Not following anyone yet. Follow sellers to get notified when they post new products!
-                  </div>
-                ) : (
-                  <div className="list-group">
-                    {followedUsers.map(follow => (
-                      <div
-                        key={follow._id}
-                        className={`list-group-item ${isDarkMode ? 'theme-dark' : ''}`}
-                        style={{
-                          border: `1px solid ${isDarkMode ? 'var(--color-border)' : '#dee2e6'}`,
-                          marginBottom: '0.5rem',
-                          borderRadius: '8px',
-                          backgroundColor: isDarkMode ? 'var(--color-card-bg)' : '#ffffff'
-                        }}
-                      >
-                        <div className="d-flex align-items-center justify-content-between">
-                          <div className="d-flex align-items-center gap-3 flex-grow-1">
-                            <div
-                              className="d-flex align-items-center justify-content-center"
-                              style={{
-                                width: '48px',
-                                height: '48px',
-                                borderRadius: '50%',
-                                backgroundColor: isDarkMode ? 'var(--color-surface)' : 'rgba(255, 106, 0, 0.1)',
-                                flexShrink: 0
-                              }}
-                            >
-                              <i className="bi bi-person-circle fs-3" style={{ color: '#FF6A00' }}></i>
-                            </div>
-                            <div className="flex-grow-1">
-                              <h5 className="mb-1 fw-semibold" style={{ 
-                                color: isDarkMode ? 'var(--color-text)' : '#2c3e50',
-                                fontSize: '1.1rem'
-                              }}>
-                                {follow.following?.name || 'Unknown User'}
-                              </h5>
-                              <p className="mb-0 text-muted small" style={{
-                                color: isDarkMode ? 'var(--color-text-secondary)' : '#6c757d'
-                              }}>
-                                {follow.following?.email}
-                              </p>
-                              {follow.notifyOnNewProducts && (
-                                <span className="badge bg-success mt-2">
-                                  <i className="bi bi-bell-fill me-1"></i>
-                                  Notifications ON
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </section>
-
-              {/* New Products Section */}
-              <section>
-                <h3 className="mb-4 fw-bold" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
-                  <i className="bi bi-box-seam me-2" style={{ color: '#FF6A00' }}></i>
-                  New Products
-                </h3>
-                {myListProducts.length === 0 ? (
-                  <div className="alert alert-info">
-                    <i className="bi bi-info-circle me-2"></i>
-                    {t('noNewProducts')}
-                  </div>
-                ) : (
-                  <div className="mercari-product-grid">
-                    {myListProducts.map(product => (
-                      <MercariProductCard 
-                        key={product._id} 
-                        product={product}
-                        showLikeButton={false}
-                      />
-                    ))}
-                  </div>
-                )}
-              </section>
-            </>
-          )}
-        </div>
       )}
+
+
 
       {/* Default Recommended Products - Only show when no filter is active or other filters */}
+
       {selectedFilter !== 'recommended' && selectedFilter !== 'mylist' && (
+
         <section className="recommended-section py-5">
+
           <div className="container">
+
             <div className="d-flex justify-content-between align-items-center mb-4">
+
               <h2 className="section-title">
+
                 <i className="bi bi-star" style={{ color: '#FF6A00' }}></i>
+
                 <span>{t('recommendedProducts')}</span>
+
               </h2>
+
               <Link to="/allproduct" className="view-all-link">
+
                 {t('viewAll')} <i className="bi bi-arrow-right"></i>
+
             </Link>
+
           </div>
 
+
+
           <div className="row">
+
             {recommendedProducts.length > 0 ? (
-              recommendedProducts.map(product => (
+
+              recommendedProducts.map((product, index) => (
+
                 <AuctionCard key={product._id} auction={product} />
+
               ))
+
             ) : (
+
               <div className="col-12">
+
                   <div className="alert alert-info text-center">{t('noItemsFound')}</div>
+
               </div>
+
             )}
+
           </div>
+
         </div>
+
       </section>
+
       )}
+
     </div>
+
   );
+
 };
+

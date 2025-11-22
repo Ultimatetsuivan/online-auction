@@ -24,7 +24,8 @@ type Photo = { uri: string };
 export default function SellScreen() {
   const [title, setTitle] = useState("");
   const [desc, setDesc] = useState("");
-  const [category, setCategory] = useState<string | null>(null);
+  const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [categoryName, setCategoryName] = useState<string | null>(null);
   const [condition, setCondition] = useState<string | null>(null);
   const [price, setPrice] = useState("");
   const [photos, setPhotos] = useState<Photo[]>([]);
@@ -32,7 +33,7 @@ export default function SellScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
 
-  const canPost = title.trim() && price.trim() && category && photos.length > 0 && duration;
+  const canPost = title.trim() && price.trim() && categoryId && duration;
 
   useEffect(() => {
     fetchCategories();
@@ -65,9 +66,20 @@ export default function SellScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.gray50 }}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color={theme.gray900} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Зар нэмэх</Text>
+        <View style={{ width: 24 }} />
+      </View>
+
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.screenTitle}>Sell your item</Text>
+        <Text style={styles.screenTitle}>Бүтээгдэхүүн худалдах</Text>
+        <Text style={styles.subtitle}>
+          Бүтээгдэхүүнийхээ мэдээллийг оруулж дуудлага худалдаа эхлүүлээрэй
+        </Text>
 
         {/* Photos */}
         <Text style={styles.label}>Photos <Text style={styles.req}>*</Text></Text>
@@ -117,8 +129,11 @@ export default function SellScreen() {
         <View style={{ flexDirection: "row", gap: 12 }}>
           <PickerChip
             label="Категори"
-            value={category}
-            onPress={(next) => setCategory(next)}
+            value={categoryName}
+            onPress={(categoryObj) => {
+              setCategoryId(categoryObj.id);
+              setCategoryName(categoryObj.name);
+            }}
             categories={categories}
           />
           <PickerChip
@@ -172,7 +187,8 @@ export default function SellScreen() {
               formData.append('title', title.trim());
               formData.append('description', desc.trim() || title.trim());
               formData.append('price', price);
-              formData.append('category', category || '');
+              formData.append('category', categoryId || '');
+              formData.append('condition', condition || 'Хэрэглэгдсэн');
               formData.append('bidDeadline', deadline.toISOString());
               formData.append('bidThreshold', '1000'); // Default threshold
 
@@ -200,7 +216,8 @@ export default function SellScreen() {
                       // Clear form
                       setTitle("");
                       setDesc("");
-                      setCategory(null);
+                      setCategoryId(null);
+                      setCategoryName(null);
                       setCondition(null);
                       setPrice("");
                       setPhotos([]);
@@ -249,7 +266,7 @@ function PickerChip({
 }: {
   label: string;
   value: string | null;
-  onPress: (next: string) => void;
+  onPress: (next: any) => void;
   options?: string[];
   categories?: any[];
 }) {
@@ -283,7 +300,7 @@ function PickerChip({
         setBreadcrumb([...breadcrumb, category]);
       } else {
         // Leaf category - select it
-        onPress(category.titleMn || category.title);
+        onPress({ id: category._id, name: category.titleMn || category.title });
         setOpen(false);
         setCurrentLevel(categories?.filter(cat => !cat.parent) || []);
         setBreadcrumb([]);
@@ -423,11 +440,42 @@ function PickerChip({
 
 /* ---------- Styles ---------- */
 const styles = StyleSheet.create({
-  content: { padding: 16, paddingBottom: 40, backgroundColor: "#FFFFFF" },
-  screenTitle: { color: theme.gray900, fontSize: 22, fontWeight: "900", marginBottom: 12 },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: theme.white,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.gray200,
+  },
+  backButton: {
+    padding: 4,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: theme.gray900,
+  },
+  content: {
+    padding: 16,
+    paddingBottom: 40,
+    backgroundColor: theme.white,
+    marginTop: 8,
+    marginHorizontal: 8,
+    borderRadius: 16,
+  },
+  screenTitle: { color: theme.gray900, fontSize: 24, fontWeight: "800", marginBottom: 8 },
+  subtitle: {
+    color: theme.gray600,
+    fontSize: 14,
+    marginBottom: 24,
+    lineHeight: 20
+  },
 
-  label: { color: theme.gray700, fontSize: 13, fontWeight: "800", marginBottom: 6, textTransform: "uppercase" },
-  req: { color: theme.brand500 },
+  label: { color: theme.gray700, fontSize: 13, fontWeight: "700", marginBottom: 8, marginTop: 12 },
+  req: { color: theme.brand600 },
 
   inputWrap: {
     flexDirection: "row",

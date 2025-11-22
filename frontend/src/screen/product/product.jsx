@@ -4,12 +4,14 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { io } from 'socket.io-client';
 import { CountdownTimer } from '../../components/Timer';
-import { FaSearch,  FaTimes, FaGavel, FaInfoCircle } from 'react-icons/fa';
+import { FaSearch, FaTimes, FaGavel, FaInfoCircle, FaHistory, FaUserCog } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import { apiConfig, buildApiUrl } from '../../config/api';
 import { useToast } from '../../components/common/Toast';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
+import { SavedFilters } from '../../components/SavedFilters';
+import { LikeButton } from '../../components/LikeButton';
 
 export const Product = () => {
   const toast = useToast();
@@ -49,7 +51,46 @@ export const Product = () => {
   const [collapsedSections, setCollapsedSections] = useState({
     condition: true, // Hidden by default
     color: true,
-    size: true
+    size: true,
+    automotive: false // Automotive filters expanded by default
+  });
+  const [currentUser, setCurrentUser] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const stored = localStorage.getItem('user');
+      return stored ? JSON.parse(stored) : null;
+    } catch (error) {
+      console.error('Unable to parse stored user', error);
+      return null;
+    }
+  });
+  const [historyModal, setHistoryModal] = useState({
+    isOpen: false,
+    isLoading: false,
+    product: null,
+    bids: [],
+    error: null
+  });
+
+  // Automotive-specific filters
+  const [automotiveFilters, setAutomotiveFilters] = useState({
+    manufacturer: '',
+    model: '',
+    engineType: '',
+    engineCcMin: '',
+    engineCcMax: '',
+    bodyType: '',
+    gearbox: '',
+    steering: '',
+    driveType: '',
+    mileageMin: '',
+    mileageMax: '',
+    yearFrom: '',
+    yearTo: '',
+    importYearFrom: '',
+    importYearTo: '',
+    leasing: '',
+    vehicleColor: ''
   });
 
   const getAuthToken = () => {
@@ -57,10 +98,213 @@ export const Product = () => {
     return user?.token || localStorage.getItem('token');
   };
 
+  const getProductOwnerId = (product) => {
+    if (!product) return null;
+    if (typeof product.user === 'string') return product.user;
+    return product.user?._id || product.user?.id || null;
+  };
+
+  const isProductOwner = (product) => {
+    if (!product || !currentUser) return false;
+    const ownerId = getProductOwnerId(product);
+    const userId = currentUser._id || currentUser.id;
+    return ownerId && userId && ownerId === userId;
+  };
+
+  const handleOwnerManageShortcut = (product) => {
+    if (!product) return;
+    localStorage.setItem('pendingProductManage', product._id);
+    navigate(`/profile?tab=myProducts&highlight=${product._id}`);
+  };
+
+  const openBidHistory = async (product) => {
+    if (!product?._id) return;
+    setHistoryModal({
+      isOpen: true,
+      isLoading: true,
+      product,
+      bids: [],
+      error: null
+    });
+
+    try {
+      const response = await axios.get(buildApiUrl(`/api/bidding/${product._id}`));
+      setHistoryModal(prev => ({
+        ...prev,
+        isLoading: false,
+        bids: response.data?.history || []
+      }));
+    } catch (err) {
+      console.error('Failed to load bid history', err);
+      setHistoryModal(prev => ({
+        ...prev,
+        isLoading: false,
+        error: err.response?.data?.message || 'Failed to load bid history'
+      }));
+    }
+  };
+
+  const closeBidHistory = () => {
+    setHistoryModal({
+      isOpen: false,
+      isLoading: false,
+      product: null,
+      bids: [],
+      error: null
+    });
+  };
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      try {
+        const stored = localStorage.getItem('user');
+        setCurrentUser(stored ? JSON.parse(stored) : null);
+      } catch (error) {
+        console.error('User storage parse failed', error);
+        setCurrentUser(null);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  // Check if current category is automotive
+  const isAutomotiveCategory = () => {
+    if (!selectedCategory || selectedCategory === 'all') return false;
+
+    // Check selected categories array
+    for (const catId of selectedCategories) {
+      const category = allCategoriesWithChildren.find(c => c._id.toString() === catId.toString());
+      if (category) {
+        const title = (category.titleMn || category.title || '').toLowerCase();
+        if (title.includes('тээврийн хэрэгсэл') || title.includes('automotive') || title.includes('машин')) {
+          return true;
+        }
+      }
+    }
+
+    // Check single selected category
+    const category = allCategoriesWithChildren.find(c => {
+      const categoryId = typeof c._id === 'string' ? c._id : c._id?.toString();
+      const selectedId = typeof selectedCategory === 'string' ? selectedCategory : selectedCategory?.toString();
+      return categoryId === selectedId;
+    });
+
+    if (category) {
+      const title = (category.titleMn || category.title || '').toLowerCase();
+      return title.includes('тээврийн хэрэгсэл') || title.includes('automotive') || title.includes('машин');
+    }
+
+    return false;
+  };
+
   const cardVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0 }
   };
+
+  // Handler for loading saved filters
+  const handleLoadFilter = (loadedFilters) => {
+    console.log('Loading filters:', loadedFilters);
+    // Update individual states from loaded filters
+    if (loadedFilters.selectedCategories && Array.isArray(loadedFilters.selectedCategories)) {
+      setSelectedCategories(loadedFilters.selectedCategories);
+      if (loadedFilters.selectedCategories.length > 0) {
+        setSelectedCategory(loadedFilters.selectedCategories[0]);
+      }
+    }
+    if (loadedFilters.selectedBrands && Array.isArray(loadedFilters.selectedBrands)) {
+      setSelectedBrands(loadedFilters.selectedBrands);
+    }
+    if (loadedFilters.priceMin || loadedFilters.priceMax) {
+      setPriceRange({
+        min: loadedFilters.priceMin || '',
+        max: loadedFilters.priceMax || ''
+      });
+    }
+    if (loadedFilters.condition) {
+      setSelectedCondition(loadedFilters.condition);
+    }
+    if (loadedFilters.status) {
+      setSelectedStatus(loadedFilters.status);
+    }
+    if (loadedFilters.selectedColors) {
+      setSelectedColors(loadedFilters.selectedColors);
+    }
+    if (loadedFilters.selectedSizes) {
+      setSelectedSizes(loadedFilters.selectedSizes);
+    }
+    if (loadedFilters.verifiedSeller !== undefined) {
+      setVerifiedSeller(loadedFilters.verifiedSeller);
+    }
+    if (loadedFilters.hasDiscount !== undefined) {
+      setHasDiscount(loadedFilters.hasDiscount);
+    }
+    if (loadedFilters.freeShipping !== undefined) {
+      setFreeShipping(loadedFilters.freeShipping);
+    }
+    if (loadedFilters.verifiedProduct !== undefined) {
+      setVerifiedProduct(loadedFilters.verifiedProduct);
+    }
+
+    // Update automotive filters
+    setAutomotiveFilters({
+      manufacturer: loadedFilters.automotiveManufacturer || '',
+      model: loadedFilters.automotiveModel || '',
+      engineType: loadedFilters.engineType || '',
+      engineCcMin: loadedFilters.engineCcMin || '',
+      engineCcMax: loadedFilters.engineCcMax || '',
+      bodyType: loadedFilters.bodyType || '',
+      gearbox: loadedFilters.gearbox || '',
+      steering: loadedFilters.steering || '',
+      driveType: loadedFilters.driveType || '',
+      mileageMin: loadedFilters.mileageMin || '',
+      mileageMax: loadedFilters.mileageMax || '',
+      yearFrom: loadedFilters.yearFrom || '',
+      yearTo: loadedFilters.yearTo || '',
+      importYearFrom: loadedFilters.importYearFrom || '',
+      importYearTo: loadedFilters.importYearTo || '',
+      leasing: loadedFilters.leasing || '',
+      vehicleColor: loadedFilters.vehicleColor || ''
+    });
+
+    toast.success(t('filterLoaded') || 'Шүүлтүүр ачааллагдлаа!');
+  };
+
+  // Create unified filters object for SavedFilters component
+  const currentFilters = {
+    selectedCategories,
+    selectedBrands,
+    priceMin: priceRange.min,
+    priceMax: priceRange.max,
+    condition: selectedCondition,
+    status: selectedStatus,
+    selectedColors,
+    selectedSizes,
+    verifiedSeller,
+    hasDiscount,
+    freeShipping,
+    verifiedProduct,
+    automotiveManufacturer: automotiveFilters.manufacturer,
+    automotiveModel: automotiveFilters.model,
+    engineType: automotiveFilters.engineType,
+    engineCcMin: automotiveFilters.engineCcMin,
+    engineCcMax: automotiveFilters.engineCcMax,
+    bodyType: automotiveFilters.bodyType,
+    gearbox: automotiveFilters.gearbox,
+    steering: automotiveFilters.steering,
+    driveType: automotiveFilters.driveType,
+    mileageMin: automotiveFilters.mileageMin,
+    mileageMax: automotiveFilters.mileageMax,
+    yearFrom: automotiveFilters.yearFrom,
+    yearTo: automotiveFilters.yearTo,
+    importYearFrom: automotiveFilters.importYearFrom,
+    importYearTo: automotiveFilters.importYearTo,
+    leasing: automotiveFilters.leasing,
+    vehicleColor: automotiveFilters.vehicleColor
+  };
+
 useEffect(() => {
   const token = getAuthToken(); 
 
@@ -255,11 +499,17 @@ useEffect(() => {
 
     let result = [...products];
 
-    // Search filter
+    // Search filter - word by word matching
     if (searchQuery) {
-      result = result.filter(product =>
-        product.title && product.title.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+      const searchWords = searchQuery.toLowerCase().trim().split(/\s+/);
+      result = result.filter(product => {
+        const titleLower = (product.title || '').toLowerCase();
+        const descLower = (product.description || '').toLowerCase();
+        const combinedText = `${titleLower} ${descLower}`;
+
+        // Check if ALL search words are present in title or description
+        return searchWords.every(word => combinedText.includes(word));
+      });
     }
 
     // Category filter - support both single and multiple selection
@@ -339,6 +589,114 @@ useEffect(() => {
       result = result.filter(product => product.verified === true);
     }
 
+    // Automotive filters - only apply if in automotive category
+    if (isAutomotiveCategory()) {
+      // Manufacturer filter
+      if (automotiveFilters.manufacturer) {
+        result = result.filter(product =>
+          product.manufacturer?.toLowerCase() === automotiveFilters.manufacturer.toLowerCase()
+        );
+      }
+
+      // Model filter
+      if (automotiveFilters.model) {
+        result = result.filter(product =>
+          product.model?.toLowerCase().includes(automotiveFilters.model.toLowerCase())
+        );
+      }
+
+      // Engine type filter
+      if (automotiveFilters.engineType) {
+        result = result.filter(product =>
+          product.engineType?.toLowerCase() === automotiveFilters.engineType.toLowerCase()
+        );
+      }
+
+      // Engine capacity filter
+      if (automotiveFilters.engineCcMin) {
+        const minCc = parseFloat(automotiveFilters.engineCcMin);
+        result = result.filter(product => (product.engineCc || 0) >= minCc);
+      }
+      if (automotiveFilters.engineCcMax) {
+        const maxCc = parseFloat(automotiveFilters.engineCcMax);
+        result = result.filter(product => (product.engineCc || 0) <= maxCc);
+      }
+
+      // Body type filter
+      if (automotiveFilters.bodyType) {
+        result = result.filter(product =>
+          product.bodyType?.toLowerCase() === automotiveFilters.bodyType.toLowerCase()
+        );
+      }
+
+      // Gearbox filter
+      if (automotiveFilters.gearbox) {
+        result = result.filter(product =>
+          product.gearbox?.toLowerCase() === automotiveFilters.gearbox.toLowerCase()
+        );
+      }
+
+      // Steering filter
+      if (automotiveFilters.steering) {
+        result = result.filter(product =>
+          product.steering?.toLowerCase() === automotiveFilters.steering.toLowerCase()
+        );
+      }
+
+      // Drive type filter
+      if (automotiveFilters.driveType) {
+        result = result.filter(product =>
+          product.driveType?.toLowerCase() === automotiveFilters.driveType.toLowerCase()
+        );
+      }
+
+      // Mileage filter
+      if (automotiveFilters.mileageMin) {
+        const minMileage = parseFloat(automotiveFilters.mileageMin);
+        result = result.filter(product => (product.mileage || 0) >= minMileage);
+      }
+      if (automotiveFilters.mileageMax) {
+        const maxMileage = parseFloat(automotiveFilters.mileageMax);
+        result = result.filter(product => (product.mileage || 0) <= maxMileage);
+      }
+
+      // Manufacture year filter
+      if (automotiveFilters.yearFrom) {
+        const minYear = parseInt(automotiveFilters.yearFrom);
+        result = result.filter(product => (product.manufactureYear || 0) >= minYear);
+      }
+      if (automotiveFilters.yearTo) {
+        const maxYear = parseInt(automotiveFilters.yearTo);
+        result = result.filter(product => (product.manufactureYear || 0) <= maxYear);
+      }
+
+      // Import year filter
+      if (automotiveFilters.importYearFrom) {
+        const minImportYear = parseInt(automotiveFilters.importYearFrom);
+        result = result.filter(product => (product.importYear || 0) >= minImportYear);
+      }
+      if (automotiveFilters.importYearTo) {
+        const maxImportYear = parseInt(automotiveFilters.importYearTo);
+        result = result.filter(product => (product.importYear || 0) <= maxImportYear);
+      }
+
+      // Leasing filter
+      if (automotiveFilters.leasing) {
+        if (automotiveFilters.leasing === 'with') {
+          result = result.filter(product => product.hasLeasing === true);
+        } else if (automotiveFilters.leasing === 'without') {
+          result = result.filter(product => product.hasLeasing !== true);
+        }
+      }
+
+      // Vehicle color filter
+      if (automotiveFilters.vehicleColor) {
+        result = result.filter(product =>
+          product.vehicleColor?.toLowerCase() === automotiveFilters.vehicleColor.toLowerCase()
+        );
+      }
+    }
+
     // Status filter
     if (selectedStatus && selectedStatus !== 'all') {
       const now = new Date();
@@ -382,7 +740,7 @@ useEffect(() => {
 
     setFilteredProducts(result);
     setCurrentPage(1);
-  }, [sortOption, products, searchQuery, selectedCategory, selectedCategories, selectedBrand, selectedBrands, priceRange, selectedCondition, selectedStatus, selectedColors, selectedSizes, verifiedSeller, verifiedProduct]);
+  }, [sortOption, products, searchQuery, selectedCategory, selectedCategories, selectedBrand, selectedBrands, priceRange, selectedCondition, selectedStatus, selectedColors, selectedSizes, verifiedSeller, verifiedProduct, automotiveFilters]);
 
   const indexOfLastProduct = currentPage * productsPerPage;
   const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
@@ -685,6 +1043,25 @@ useEffect(() => {
                     setSelectedCondition('all');
                     setSelectedStatus('all');
                     setSortOption('newest');
+                    setAutomotiveFilters({
+                      manufacturer: '',
+                      model: '',
+                      engineType: '',
+                      engineCcMin: '',
+                      engineCcMax: '',
+                      bodyType: '',
+                      gearbox: '',
+                      steering: '',
+                      driveType: '',
+                      mileageMin: '',
+                      mileageMax: '',
+                      yearFrom: '',
+                      yearTo: '',
+                      importYearFrom: '',
+                      importYearTo: '',
+                      leasing: '',
+                      vehicleColor: ''
+                    });
                     setShowFilters(false);
                   }}
                 >
@@ -717,7 +1094,26 @@ useEffect(() => {
                   setVerifiedProduct(false);
                   setSortOption('newest');
                   setExpandedCategories(new Set());
-                  setCollapsedSections({ condition: true, color: true, size: true });
+                  setCollapsedSections({ condition: true, color: true, size: true, automotive: false });
+                  setAutomotiveFilters({
+                    manufacturer: '',
+                    model: '',
+                    engineType: '',
+                    engineCcMin: '',
+                    engineCcMax: '',
+                    bodyType: '',
+                    gearbox: '',
+                    steering: '',
+                    driveType: '',
+                    mileageMin: '',
+                    mileageMax: '',
+                    yearFrom: '',
+                    yearTo: '',
+                    importYearFrom: '',
+                    importYearTo: '',
+                    leasing: '',
+                    vehicleColor: ''
+                  });
                 }}
               >
                 {t('clear')}
@@ -1111,6 +1507,323 @@ useEffect(() => {
                 </div>
               </div>
 
+              {/* Automotive Filters - Only show for automotive category */}
+              {isAutomotiveCategory() && (
+                <div className="mb-4" style={{ borderTop: '2px solid #FF6A00', paddingTop: '1rem' }}>
+                  <div
+                    className="d-flex justify-content-between align-items-center mb-3"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => setCollapsedSections(prev => ({ ...prev, automotive: !prev.automotive }))}
+                  >
+                    <h6 className="mb-0 fw-bold" style={{ color: '#FF6A00' }}>
+                      <i className="bi bi-car-front me-2"></i>
+                      Автомашины шүүлтүүр
+                    </h6>
+                    <i className={`bi ${collapsedSections.automotive ? 'bi-chevron-down' : 'bi-chevron-up'}`} style={{ color: '#FF6A00' }}></i>
+                  </div>
+                  {!collapsedSections.automotive && (
+                    <div className="d-flex flex-column gap-3">
+                      {/* Manufacturer / Brand */}
+                      <div>
+                        <label className="form-label small mb-1" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
+                          Үйлдвэр
+                        </label>
+                        <select
+                          className="form-select form-select-sm"
+                          value={automotiveFilters.manufacturer}
+                          onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, manufacturer: e.target.value }))}
+                          style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                        >
+                          <option value="">Бүгд</option>
+                          <option value="Toyota">Toyota</option>
+                          <option value="Honda">Honda</option>
+                          <option value="Nissan">Nissan</option>
+                          <option value="Mazda">Mazda</option>
+                          <option value="Mitsubishi">Mitsubishi</option>
+                          <option value="Hyundai">Hyundai</option>
+                          <option value="Kia">Kia</option>
+                          <option value="Ford">Ford</option>
+                          <option value="Chevrolet">Chevrolet</option>
+                          <option value="Lexus">Lexus</option>
+                          <option value="BMW">BMW</option>
+                          <option value="Mercedes-Benz">Mercedes-Benz</option>
+                          <option value="Audi">Audi</option>
+                          <option value="Volkswagen">Volkswagen</option>
+                          <option value="Other">Бусад</option>
+                        </select>
+                      </div>
+
+                      {/* Model */}
+                      <div>
+                        <label className="form-label small mb-1" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
+                          Загвар
+                        </label>
+                        <input
+                          type="text"
+                          className="form-control form-control-sm"
+                          placeholder="Жишээ: Camry, Civic, Prius"
+                          value={automotiveFilters.model}
+                          onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, model: e.target.value }))}
+                          style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                        />
+                      </div>
+
+                      {/* Engine Type */}
+                      <div>
+                        <label className="form-label small mb-1" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
+                          Хөдөлгүүр
+                        </label>
+                        <select
+                          className="form-select form-select-sm"
+                          value={automotiveFilters.engineType}
+                          onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, engineType: e.target.value }))}
+                          style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                        >
+                          <option value="">Бүгд</option>
+                          <option value="gasoline">Бензин</option>
+                          <option value="diesel">Дизель</option>
+                          <option value="hybrid">Хайбрид</option>
+                          <option value="electric">Цахилгаан</option>
+                        </select>
+                      </div>
+
+                      {/* Engine Capacity (cc) */}
+                      <div>
+                        <label className="form-label small mb-1" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
+                          Мотор багтаамж (cc)
+                        </label>
+                        <div className="row g-2">
+                          <div className="col-6">
+                            <input
+                              type="number"
+                              className="form-control form-control-sm"
+                              placeholder="Доод"
+                              value={automotiveFilters.engineCcMin}
+                              onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, engineCcMin: e.target.value }))}
+                              style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                            />
+                          </div>
+                          <div className="col-6">
+                            <input
+                              type="number"
+                              className="form-control form-control-sm"
+                              placeholder="Дээд"
+                              value={automotiveFilters.engineCcMax}
+                              onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, engineCcMax: e.target.value }))}
+                              style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Body Type */}
+                      <div>
+                        <label className="form-label small mb-1" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
+                          Төрөл
+                        </label>
+                        <select
+                          className="form-select form-select-sm"
+                          value={automotiveFilters.bodyType}
+                          onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, bodyType: e.target.value }))}
+                          style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                        >
+                          <option value="">Бүгд</option>
+                          <option value="sedan">Седан</option>
+                          <option value="suv">SUV / Жип</option>
+                          <option value="hatchback">Хэтчбэк</option>
+                          <option value="van">Вэн</option>
+                          <option value="truck">Ачааны</option>
+                          <option value="coupe">Купе</option>
+                          <option value="wagon">Вагон</option>
+                          <option value="pickup">Пикап</option>
+                        </select>
+                      </div>
+
+                      {/* Gearbox */}
+                      <div>
+                        <label className="form-label small mb-1" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
+                          Хурдны хайрцаг
+                        </label>
+                        <select
+                          className="form-select form-select-sm"
+                          value={automotiveFilters.gearbox}
+                          onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, gearbox: e.target.value }))}
+                          style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                        >
+                          <option value="">Бүгд</option>
+                          <option value="automatic">Автомат</option>
+                          <option value="manual">Механик</option>
+                        </select>
+                      </div>
+
+                      {/* Steering */}
+                      <div>
+                        <label className="form-label small mb-1" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
+                          Хүрд
+                        </label>
+                        <select
+                          className="form-select form-select-sm"
+                          value={automotiveFilters.steering}
+                          onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, steering: e.target.value }))}
+                          style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                        >
+                          <option value="">Бүгд</option>
+                          <option value="left">Зүүн</option>
+                          <option value="right">Баруун</option>
+                        </select>
+                      </div>
+
+                      {/* Drive Type */}
+                      <div>
+                        <label className="form-label small mb-1" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
+                          Хөтлөгч
+                        </label>
+                        <select
+                          className="form-select form-select-sm"
+                          value={automotiveFilters.driveType}
+                          onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, driveType: e.target.value }))}
+                          style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                        >
+                          <option value="">Бүгд</option>
+                          <option value="fwd">Урд (FWD)</option>
+                          <option value="rwd">Хойд (RWD)</option>
+                          <option value="4wd">4x4 / AWD</option>
+                        </select>
+                      </div>
+
+                      {/* Mileage */}
+                      <div>
+                        <label className="form-label small mb-1" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
+                          Явсан (км)
+                        </label>
+                        <div className="row g-2">
+                          <div className="col-6">
+                            <input
+                              type="number"
+                              className="form-control form-control-sm"
+                              placeholder="Доод"
+                              value={automotiveFilters.mileageMin}
+                              onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, mileageMin: e.target.value }))}
+                              style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                            />
+                          </div>
+                          <div className="col-6">
+                            <input
+                              type="number"
+                              className="form-control form-control-sm"
+                              placeholder="Дээд"
+                              value={automotiveFilters.mileageMax}
+                              onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, mileageMax: e.target.value }))}
+                              style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Manufacture Year */}
+                      <div>
+                        <label className="form-label small mb-1" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
+                          Үйлдвэрлэсэн он
+                        </label>
+                        <div className="row g-2">
+                          <div className="col-6">
+                            <input
+                              type="number"
+                              className="form-control form-control-sm"
+                              placeholder="Доод"
+                              value={automotiveFilters.yearFrom}
+                              onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, yearFrom: e.target.value }))}
+                              style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                            />
+                          </div>
+                          <div className="col-6">
+                            <input
+                              type="number"
+                              className="form-control form-control-sm"
+                              placeholder="Дээд"
+                              value={automotiveFilters.yearTo}
+                              onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, yearTo: e.target.value }))}
+                              style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Import Year */}
+                      <div>
+                        <label className="form-label small mb-1" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
+                          Орж ирсэн он
+                        </label>
+                        <div className="row g-2">
+                          <div className="col-6">
+                            <input
+                              type="number"
+                              className="form-control form-control-sm"
+                              placeholder="Доод"
+                              value={automotiveFilters.importYearFrom}
+                              onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, importYearFrom: e.target.value }))}
+                              style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                            />
+                          </div>
+                          <div className="col-6">
+                            <input
+                              type="number"
+                              className="form-control form-control-sm"
+                              placeholder="Дээд"
+                              value={automotiveFilters.importYearTo}
+                              onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, importYearTo: e.target.value }))}
+                              style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Leasing */}
+                      <div>
+                        <label className="form-label small mb-1" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
+                          Лизинг
+                        </label>
+                        <select
+                          className="form-select form-select-sm"
+                          value={automotiveFilters.leasing}
+                          onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, leasing: e.target.value }))}
+                          style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                        >
+                          <option value="">Бүгд</option>
+                          <option value="with">Лизинг бүхий</option>
+                          <option value="without">Лизингүй</option>
+                        </select>
+                      </div>
+
+                      {/* Vehicle Color */}
+                      <div>
+                        <label className="form-label small mb-1" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
+                          Өнгө
+                        </label>
+                        <select
+                          className="form-select form-select-sm"
+                          value={automotiveFilters.vehicleColor}
+                          onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, vehicleColor: e.target.value }))}
+                          style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                        >
+                          <option value="">Бүгд</option>
+                          <option value="white">Цагаан</option>
+                          <option value="black">Хар</option>
+                          <option value="silver">Мөнгөлөг</option>
+                          <option value="gray">Саарал</option>
+                          <option value="red">Улаан</option>
+                          <option value="blue">Цэнхэр</option>
+                          <option value="green">Ногоон</option>
+                          <option value="yellow">Шар</option>
+                          <option value="brown">Хүрэн</option>
+                          <option value="other">Бусад</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Sort Options */}
               <div className="mb-3">
                 <h6 className="mb-3 fw-bold" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
@@ -1135,11 +1848,40 @@ useEffect(() => {
                 className="btn btn-outline-danger w-100"
                 onClick={() => {
                   setSelectedCategory('all');
+                  setSelectedCategories([]);
                   setSelectedBrand('all');
+                  setSelectedBrands([]);
                   setPriceRange({ min: '', max: '' });
                   setSelectedCondition('all');
                   setSelectedStatus('all');
+                  setSelectedColors([]);
+                  setSelectedSizes([]);
+                  setVerifiedSeller(false);
+                  setHasDiscount(false);
+                  setFreeShipping(false);
+                  setVerifiedProduct(false);
                   setSortOption('newest');
+                  setExpandedCategories(new Set());
+                  setCollapsedSections({ condition: true, color: true, size: true, automotive: false });
+                  setAutomotiveFilters({
+                    manufacturer: '',
+                    model: '',
+                    engineType: '',
+                    engineCcMin: '',
+                    engineCcMax: '',
+                    bodyType: '',
+                    gearbox: '',
+                    steering: '',
+                    driveType: '',
+                    mileageMin: '',
+                    mileageMax: '',
+                    yearFrom: '',
+                    yearTo: '',
+                    importYearFrom: '',
+                    importYearTo: '',
+                    leasing: '',
+                    vehicleColor: ''
+                  });
                 }}
               >
                 Бүх шүүлтүүр цэвэрлэх
@@ -1149,13 +1891,19 @@ useEffect(() => {
         </div>
 
         <div className="col-md-9">
-          <div className="mb-4 d-flex justify-content-between align-items-center">
+          <div className="mb-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
             <h4 className="m-0">
               {getCurrentFilterName()}
               <span className="badge bg-primary ms-2">{filteredProducts.length}</span>
             </h4>
-            
-            <div className="d-flex">
+
+            <div className="d-flex gap-2 align-items-center">
+              {/* Saved Filters Component */}
+              <SavedFilters
+                currentFilters={currentFilters}
+                onLoadFilter={handleLoadFilter}
+              />
+
               <div className="btn-group" role="group">
                 <button 
                   type="button" 
@@ -1191,7 +1939,28 @@ useEffect(() => {
 
           {currentProducts.length > 0 ? (
             <div className="row g-4">
-              {currentProducts.map((product, index) => (
+              {currentProducts.map((product, index) => {
+                const ownerFlag = isProductOwner(product);
+                const bidCount = product.bidCount || product.totalBids || product.biddingCount || product.bidders?.length || product.bidHistory?.length || 0;
+                const basePrice = product.currentBid ?? product.price ?? 0;
+                const numericBasePrice = typeof basePrice === 'number' ? basePrice : Number(basePrice) || 0;
+                const formattedCurrentPrice = numericBasePrice.toLocaleString();
+                let categoryTitle = '';
+
+                if (product.category) {
+                  if (typeof product.category === 'object') {
+                    categoryTitle = product.category.titleMn || product.category.title || '';
+                  } else {
+                    const targetId = typeof product.category === 'string' ? product.category : product.category?.toString();
+                    const matchedCategory = categories.find(cat => {
+                      const catId = typeof cat._id === 'string' ? cat._id : cat._id?.toString();
+                      return catId === targetId;
+                    });
+                    categoryTitle = matchedCategory ? (matchedCategory.titleMn || matchedCategory.title || '') : '';
+                  }
+                }
+
+                return (
                 <motion.div 
                   key={product._id}
                   className="col-md-6 col-lg-4"
@@ -1202,9 +1971,14 @@ useEffect(() => {
                 >
                   <div className="card h-100 shadow-sm border-0 overflow-hidden">
                     <div className="position-relative">
-                      <img 
+                      {/* Like Button */}
+                      <div className="position-absolute" style={{ top: '0.5rem', right: '0.5rem', zIndex: 10 }}>
+                        <LikeButton product={product} size="md" />
+                      </div>
+
+                      <img
                         src={product.images?.find(img => img.isPrimary)?.url || '/default.png'}
-                        className="card-img-top" 
+                        className="card-img-top"
                         alt={product.title}
                         style={{ height: '200px', objectFit: 'cover' }}
                       />
@@ -1216,34 +1990,61 @@ useEffect(() => {
                     </div>
                     
                     <div className="card-body d-flex flex-column">
-                      <h5 className="card-title">{product.title}</h5>
-                      <p className="card-text text-muted text-truncate">{product.description}</p>
-                      
-                      <div className="mt-auto">
-                        <div className="d-flex justify-content-between align-items-center mb-2">
-                          <div>
+                        <h5 className="card-title">{product.title}</h5>
+                        <p className="card-text text-muted text-truncate">{product.description}</p>
+                        
+                        {ownerFlag && (
+                          <div
+                            className="bg-light rounded p-2 mb-3"
+                            style={{ border: '1px dashed rgba(0,0,0,0.15)' }}
+                          >
+                            <div className="d-flex justify-content-between align-items-center">
+                              <div className="d-flex align-items-center text-primary text-uppercase small fw-semibold">
+                                <FaUserCog className="me-2" />
+                                {t('myProducts')}
+                              </div>
+                              <span className="badge bg-white text-primary border">{bidCount} bids</span>
+                            </div>
+                            <div className="d-flex gap-2 mt-2">
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-outline-primary flex-grow-1"
+                                onClick={() => handleOwnerManageShortcut(product)}
+                              >
+                                {t('settings')}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        
+
+                        <div className="mt-auto">
+                        <div className="d-flex flex-wrap align-items-start gap-2 mb-2">
+                          <div className="flex-grow-1" style={{ minWidth: '220px' }}>
                             <small className="text-muted">Дуусах хугацаа:</small>
                             <CountdownTimer 
                               deadline={product.bidDeadline} 
-                              className="fw-bold"
+                              variant="emphasized"
+                              showProgress
                             />
                           </div>
-                          <span className="badge bg-primary">
-                            {typeof product.category === 'object' 
-                              ? product.category.title 
-                              : categories.find(c => c._id === product.category)?.title || ''}
-                          </span>
+                          {categoryTitle && (
+                            <span className="badge bg-primary align-self-start text-wrap">
+                              {categoryTitle}
+                            </span>
+                          )}
                         </div>
                         
                         <div className="d-flex justify-content-between align-items-center mb-3">
                           <div>
                             <small className="text-muted">Одоогийн үнэ:</small>
-                            <h5 className="m-0 text-primary">₮{product.currentBid || product.price}</h5>
+                            <h5 className="m-0 text-primary">₮{formattedCurrentPrice}</h5>
                           </div>
                           <div className="text-end">
                           </div>
                         </div>
                         
+
                         {bidErrors[product._id] && (
                           <div className="alert alert-danger mt-2 mb-2 p-2 small">
                             {bidErrors[product._id]}
@@ -1252,6 +2053,7 @@ useEffect(() => {
                         
                         {!product.sold && (
                           <>
+
                             <div className="input-group mb-2">
                               <span className="input-group-text bg-light">₮</span>
                               <input
@@ -1259,9 +2061,9 @@ useEffect(() => {
                                 className="form-control"
                                 value={bidAmounts[product._id] || ''}
                                 onChange={(e) => handleBidChange(product._id, e.target.value)}
-                                min={(product.currentBid || product.price) + 1}
+                                min={numericBasePrice + 1}
                                 step="10"
-                                placeholder={`${(product.currentBid || product.price) + 1000}`}
+                                placeholder={`${numericBasePrice + 1000}`}
                               />
                             </div>
                             
@@ -1276,6 +2078,15 @@ useEffect(() => {
                             </button>
                           </>
                         )}
+
+                        <button
+                          type="button"
+                          className="btn btn-outline-secondary w-100 mb-2"
+                          onClick={() => openBidHistory(product)}
+                        >
+                          <FaHistory className="me-2" />
+                          Bid history
+                        </button>
                         
                         <Link 
                           to={`/products/${product._id}`} 
@@ -1288,7 +2099,8 @@ useEffect(() => {
                     </div>
                   </div>
                 </motion.div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="col-12">
@@ -1368,8 +2180,97 @@ useEffect(() => {
           )}
         </div>
       </div>
+      {historyModal.isOpen && (
+        <>
+          <div 
+            className="bid-history-backdrop" 
+            onClick={closeBidHistory}
+          ></div>
+          <div className="bid-history-modal shadow-lg">
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <div>
+                <h5 className="mb-1">
+                  <FaHistory className="me-2" />
+                  {historyModal.product?.title || 'Bid history'}
+                </h5>
+                <small className="text-muted">
+                  {historyModal.bids.length} entries
+                </small>
+              </div>
+              <button type="button" className="btn-close" aria-label="Close" onClick={closeBidHistory}></button>
+            </div>
+            <div className="bid-history-modal__body" style={{ maxHeight: '420px', overflowY: 'auto' }}>
+              {historyModal.isLoading && (
+                <div className="text-center py-4">
+                  <div className="spinner-border text-primary" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                </div>
+              )}
+              {!historyModal.isLoading && historyModal.error && (
+                <div className="alert alert-danger">{historyModal.error}</div>
+              )}
+              {!historyModal.isLoading && !historyModal.error && (
+                historyModal.bids.length > 0 ? (
+                  <div className="bid-history-timeline">
+                    {historyModal.bids.map((bid) => (
+                      <div key={bid?._id || bid?.createdAt} className="bid-history-row">
+                        <div className="fw-bold text-primary">�,r{bid?.price?.toLocaleString() || 'N/A'}</div>
+                        <div className="text-muted small">{bid?.user?.name || 'Anonymous'}</div>
+                        <div className="text-end small">
+                          {bid?.createdAt ? new Date(bid.createdAt).toLocaleString() : ''}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted text-center py-4">No bidding history yet.</p>
+                )
+              )}
+            </div>
+            <div className="text-end">
+              <button className="btn btn-secondary" onClick={closeBidHistory}>
+                Close
+              </button>
+            </div>
+          </div>
+          <style>
+            {`
+              .bid-history-backdrop {
+                position: fixed;
+                inset: 0;
+                background: rgba(0,0,0,0.55);
+                backdrop-filter: blur(2px);
+                z-index: 1050;
+              }
+              .bid-history-modal {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: min(600px, 90vw);
+                background: #fff;
+                border-radius: 1rem;
+                padding: 1.5rem;
+                z-index: 1060;
+              }
+              .bid-history-row {
+                display: grid;
+                grid-template-columns: 1fr 1fr auto;
+                gap: 0.75rem;
+                padding: 0.75rem 0;
+                border-bottom: 1px solid rgba(0,0,0,0.08);
+              }
+              .bid-history-row:last-child {
+                border-bottom: none;
+              }
+            `}
+          </style>
+        </>
+      )}
     </div>
   );
 };
 
 export default Product;
+
