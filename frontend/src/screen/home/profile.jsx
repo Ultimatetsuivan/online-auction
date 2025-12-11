@@ -14,6 +14,9 @@ import { SellerDashboard } from '../../components/selling/SellerDashboard';
 import { CarSelector } from '../../components/CarSelector';
 import { CategorySuggester } from '../../components/CategorySuggester';
 import { Editor } from '@tinymce/tinymce-react';
+import { useAutosave } from '../../hooks/useAutosave';
+import { useDraft } from '../../context/DraftContext';
+import DraftStatusIndicator from '../../components/DraftStatusIndicator';
 
 const MAX_IMAGE_UPLOADS = 20;
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
@@ -84,6 +87,35 @@ export const Profile = () => {
 
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Draft auto-save hooks
+  const { getDraft, deleteDraft } = useDraft();
+  const draftKey = editingProductId ? `editProduct-${editingProductId}` : 'addProduct';
+
+  // Auto-save form data (only when in addProduct tab)
+  useAutosave(
+    draftKey,
+    activeTab === 'addProduct' ? formData : null,
+    2000 // 2 second debounce
+  );
+
+  // Load draft on component mount
+  useEffect(() => {
+    if (activeTab === 'addProduct' && !editingProductId) {
+      const draft = getDraft(draftKey);
+      if (draft && (draft.title || draft.description)) {
+        const shouldRestore = window.confirm(
+          `Found a saved draft from ${new Date(draft._timestamp).toLocaleString()}. Would you like to restore it?`
+        );
+        if (shouldRestore) {
+          setFormData(prev => ({ ...prev, ...draft }));
+          toast.showToast('Draft restored successfully!', 'success');
+        } else {
+          deleteDraft(draftKey);
+        }
+      }
+    }
+  }, []); // Only run once on mount
 
   // Initialize tab from query (?tab=addProduct)
   useEffect(() => {
@@ -891,6 +923,10 @@ const removeImage = (index) => {
       toast.success(t('productCreatedSuccess'));
       setSubmitSuccess(t('productCreatedSuccess'));
     }
+
+    // Clear draft on successful submission
+    deleteDraft(draftKey);
+
     setFormData({
       title: '',
       description: '',
@@ -1171,7 +1207,11 @@ const removeImage = (index) => {
 
           <div className="col-md-9">
             {activeTab === 'addProduct' && (
-            <div className="card shadow-sm border-0 mb-4">
+            <>
+              {/* Draft Status Indicator */}
+              <DraftStatusIndicator />
+
+              <div className="card shadow-sm border-0 mb-4">
                 <div className="card-body p-4">
                   <div className="d-flex justify-content-between align-items-center mb-4">
                     <h4 className="mb-0">
@@ -1749,6 +1789,7 @@ const removeImage = (index) => {
                   </form>
                 </div>
               </div>
+            </>
             )}
 
 {activeTab === 'myProducts' && (
