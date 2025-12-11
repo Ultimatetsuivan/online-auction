@@ -296,7 +296,7 @@ export default function ProductDetail() {
           </View>
 
           {/* Bid History */}
-          {product.bids && product.bids.length > 0 && (
+          {Array.isArray(product.bids) && product.bids.length > 0 && (
             <View style={styles.bidHistorySection}>
               <Text style={styles.sectionTitle}>Bid History</Text>
               {product.bids.slice(0, 5).map((bid: any, index: number) => (
