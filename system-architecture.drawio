@@ -1,0 +1,75 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0" version="29.2.4">
+  <diagram name="Page-1" id="cjY2qBWsejGDxoluQcqH">
+    <mxGraphModel dx="1034" dy="570" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="b8_jXJebBEHOnbtMi3n0-3" edge="1" parent="1" source="b8_jXJebBEHOnbtMi3n0-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="b8_jXJebBEHOnbtMi3n0-14">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="440" y="150" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="b8_jXJebBEHOnbtMi3n0-1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="IOS Device&lt;div&gt;(React Native)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="380" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="b8_jXJebBEHOnbtMi3n0-32" edge="1" parent="1" source="b8_jXJebBEHOnbtMi3n0-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="b8_jXJebBEHOnbtMi3n0-18">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b8_jXJebBEHOnbtMi3n0-4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="WebSocket&lt;div&gt;(Socket.io)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="380" y="210" as="geometry" />
+        </mxCell>
+        <mxCell id="b8_jXJebBEHOnbtMi3n0-33" edge="1" parent="1" source="b8_jXJebBEHOnbtMi3n0-5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="b8_jXJebBEHOnbtMi3n0-18">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b8_jXJebBEHOnbtMi3n0-5" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Auth&lt;div&gt;(JWT)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="500" y="210" as="geometry" />
+        </mxCell>
+        <mxCell id="b8_jXJebBEHOnbtMi3n0-31" edge="1" parent="1" source="b8_jXJebBEHOnbtMi3n0-6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="b8_jXJebBEHOnbtMi3n0-18">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b8_jXJebBEHOnbtMi3n0-6" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="REST API&lt;div&gt;Endpoints&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="260" y="210" as="geometry" />
+        </mxCell>
+        <mxCell id="b8_jXJebBEHOnbtMi3n0-7" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Clients" vertex="1">
+          <mxGeometry height="20" width="360" x="260" y="10" as="geometry" />
+        </mxCell>
+        <mxCell id="b8_jXJebBEHOnbtMi3n0-8" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Android Device&lt;div&gt;(React Native)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="500" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="b8_jXJebBEHOnbtMi3n0-9" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Web Browser&lt;div&gt;React.js&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="260" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="b8_jXJebBEHOnbtMi3n0-17" edge="1" parent="1" source="b8_jXJebBEHOnbtMi3n0-14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="b8_jXJebBEHOnbtMi3n0-4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b8_jXJebBEHOnbtMi3n0-14" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="API Gateway&lt;div&gt;(Express.js)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="380" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="b8_jXJebBEHOnbtMi3n0-28" edge="1" parent="1" source="b8_jXJebBEHOnbtMi3n0-18" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="b8_jXJebBEHOnbtMi3n0-23">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b8_jXJebBEHOnbtMi3n0-29" edge="1" parent="1" source="b8_jXJebBEHOnbtMi3n0-18" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="b8_jXJebBEHOnbtMi3n0-22">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b8_jXJebBEHOnbtMi3n0-30" edge="1" parent="1" source="b8_jXJebBEHOnbtMi3n0-18" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="b8_jXJebBEHOnbtMi3n0-24">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b8_jXJebBEHOnbtMi3n0-18" parent="1" style="swimlane;whiteSpace=wrap;html=1;" value="Backend Services" vertex="1">
+          <mxGeometry height="110" width="200" x="340" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="b8_jXJebBEHOnbtMi3n0-21" parent="b8_jXJebBEHOnbtMi3n0-18" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="&lt;div&gt;Product&amp;nbsp;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;Service&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;Bidding Service&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;User Service&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;Category Service&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;Notification Service&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="80" width="150" x="25" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="b8_jXJebBEHOnbtMi3n0-22" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="MongoDB" vertex="1">
+          <mxGeometry height="60" width="120" x="230" y="460" as="geometry" />
+        </mxCell>
+        <mxCell id="b8_jXJebBEHOnbtMi3n0-23" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Cloudinary&lt;div&gt;(Images)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="380" y="460" as="geometry" />
+        </mxCell>
+        <mxCell id="b8_jXJebBEHOnbtMi3n0-24" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Firebase&lt;div&gt;(Auth)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="530" y="460" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
