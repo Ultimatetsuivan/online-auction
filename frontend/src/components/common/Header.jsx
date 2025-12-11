@@ -9,6 +9,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import axios from 'axios';
 import { buildApiUrl } from '../../config/api';
 import { socket } from '../../socket';
+import { CompactClock } from '../GlobalClock';
 
 export const Header = () => {
   const { isDarkMode } = useTheme();
@@ -249,9 +250,12 @@ export const Header = () => {
 
   const handleLogout = () => {
     localStorage.removeItem("user");
+    localStorage.removeItem("token");
+    localStorage.removeItem("likedProducts"); // Clear liked products on logout
     setUser(null);
     setIsMenuOpen(false);
     setIsDropdownOpen(false);
+    window.dispatchEvent(new Event('userLogin')); // Trigger header update
     navigate("/login");
   };
 
@@ -335,13 +339,25 @@ export const Header = () => {
   };
 
   return (
-    <header className={`header sticky-top py-2 shadow-sm ${isDarkMode ? 'theme-dark' : 'bg-white text-dark'}`}>
+    <header className={`header sticky-top py-3 shadow-sm ${isDarkMode ? 'theme-dark' : 'bg-white text-dark'}`} style={{
+      backdropFilter: 'blur(10px)',
+      backgroundColor: isDarkMode ? 'rgba(30, 30, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+      transition: 'all 0.3s ease',
+    }}>
       <div className="container-fluid px-4">
         <div className="d-flex justify-content-between align-items-center gap-3">
           {/* Logo + Search */}
           <div className="d-flex align-items-center gap-3" style={{ flex: '0 0 auto', maxWidth: '600px', width: '100%' }}>
-            <Link to="/" className="text-decoration-none" style={{ whiteSpace: 'nowrap' }}>
-              <h1 className="m-0 fw-bold" style={{ color: '#FF6A00', fontSize: '1.5rem' }}>
+            <Link to="/" className="text-decoration-none" style={{ whiteSpace: 'nowrap', transition: 'transform 0.2s ease' }} 
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            >
+              <h1 className="m-0 fw-bold" style={{ 
+                color: '#FF6A00', 
+                fontSize: '1.6rem',
+                letterSpacing: '-0.5px',
+                textShadow: '0 2px 4px rgba(255, 106, 0, 0.1)'
+              }}>
                 <span>AUCTION</span>HUB
               </h1>
             </Link>
@@ -357,12 +373,33 @@ export const Header = () => {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onFocus={() => setSearchDropdownOpen(true)}
-                    style={{ borderColor: '#E2E8F0' }}
+                    style={{ 
+                      borderColor: searchDropdownOpen ? '#FF6A00' : '#E2E8F0',
+                      borderRadius: '25px 0 0 25px',
+                      padding: '12px 20px',
+                      transition: 'all 0.3s ease',
+                      boxShadow: searchDropdownOpen ? '0 0 0 3px rgba(255, 106, 0, 0.1)' : 'none'
+                    }}
                   />
                   <button
                     className="btn text-white"
                     type="submit"
-                    style={{ backgroundColor: '#FF6A00', borderColor: '#FF6A00' }}
+                    style={{ 
+                      backgroundColor: '#FF6A00', 
+                      borderColor: '#FF6A00',
+                      borderRadius: '0 25px 25px 0',
+                      padding: '12px 24px',
+                      transition: 'all 0.3s ease',
+                      boxShadow: '0 2px 8px rgba(255, 106, 0, 0.3)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#E68A1F';
+                      e.currentTarget.style.transform = 'scale(1.05)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#FF6A00';
+                      e.currentTarget.style.transform = 'scale(1)';
+                    }}
                   >
                     <IoSearchOutline size={20} />
                   </button>
@@ -491,6 +528,9 @@ export const Header = () => {
 
           {/* Right Side - Login/Signup/Notification/Language */}
           <nav className="d-none d-md-flex align-items-center gap-3">
+            {/* Global Clock with Timezone */}
+            <CompactClock />
+
             {user ? (
               <>
                 {/* Notifications */}
@@ -586,7 +626,25 @@ export const Header = () => {
                 <button
                   className="btn btn-sm text-white"
                   onClick={goToSell}
-                  style={{ backgroundColor: '#FF3B30', borderColor: '#FF3B30' }}
+                  style={{ 
+                    backgroundColor: '#FF3B30', 
+                    borderColor: '#FF3B30',
+                    borderRadius: '12px',
+                    padding: '8px 20px',
+                    fontWeight: '600',
+                    transition: 'all 0.3s ease',
+                    boxShadow: '0 2px 8px rgba(255, 59, 48, 0.3)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#E62E24';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 59, 48, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#FF3B30';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(255, 59, 48, 0.3)';
+                  }}
                 >
                   {language === 'MN' ? 'Зар оруулах' : 'Sell'}
                 </button>
@@ -739,7 +797,7 @@ export const Header = () => {
                   </li>
                   <li className="mb-2">
                     <Link
-                      to="/mylist"
+                      to="/?tab=mylist"
                       className="text-decoration-none d-block p-2 rounded hover-bg"
                       style={{ color: '#334155' }}
                       onClick={(e) => {
@@ -747,7 +805,7 @@ export const Header = () => {
                         e.stopPropagation();
                       }}
                     >
-                      {t('myList')}
+                      👁️ {t('myWatchlist') || 'My Watchlist'}
                     </Link>
                   </li>
                   <li className="mb-2">

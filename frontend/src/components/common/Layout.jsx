@@ -1,4 +1,5 @@
 import { Header, Footer } from "../../routes";
+import { Chatbot } from "./Chatbot";
 
 export const Layout = ({ children }) => {
     return (
@@ -6,6 +7,7 @@ export const Layout = ({ children }) => {
         <Header />
         <main>{children}</main>
         <Footer />
+        <Chatbot />
     </>
     );
 };

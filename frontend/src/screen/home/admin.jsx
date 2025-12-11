@@ -35,11 +35,18 @@ export const Admin = () => {
   const [categoryError, setCategoryError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
+  const [verificationFilter, setVerificationFilter] = useState('');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
   const [categorySuccess, setCategorySuccess] = useState(null);
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [pendingVerifications, setPendingVerifications] = useState([]);
+  const [selectedUserForDetail, setSelectedUserForDetail] = useState(null);
+  const [showUserDetailModal, setShowUserDetailModal] = useState(false);
+  const [verificationStats, setVerificationStats] = useState(null);
+  const [showRejectSection, setShowRejectSection] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
 
 
   const [formData, setFormData] = useState({
@@ -56,7 +63,7 @@ export const Admin = () => {
     images: [],
   });
 
-  const [activeTab, setActiveTab] = useState('myProducts'); 
+  const [activeTab, setActiveTab] = useState('dashboard'); // Default to dashboard 
   const navigate = useNavigate();
   const handleSearch = async () => {
     try {
@@ -67,10 +74,10 @@ export const Admin = () => {
         page: page,
         limit: limit
       }).toString();
-  
+
       const response = await fetch(`http://localhost:5000/api/search/search/users?${queryParams}`);
       const data = await response.json();
-  
+
       if (response.ok) {
         setUsers(data.data.users);
         setTotalCount(data.data.pagination.totalItems);
@@ -82,6 +89,89 @@ export const Admin = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Fetch pending verifications
+  const fetchPendingVerifications = async () => {
+    try {
+      setLoading(true);
+      const token = JSON.parse(localStorage.getItem('user'))?.token;
+      const response = await axios.get('http://localhost:5000/api/identity-verification/pending', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      console.log('Pending verifications response:', response.data);
+      console.log('Users with verification:', response.data.users);
+      setPendingVerifications(response.data.users);
+    } catch (error) {
+      console.error('Error fetching pending verifications:', error);
+      setError('Баталгаажуулалт татахад алдаа гарлаа');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch verification stats
+  const fetchVerificationStats = async () => {
+    try {
+      const token = JSON.parse(localStorage.getItem('user'))?.token;
+      const response = await axios.get('http://localhost:5000/api/identity-verification/stats', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setVerificationStats(response.data.stats);
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    }
+  };
+
+  // Handle approve verification
+  const handleApproveVerification = async (userId, notes = '') => {
+    try {
+      const token = JSON.parse(localStorage.getItem('user'))?.token;
+      await axios.post(
+        `http://localhost:5000/api/identity-verification/approve/${userId}`,
+        { notes },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      toast.success('Баталгаажуулалт амжилттай зөвшөөрөгдлөө');
+      setShowUserDetailModal(false);
+      fetchPendingVerifications();
+      fetchVerificationStats();
+    } catch (error) {
+      console.error('Error approving verification:', error);
+      toast.error(error.response?.data?.error || 'Баталгаажуулахад алдаа гарлаа');
+    }
+  };
+
+  // Handle reject verification
+  const handleRejectVerification = async (userId, reason) => {
+    if (!reason || reason.trim().length === 0) {
+      toast.error('Татгалзсан шалтгаан оруулна уу');
+      return;
+    }
+
+    try {
+      const token = JSON.parse(localStorage.getItem('user'))?.token;
+      await axios.post(
+        `http://localhost:5000/api/identity-verification/reject/${userId}`,
+        { reason },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      toast.success('Баталгаажуулалт татгалзагдлаа');
+      setShowUserDetailModal(false);
+      fetchPendingVerifications();
+      fetchVerificationStats();
+    } catch (error) {
+      console.error('Error rejecting verification:', error);
+      toast.error(error.response?.data?.error || 'Татгалзахад алдаа гарлаа');
+    }
+  };
+
+  // Handle user click
+  const handleUserClick = (user) => {
+    setSelectedUserForDetail(user);
+    setShowUserDetailModal(true);
+    setShowRejectSection(false);
+    setRejectionReason('');
   };
   
   useEffect(() => {
@@ -276,9 +366,16 @@ export const Admin = () => {
         setError('Failed to fetch requests');
       }
     };
-  
+
     if (activeTab === 'requests') {
       fetchRequests();
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === 'verifications') {
+      fetchPendingVerifications();
+      fetchVerificationStats();
     }
   }, [activeTab]);
 
@@ -344,7 +441,8 @@ const handleChange = (e) => {
     setFormData(prev => ({ ...prev, [name]: value }));
   }
 };
-n// Handle parent category change
+
+// Handle parent category change
 const handleParentCategoryChange = (e) => {
   const parentId = e.target.value;
   setParentCategory(parentId);
@@ -577,7 +675,341 @@ const removeImage = (index) => {
     </div>
   </div>
 )}
-   
+
+{/* User Detail Modal for Verification Review */}
+{showUserDetailModal && selectedUserForDetail && (
+  <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+    <div className="modal-dialog modal-xl">
+      <div className="modal-content">
+        <div className="modal-header">
+          <h5 className="modal-title">
+            <BsCheckCircleFill className="me-2" />
+            Баталгаажуулалт шалгах - {selectedUserForDetail.name}
+          </h5>
+          <button
+            type="button"
+            className="btn-close"
+            onClick={() => setShowUserDetailModal(false)}
+          ></button>
+        </div>
+        <div className="modal-body">
+          {/* User Information */}
+          <div className="row mb-4">
+            <div className="col-md-6">
+              <h6 className="text-primary mb-3">Хэрэглэгчийн мэдээлэл</h6>
+              <div className="card bg-light">
+                <div className="card-body">
+                  <div className="d-flex align-items-center mb-3">
+                    {selectedUserForDetail.photo?.filePath ? (
+                      <img
+                        src={selectedUserForDetail.photo.filePath}
+                        alt={selectedUserForDetail.name}
+                        className="rounded-circle me-3"
+                        style={{ width: '80px', height: '80px', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <div
+                        className="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-3"
+                        style={{ width: '80px', height: '80px' }}
+                      >
+                        <FiUser className="text-white" size={40} />
+                      </div>
+                    )}
+                    <div>
+                      <h5 className="mb-1">{selectedUserForDetail.name}</h5>
+                      <p className="text-muted mb-0">{selectedUserForDetail.email}</p>
+                      {selectedUserForDetail.phone && (
+                        <p className="text-muted mb-0">{selectedUserForDetail.phone}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="row g-2">
+                    <div className="col-6">
+                      <small className="text-muted d-block">Бүртгүүлсэн:</small>
+                      <strong>{new Date(selectedUserForDetail.createdAt).toLocaleDateString('mn-MN')}</strong>
+                    </div>
+                    <div className="col-6">
+                      <small className="text-muted d-block">Хүсэлт илгээсэн:</small>
+                      <strong>{new Date(selectedUserForDetail.identityVerification?.requestedAt).toLocaleDateString('mn-MN')}</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ID Details */}
+            <div className="col-md-6">
+              <h6 className="text-primary mb-3">Үнэмлэхний мэдээлэл</h6>
+              <div className="card bg-light">
+                <div className="card-body">
+                  {selectedUserForDetail.identityVerification?.idDetails && (
+                    <>
+                      {selectedUserForDetail.identityVerification.idDetails.fullName && (
+                        <div className="mb-2">
+                          <small className="text-muted d-block">Овог нэр:</small>
+                          <strong>{selectedUserForDetail.identityVerification.idDetails.fullName}</strong>
+                        </div>
+                      )}
+                      {selectedUserForDetail.identityVerification.idDetails.idNumber && (
+                        <div className="mb-2">
+                          <small className="text-muted d-block">Үнэмлэхний дугаар:</small>
+                          <strong>{selectedUserForDetail.identityVerification.idDetails.idNumber}</strong>
+                        </div>
+                      )}
+                      {selectedUserForDetail.identityVerification.idDetails.dateOfBirth && (
+                        <div className="mb-2">
+                          <small className="text-muted d-block">Төрсөн огноо:</small>
+                          <strong>{new Date(selectedUserForDetail.identityVerification.idDetails.dateOfBirth).toLocaleDateString('mn-MN')}</strong>
+                        </div>
+                      )}
+                      {selectedUserForDetail.identityVerification.idDetails.nationality && (
+                        <div className="mb-2">
+                          <small className="text-muted d-block">Харьяалал:</small>
+                          <strong>{selectedUserForDetail.identityVerification.idDetails.nationality}</strong>
+                        </div>
+                      )}
+                      {selectedUserForDetail.identityVerification.idDetails.expiryDate && (
+                        <div className="mb-2">
+                          <small className="text-muted d-block">Дуусах хугацаа:</small>
+                          <strong>{new Date(selectedUserForDetail.identityVerification.idDetails.expiryDate).toLocaleDateString('mn-MN')}</strong>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  {(!selectedUserForDetail.identityVerification?.idDetails || Object.keys(selectedUserForDetail.identityVerification.idDetails).length === 0) && (
+                    <p className="text-muted mb-0">Үнэмлэхний мэдээлэл байхгүй</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Debug Info - Remove after testing */}
+          <div className="mb-3">
+            <details>
+              <summary className="text-muted small" style={{ cursor: 'pointer' }}>Debug: Баримт мэдээлэл харах</summary>
+              <pre className="bg-light p-2 rounded small mt-2" style={{ maxHeight: '200px', overflow: 'auto' }}>
+                {JSON.stringify(selectedUserForDetail.identityVerification?.documents, null, 2)}
+              </pre>
+            </details>
+          </div>
+
+          {/* Verification Documents */}
+          <div className="mb-4">
+            <h6 className="text-primary mb-3">Баталгаажуулах баримт бичиг</h6>
+            <div className="row g-3">
+              {/* ID Card Front */}
+              <div className="col-md-4">
+                <div className="card">
+                  <div className="card-body text-center p-2">
+                    <small className="text-muted d-block mb-2 fw-bold">Үнэмлэх (Урд тал)</small>
+                    {selectedUserForDetail.identityVerification?.documents?.idCardFront?.url ? (
+                      <div>
+                        <img
+                          src={selectedUserForDetail.identityVerification.documents.idCardFront.url}
+                          alt="ID Card Front"
+                          className="img-fluid rounded border"
+                          style={{
+                            maxHeight: '250px',
+                            width: '100%',
+                            objectFit: 'contain',
+                            cursor: 'pointer',
+                            backgroundColor: '#f8f9fa'
+                          }}
+                          onClick={() => window.open(selectedUserForDetail.identityVerification.documents.idCardFront.url, '_blank')}
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'block';
+                          }}
+                        />
+                        <div className="bg-light p-4 rounded" style={{ display: 'none' }}>
+                          <p className="text-danger mb-0">Зураг ачаалагдсангүй</p>
+                          <small className="text-muted d-block">{selectedUserForDetail.identityVerification.documents.idCardFront.url}</small>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-light p-4 rounded">
+                        <p className="text-muted mb-0">Зураг байхгүй</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* ID Card Back */}
+              <div className="col-md-4">
+                <div className="card">
+                  <div className="card-body text-center p-2">
+                    <small className="text-muted d-block mb-2 fw-bold">Үнэмлэх (Ар тал)</small>
+                    {selectedUserForDetail.identityVerification?.documents?.idCardBack?.url ? (
+                      <div>
+                        <img
+                          src={selectedUserForDetail.identityVerification.documents.idCardBack.url}
+                          alt="ID Card Back"
+                          className="img-fluid rounded border"
+                          style={{
+                            maxHeight: '250px',
+                            width: '100%',
+                            objectFit: 'contain',
+                            cursor: 'pointer',
+                            backgroundColor: '#f8f9fa'
+                          }}
+                          onClick={() => window.open(selectedUserForDetail.identityVerification.documents.idCardBack.url, '_blank')}
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'block';
+                          }}
+                        />
+                        <div className="bg-light p-4 rounded" style={{ display: 'none' }}>
+                          <p className="text-danger mb-0">Зураг ачаалагдсангүй</p>
+                          <small className="text-muted d-block">{selectedUserForDetail.identityVerification.documents.idCardBack.url}</small>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-light p-4 rounded">
+                        <p className="text-muted mb-0">Зураг байхгүй</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Selfie with ID */}
+              <div className="col-md-4">
+                <div className="card">
+                  <div className="card-body text-center p-2">
+                    <small className="text-muted d-block mb-2 fw-bold">Үнэмлэх барьсан селфи</small>
+                    {selectedUserForDetail.identityVerification?.documents?.selfieWithId?.url ? (
+                      <div>
+                        <img
+                          src={selectedUserForDetail.identityVerification.documents.selfieWithId.url}
+                          alt="Selfie with ID"
+                          className="img-fluid rounded border"
+                          style={{
+                            maxHeight: '250px',
+                            width: '100%',
+                            objectFit: 'contain',
+                            cursor: 'pointer',
+                            backgroundColor: '#f8f9fa'
+                          }}
+                          onClick={() => window.open(selectedUserForDetail.identityVerification.documents.selfieWithId.url, '_blank')}
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'block';
+                          }}
+                        />
+                        <div className="bg-light p-4 rounded" style={{ display: 'none' }}>
+                          <p className="text-danger mb-0">Зураг ачаалагдсангүй</p>
+                          <small className="text-muted d-block">{selectedUserForDetail.identityVerification.documents.selfieWithId.url}</small>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-light p-4 rounded">
+                        <p className="text-muted mb-0">Зураг байхгүй</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Admin Notes */}
+          {!showRejectSection && (
+            <div className="mb-3">
+              <label className="form-label fw-bold">Тэмдэглэл (заавал биш)</label>
+              <textarea
+                id="adminNotes"
+                className="form-control"
+                rows="2"
+                placeholder="Баталгаажуулалттай холбоотой тэмдэглэл..."
+              ></textarea>
+            </div>
+          )}
+
+          {/* Rejection Reason */}
+          {showRejectSection && (
+            <div className="mb-3">
+              <label className="form-label fw-bold text-danger">Татгалзсан шалтгаан (заавал)</label>
+              <textarea
+                className="form-control"
+                rows="3"
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="Татгалзсан шалтгааныг тодорхой бичнэ үү..."
+                autoFocus
+              ></textarea>
+            </div>
+          )}
+        </div>
+        <div className="modal-footer">
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => {
+              setShowUserDetailModal(false);
+              setShowRejectSection(false);
+              setRejectionReason('');
+            }}
+          >
+            Хаах
+          </button>
+          {!showRejectSection ? (
+            <>
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={() => setShowRejectSection(true)}
+              >
+                Татгалзах
+              </button>
+              <button
+                type="button"
+                className="btn btn-success"
+                onClick={() => {
+                  const notes = document.getElementById('adminNotes')?.value || '';
+                  handleApproveVerification(selectedUserForDetail._id, notes);
+                }}
+              >
+                <BsCheckCircleFill className="me-2" />
+                Баталгаажуулах
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="btn btn-outline-secondary"
+                onClick={() => {
+                  setShowRejectSection(false);
+                  setRejectionReason('');
+                }}
+              >
+                Буцах
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={() => {
+                  if (rejectionReason.trim()) {
+                    handleRejectVerification(selectedUserForDetail._id, rejectionReason);
+                    setShowRejectSection(false);
+                    setRejectionReason('');
+                  } else {
+                    toast.error('Татгалзсан шалтгаан оруулна уу');
+                  }
+                }}
+              >
+                Татгалзах баталгаажуулах
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
          <div className="container mt-n5">
            <div className="row">
              <div className="col-md-3">
@@ -585,31 +1017,21 @@ const removeImage = (index) => {
                  <div className="card-body p-0">
                    <ul className="nav flex-column">
                      <li className="nav-item">
-                       <button 
-                         className={`nav-link d-flex align-items-center ${activeTab === 'myProducts' ? 'active' : ''}`}
-                         onClick={() => setActiveTab('myProducts')}
+                       <button
+                         className={`nav-link d-flex align-items-center ${activeTab === 'dashboard' ? 'active' : ''}`}
+                         onClick={() => setActiveTab('dashboard')}
                        >
                          <FiShoppingBag className="me-2" />
-                         Миний бараанууд
+                         Dashboard
                          <BsArrowRightShort className="ms-auto" />
                        </button>
                      </li>
                      <li className="nav-item">
                        <button 
-                         className={`nav-link d-flex align-items-center ${activeTab === 'addProduct' ? 'active' : ''}`}
-                         onClick={() => setActiveTab('addProduct')}
-                       >
-                         <FiPlusCircle className="me-2" />
-                         Шинэ бараа нэмэх
-                         <BsArrowRightShort className="ms-auto" />
-                       </button>
-                     </li>
-                     <li className="nav-item">
-                       <button 
-                         className={`nav-link d-flex align-items-center ${activeTab === 'history' ? 'active' : ''}`}
+                         className={`nav-link d-flex align-items-center ${activeTab === 'users' ? 'active' : ''}`}
                          onClick={() => setActiveTab('users')}
                        >
-                         <FiClock className="me-2" />
+                         <FiUser className="me-2" />
                          Хэрэглэгчид
                          <BsArrowRightShort className="ms-auto" />
                        </button>
@@ -637,13 +1059,23 @@ const removeImage = (index) => {
                          <BsArrowRightShort className="ms-auto" />
                        </button>
                      </li>
+                    <li className="nav-item">
+                      <button
+                        className={`nav-link d-flex align-items-center ${activeTab === 'verifications' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('verifications')}
+                      >
+                        <BsCheckCircleFill className="me-2" />
+                        Баталгаажуулалт
+                        <BsArrowRightShort className="ms-auto" />
+                      </button>
+                    </li>
                      <li className="nav-item">
                        <button
                          className={`nav-link d-flex align-items-center ${activeTab === 'requests' ? 'active' : ''}`}
                          onClick={() => setActiveTab('requests')}
                        >
-                         <FiPlusCircle className="me-2" />
-                         Ирсэн хүсэлтүүд
+                         <FiCreditCard className="me-2" />
+                         Дансны хүсэлт
                          <BsArrowRightShort className="ms-auto" />
                        </button>
                      </li>
@@ -663,414 +1095,210 @@ const removeImage = (index) => {
              </div>
    
              <div className="col-md-9">
-               {activeTab === 'addProduct' && (
-                 <div className="card shadow-sm border-0 mb-4">
-                   <div className="card-body p-4">
-                     <div className="d-flex justify-content-between align-items-center mb-4">
-                       <h4 className="mb-0">
-                         <FiPlusCircle className="me-2" />
-                         Шинэ бараа нэмэх
-                       </h4>
-                       <button 
-                         className="btn btn-sm btn-outline-secondary"
-                         onClick={() => setActiveTab('myProducts')}
-                       >
-                         Миний бараанууд руу буцах
-                       </button>
-                     </div>
-   
-                     <form onSubmit={handleSubmit} encType="multipart/form-data">
-                       <div className="row g-3">
-                         <div className="col-12">
-                           <h5 className="section-title mb-3 text-primary">
-                             <span className="bg-primary bg-opacity-10 px-3 py-1 rounded">Үндсэн мэдээлэл</span>
-                           </h5>
-                         </div>
-                         
-                         {['title', 'description', 'price'].map(field => (
-                           <div className="col-md-6" key={field}>
-                             <div className="form-floating">
-                               {field === 'description' ? (
-                                 <textarea
-                                   className="form-control"
-                                   id={field}
-                                   name={field}
-                                   value={formData[field]}
-                                   onChange={handleChange}
-                                   required
-                                   rows={5}
-                                   placeholder=" "
-                                   style={{ height: '120px' }}
-                                 />
-                               ) : (
-                                 <input
-                                   type={field === 'price' ? 'number' : 'text'}
-                                   className="form-control"
-                                   id={field}
-                                   name={field}
-                                   value={formData[field]}
-                                   onChange={handleChange}
-                                   required
-                                   min={field === 'price' ? 1 : undefined}
-                                   placeholder=" "
-                                 />
-                               )}
-                               <label htmlFor={field}>
-                                 {field === 'title' ? 'Барааны нэр*' : 
-                                 field === 'description' ? 'Тайлбар*' : 'Үндсэн үнэ*'}
-                               </label>
-                             </div>
-                           </div>
-                         ))}
-   
-                         <div className="col-12 mt-3">
-                           <h5 className="section-title mb-3 text-primary">
-                             <span className="bg-primary bg-opacity-10 px-3 py-1 rounded">Нэмэлт мэдээлэл</span>
-                           </h5>
-                         </div>
-   
-                         {/* Parent Category */}
-                         <div className="col-md-6">
-                           <div className="form-floating">
-                             <select
-                               className="form-select"
-                               id="parentCategory"
-                               value={parentCategory}
-                               onChange={handleParentCategoryChange}
-                               required
-                             >
-                               <option value="">Үндсэн ангилал сонгох</option>
-                               {categories
-                                 .filter(cat => !cat.parent || (typeof cat.parent === 'object' && cat.parent === null))
-                                 .map((parentCat) => (
-                                   <option key={parentCat._id} value={parentCat._id}>
-                                     {language === 'MN' ? (parentCat.titleMn || parentCat.title) : parentCat.title}
-                                   </option>
-                                 ))}
-                             </select>
-                             <label htmlFor="parentCategory">Үндсэн ангилал*</label>
-                           </div>
-                         </div>
+               {/* Dashboard */}
+               {activeTab === 'dashboard' && (
+                 <div>
+                   <h2 className="mb-4">Dashboard</h2>
 
-                         {/* Subcategory */}
-                         <div className="col-md-6">
-                           <div className="form-floating">
-                             <select
-                               className="form-select"
-                               id="category"
-                               name="category"
-                               value={formData.category}
-                               onChange={handleChange}
-                               required
-                               disabled={!parentCategory || subcategories.length === 0}
-                             >
-                               <option value="">Дэд ангилал сонгох</option>
-                               {subcategories.map((subCat) => (
-                                 <option key={subCat._id} value={subCat._id}>
-                                   {language === 'MN' ? (subCat.titleMn || subCat.title) : subCat.title}
-                                 </option>
-                               ))}
-                             </select>
-                             <label htmlFor="category">Дэд ангилал*</label>
-                             {parentCategory && subcategories.length === 0 && (
-                               <small className="text-muted">
-                                 Дэд ангилал байхгүй байна
-                               </small>
-                             )}
-                           </div>
+                   {/* Statistics Cards */}
+                   <div className="row g-4 mb-4">
+                     <div className="col-md-3">
+                       <div className="card border-0 shadow-sm text-center p-4" style={{backgroundColor: '#f8f9fa'}}>
+                         <div className="mb-3">
+                           <FiUser size={48} className="text-primary" />
                          </div>
-   
-                         {['height', 'length', 'width', 'weight'].map(field => (
-                           <div className="col-md-6" key={field}>
-                             <div className="form-floating">
-                               <input
-                                 type="number"
-                                 className="form-control"
-                                 id={field}
-                                 name={field}
-                                 value={formData[field]}
-                                 onChange={handleChange}
-                                 placeholder=" "
-                                 min={0}
-                               />
-                               <label htmlFor={field}>
-                                 {field === 'height' ? 'Өндөр (см)' :
-                                 field === 'length' ? 'Урт (см)' :
-                                 field === 'width' ? 'Өргөн (см)' : 'Жин (кг)'}
-                               </label>
-                             </div>
-                           </div>
-                         ))}
-   
-                         <div className="col-12 mt-3">
-                           <h5 className="section-title mb-3 text-primary">
-                             <span className="bg-primary bg-opacity-10 px-3 py-1 rounded">Дуудлага худалдааны тохиргоо</span>
-                           </h5>
-                         </div>
-                         
-                         <div className="col-md-6">
-                           <div className="form-floating">
-                             <input
-                               type="number"
-                               className="form-control"
-                               id="bidThreshold"
-                               name="bidThreshold"
-                               value={formData.bidThreshold}
-                               onChange={handleChange}
-                               min="0"
-                               placeholder=" "
-                             />
-                             <label htmlFor="bidThreshold">Хамгийн бага үнэ</label>
-                           </div>
-                         </div>
-   
-                         <div className="col-md-6">
-                           <div className="form-floating">
-                             <input
-                               type="datetime-local"
-                               className="form-control"
-                               id="bidDeadline"
-                               name="bidDeadline"
-                               value={formData.bidDeadline}
-                               onChange={handleChange}
-                               required
-                               min={new Date().toISOString().slice(0, 16)}
-                               placeholder=" "
-                             />
-                             <label htmlFor="bidDeadline">Дуусах хугацаа*</label>
-                           </div>
-                         </div>
-   
-                          <div className="col-12">
-  <div className="image-upload-container border rounded p-4">
-    <label htmlFor="imageUpload" className="upload-label">
-      <div className="upload-content">
-        <div className="upload-icon mb-3">
-          <i className="bi bi-cloud-arrow-up fs-1 text-muted"></i>
-        </div>
-        <h6>Зураг оруулах</h6>
-        <p className="text-muted mb-0">JPG, PNG форматаар (5MB хүртэл)</p>
-        <p className="text-muted small">Хамгийн багадаа 1 зураг оруулна уу</p>
-      </div>
-      <input
-        type="file"
-        id="imageUpload"
-        className="d-none"
-        name="images"
-        onChange={handleChange}
-        accept="image/*"
-        multiple // Allow multiple file selection
-      />
-    </label>
-    
-    {/* Image previews */}
-    {formData.images.length > 0 && (
-      <div className="mt-3">
-        <h6 className="mb-2">Оруулсан зурагнууд:</h6>
-        <div className="d-flex flex-wrap gap-2">
-          {formData.images.map((image, index) => (
-            <div key={index} className="position-relative" style={{ width: '100px' }}>
-              <img 
-                src={image.preview} 
-                alt={`Preview ${index}`}
-                className="img-thumbnail"
-                style={{ height: '100px', objectFit: 'cover' }}
-              />
-              <button
-                type="button"
-                className="btn btn-danger btn-sm position-absolute top-0 end-0"
-                onClick={() => removeImage(index)}
-                style={{ transform: 'translate(50%, -50%)' }}
-              >
-                &times;
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-    )}
-  </div>
-</div>
-
-                      <div className="col-12 mt-4">
-                        <button 
-                          type="submit" 
-                          className="btn btn-primary py-3 w-100"
-                          disabled={uploading}
-                        >
-                          {uploading ? (
-                            <>
-                              <span className="spinner-border spinner-border-sm me-2" role="status"></span>
-                              Хадгалж байна...
-                            </>
-                          ) : (
-                            'Бараа нэмэх'
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            )}
-   
-               {activeTab === 'myProducts' && (
-                 <div className="card shadow-sm border-0 mb-4">
-                   <div className="card-body">
-                     <div className="d-flex justify-content-between align-items-center mb-4">
-                       <h4 className="mb-0">
-                         <FiShoppingBag className="me-2" />
-                         Миний бараанууд
-                       </h4>
-                       <div className="d-flex align-items-center">
-                         <div className="input-group me-3" style={{ width: '250px' }}>
-                           <input 
-                             type="text" 
-                             className="form-control" 
-                             placeholder="Хайх..." 
-                             value={searchTerm}
-                             onChange={(e) => setSearchTerm(e.target.value)}
-                             onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                           />
-                           <button 
-                             className="btn btn-outline-secondary" 
-                             type="button" 
-                             onClick={handleSearch}
-                             disabled={loading}
-                           >
-                             <FiSearch />
-                           </button>
-                         </div>
-                         <span className="badge bg-primary rounded-pill">{products.length}</span>
+                         <h2 className="mb-0 fw-bold">{totalCount || users.length}</h2>
+                         <p className="text-muted mb-0">Total Users</p>
                        </div>
                      </div>
-   
-                     {loading ? (
-                       <div className="text-center py-5">
-                         <div className="spinner-border text-primary" role="status">
-                           <span className="visually-hidden">Ачаалж байна...</span>
+
+                     <div className="col-md-3">
+                       <div className="card border-0 shadow-sm text-center p-4" style={{backgroundColor: '#f8f9fa'}}>
+                         <div className="mb-3">
+                           <FiShoppingBag size={48} className="text-success" />
                          </div>
-                         <p className="mt-3">Бараануудыг ачаалж байна...</p>
+                         <h2 className="mb-0 fw-bold">{categories.length}</h2>
+                         <p className="text-muted mb-0">Categories</p>
                        </div>
-                     ) : error ? (
-                       <div className="alert alert-warning">
-                         <p>Алдаа гарлаа! {error}</p>
-                         <button 
-                           className="btn btn-sm btn-outline-secondary"
-                           onClick={() => window.location.reload()}
-                         >
-                           Дахин оролдох
-                         </button>
+                     </div>
+
+                     <div className="col-md-3">
+                       <div className="card border-0 shadow-sm text-center p-4" style={{backgroundColor: '#f8f9fa'}}>
+                         <div className="mb-3">
+                           <FiCreditCard size={48} className="text-info" />
+                         </div>
+                         <h2 className="mb-0 fw-bold">{requests.length}</h2>
+                         <p className="text-muted mb-0">Pending Requests</p>
                        </div>
-                     ) : products.length > 0 ? (
-                       <div className="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-                         {products.map((product) => (
-                           <div className="col" key={product._id}>
-                             <div className="card h-100 product-card">
-                               {product.images && (
-                                 <img 
-                                   src={product.image} 
-                                   className="card-img-top product-image" 
-                                   alt={product.title}
-                                   onClick={() => navigate(`/products/${product._id}`)}
-                                 />
-                               )}
-                               <div className="card-body">
-                                 <h5 className="card-title">{product.title}</h5>
-                                 <div className="d-flex justify-content-between align-items-center mb-2">
-                                   <span className="fw-bold text-primary">{product.currentBid}₮</span>
-                                   <span className={`badge ${product.sold ? 'bg-success' : 'bg-secondary'}`}>
-                                     {product.sold ? 'Зарагдсан' : 'Зарагдаагүй'}
-                                   </span>
-                                 </div>
-                                 <div className="d-flex justify-content-between">
-                                   <button 
-                                     className="btn btn-sm btn-outline-primary"
-                                     onClick={() => navigate(`/products/${product._id}`)}
-                                   >
-                                     Дэлгэрэнгүй
-                                   </button>
-                                   {!product.sold && (
-                                     <button 
-                                       className="btn btn-sm btn-primary"
-                                       onClick={() => handleSellProduct(product._id, product.currentBid)}
-                                     >
-                                       Зарах
-                                     </button>
-                                   )}
-                                 </div>
+                     </div>
+
+                     <div className="col-md-3">
+                       <div className="card border-0 shadow-sm text-center p-4" style={{backgroundColor: '#f8f9fa'}}>
+                         <div className="mb-3">
+                           <BsCheckCircleFill size={48} className="text-warning" />
+                         </div>
+                         <h2 className="mb-0 fw-bold">{users.filter(u => u.identityVerified).length}</h2>
+                         <p className="text-muted mb-0">Verified Users</p>
+                       </div>
+                     </div>
+                   </div>
+
+                   {/* Activity Overview */}
+                   <div className="row g-4">
+                     <div className="col-md-6">
+                       <div className="card border-0 shadow-sm">
+                         <div className="card-body">
+                           <h5 className="card-title mb-4">Recent Activity</h5>
+                           <div className="list-group list-group-flush">
+                             <div className="list-group-item d-flex justify-content-between align-items-center px-0">
+                               <div>
+                                 <FiUser className="me-2 text-primary" />
+                                 <span>New Users</span>
                                </div>
+                               <span className="badge bg-primary rounded-pill">{users.length}</span>
+                             </div>
+                             <div className="list-group-item d-flex justify-content-between align-items-center px-0">
+                               <div>
+                                 <BsCheckCircleFill className="me-2 text-success" />
+                                 <span>Verified</span>
+                               </div>
+                               <span className="badge bg-success rounded-pill">{users.filter(u => u.identityVerified).length}</span>
+                             </div>
+                             <div className="list-group-item d-flex justify-content-between align-items-center px-0">
+                               <div>
+                                 <FiClock className="me-2 text-warning" />
+                                 <span>Pending Verification</span>
+                               </div>
+                               <span className="badge bg-warning rounded-pill">
+                                 {users.filter(u => u.identityVerification?.status === 'pending').length}
+                               </span>
+                             </div>
+                             <div className="list-group-item d-flex justify-content-between align-items-center px-0">
+                               <div>
+                                 <FiCreditCard className="me-2 text-info" />
+                                 <span>Balance Requests</span>
+                               </div>
+                               <span className="badge bg-info rounded-pill">{requests.length}</span>
                              </div>
                            </div>
-                         ))}
-                       </div>
-                     ) : (
-                       <div className="text-center py-5">
-                         <div className="empty-state">
-                           <img 
-                             src="/empty-box.svg" 
-                             alt="No products" 
-                             className="img-fluid mb-4"
-                             style={{ maxWidth: '200px', opacity: 0.7 }}
-                           />
-                           <h5 className="text-muted">
-                             {searchTerm 
-                               ? `"${searchTerm}" гэсэн үр дүн олдсонгүй` 
-                               : 'Одоогоор бараа байхгүй байна'}
-                           </h5>
-                           {!searchTerm && (
-                             <button 
-                               className="btn btn-primary mt-3"
-                               onClick={() => setActiveTab('addProduct')}
-                             >
-                               <FiPlusCircle className="me-2" />
-                               Шинэ бараа нэмэх
-                             </button>
-                           )}
                          </div>
                        </div>
-                     )}
+                     </div>
+
+                     <div className="col-md-6">
+                       <div className="card border-0 shadow-sm">
+                         <div className="card-body">
+                           <h5 className="card-title mb-4">Category Breakdown</h5>
+                           <div className="list-group list-group-flush">
+                             <div className="list-group-item d-flex justify-content-between align-items-center px-0">
+                               <span>Parent Categories</span>
+                               <span className="badge bg-primary rounded-pill">
+                                 {categories.filter(c => !c.parent || (typeof c.parent === 'object' && c.parent === null)).length}
+                               </span>
+                             </div>
+                             <div className="list-group-item d-flex justify-content-between align-items-center px-0">
+                               <span>Subcategories</span>
+                               <span className="badge bg-secondary rounded-pill">
+                                 {categories.filter(c => c.parent && c.parent !== null).length}
+                               </span>
+                             </div>
+                             <div className="list-group-item d-flex justify-content-between align-items-center px-0">
+                               <span>Total Categories</span>
+                               <span className="badge bg-success rounded-pill">{categories.length}</span>
+                             </div>
+                           </div>
+                         </div>
+                       </div>
+                     </div>
                    </div>
                  </div>
                )}
-   
                 {activeTab === 'users' && (
   <div className="card border-0 shadow-sm">
     <div className="card-body">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h4 className="card-title mb-0">Хэрэглэгчид</h4>
-        <span className="badge bg-secondary">{users.length} Хэрэглэгчид</span>
+        <span className="badge bg-secondary">{totalCount || users.length} Хэрэглэгчид</span>
       </div>
 
-      <div className="row mb-4">
-        <div className="col-md-8">
+      {/* Filters and Search */}
+      <div className="row mb-4 g-3">
+        <div className="col-md-4">
           <div className="input-group">
             <input
               type="text"
               className="form-control"
-              placeholder="Хэрэглэгчийн нэр, имэйл эсвэл нэрээр хайх..."
+              placeholder="Нэр, имэйл, утас..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
             />
-            <button 
-              className="btn btn-outline-secondary" 
+            <button
+              className="btn btn-outline-secondary"
               type="button"
               onClick={handleSearch}
             >
-              Хайх
+              <FiSearch />
             </button>
           </div>
         </div>
-        
+
+        <div className="col-md-3">
+          <select
+            className="form-select"
+            value={verificationFilter}
+            onChange={(e) => {
+              setVerificationFilter(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="">Бүх баталгаажуулалт</option>
+            <option value="verified">Баталгаажсан</option>
+            <option value="pending">Хүлээгдэж буй</option>
+            <option value="rejected">Татгалзсан</option>
+            <option value="unverified">Баталгаажаагүй</option>
+          </select>
+        </div>
+
+        <div className="col-md-3">
+          <select
+            className="form-select"
+            value={roleFilter}
+            onChange={(e) => {
+              setRoleFilter(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="">Бүх үүрэг</option>
+            <option value="admin">Админ</option>
+            <option value="buyer">Хэрэглэгч</option>
+          </select>
+        </div>
+
+        <div className="col-md-2">
+          <button
+            className="btn btn-outline-secondary w-100"
+            onClick={() => {
+              setSearchTerm('');
+              setRoleFilter('');
+              setVerificationFilter('');
+              setPage(1);
+              handleSearch();
+            }}
+          >
+            Цэвэрлэх
+          </button>
+        </div>
       </div>
 
+      {/* Pagination Info */}
       {totalCount > 0 && (
         <div className="d-flex justify-content-between align-items-center mb-3">
           <small className="text-muted">
             Нийт {totalCount} хэрэглэгч, {Math.ceil(totalCount / limit)} хуудас
           </small>
           <div className="btn-group">
-            <button 
+            <button
               className="btn btn-sm btn-outline-secondary"
               disabled={page === 1}
               onClick={() => setPage(p => Math.max(1, p - 1))}
@@ -1080,7 +1308,7 @@ const removeImage = (index) => {
             <button className="btn btn-sm btn-outline-secondary disabled">
               {page}
             </button>
-            <button 
+            <button
               className="btn btn-sm btn-outline-secondary"
               disabled={page >= Math.ceil(totalCount / limit)}
               onClick={() => setPage(p => p + 1)}
@@ -1091,6 +1319,7 @@ const removeImage = (index) => {
         </div>
       )}
 
+      {/* Table View */}
       {loading ? (
         <div className="text-center py-4">
           <div className="spinner-border text-primary" role="status">
@@ -1101,7 +1330,7 @@ const removeImage = (index) => {
       ) : error ? (
         <div className="alert alert-warning">
           <p>{error}</p>
-          <button 
+          <button
             className="btn btn-sm btn-outline-secondary"
             onClick={() => window.location.reload()}
           >
@@ -1109,57 +1338,116 @@ const removeImage = (index) => {
           </button>
         </div>
       ) : users.length > 0 ? (
-        <div className="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-          {users.map((user) => (
-            <div className="col" key={user._id}>
-              <div className="card h-100">
-                <div className="card-body">
-                  <h5 className="card-title">{user.name}</h5>
-                  <p className="card-text text-truncate">{user.email}</p>
-                  <p className="card-text">
-                    Үлдэгдэл: {user.balance?.toFixed(2) || '0.00'}₮
-                  </p>
-                  <div className="d-flex justify-content-between align-items-center">
-                    <div>
-                      <button 
-                        className="btn btn-sm btn-outline-success me-2"
+        <div className="table-responsive">
+          <table className="table table-hover align-middle">
+            <thead className="table-light">
+              <tr>
+                <th>Хэрэглэгч</th>
+                <th>Имэйл</th>
+                <th>Утас</th>
+                <th>Үлдэгдэл</th>
+                <th>Баталгаажуулалт</th>
+                <th>Үүрэг</th>
+                <th className="text-end">Үйлдэл</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((user) => (
+                <tr
+                  key={user._id}
+                  onClick={() => handleUserClick(user)}
+                  style={{ cursor: 'pointer' }}
+                  className="hover-row"
+                >
+                  <td>
+                    <div className="d-flex align-items-center">
+                      {user.photo?.filePath ? (
+                        <img
+                          src={user.photo.filePath}
+                          alt={user.name}
+                          className="rounded-circle me-2"
+                          style={{ width: '40px', height: '40px', objectFit: 'cover' }}
+                        />
+                      ) : (
+                        <div
+                          className="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-2"
+                          style={{ width: '40px', height: '40px' }}
+                        >
+                          <FiUser className="text-white" />
+                        </div>
+                      )}
+                      <strong>{user.name}</strong>
+                    </div>
+                  </td>
+                  <td>{user.email}</td>
+                  <td>{user.phone || '-'}</td>
+                  <td className="fw-bold text-success">{user.balance?.toFixed(2) || '0.00'}₮</td>
+                  <td>
+                    {user.identityVerified ? (
+                      <span className="badge bg-success">
+                        <BsCheckCircleFill className="me-1" />
+                        Баталгаажсан
+                      </span>
+                    ) : user.identityVerification?.status === 'pending' ? (
+                      <span className="badge bg-warning text-dark">
+                        Хүлээгдэж буй
+                      </span>
+                    ) : user.identityVerification?.status === 'rejected' ? (
+                      <span className="badge bg-danger">
+                        Татгалзсан
+                      </span>
+                    ) : (
+                      <span className="badge bg-secondary">
+                        Баталгаажаагүй
+                      </span>
+                    )}
+                  </td>
+                  <td>
+                    <span className={`badge ${
+                      user.role === 'admin' ? 'bg-danger' :
+                      user.role === 'moderator' ? 'bg-warning text-dark' : 'bg-primary'
+                    }`}>
+                      {user.role === 'admin' ? 'Админ' : user.role === 'moderator' ? 'Модератор' : 'Хэрэглэгч'}
+                    </span>
+                  </td>
+                  <td className="text-end">
+                    <div className="btn-group btn-group-sm">
+                      <button
+                        className="btn btn-outline-success"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleAddBalanceClick(user._id);
                         }}
+                        title="Данс цэнэглэх"
                       >
-                        Данс цэнэглэх
+                        Данс +
                       </button>
-                      <button 
-                        className="btn btn-sm btn-outline-primary"
+                      <button
+                        className="btn btn-outline-primary"
                         onClick={(e) => {
                           e.stopPropagation();
                           fetchUserProducts(user._id);
                         }}
+                        title="Бараануудыг үзэх"
                       >
-                        Бараануудыг үзэх
+                        Бараа
                       </button>
                     </div>
-                    <span className={`badge ${
-                      user.role === 'admin' ? 'bg-danger' : 
-                      user.role === 'moderator' ? 'bg-warning' : 'bg-primary'
-                    }`}>
-                      {user.role}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       ) : (
         <div className="text-center py-5">
           <p className="text-muted">Хэрэглэгч олдсонгүй</p>
-          <button 
+          <button
             className="btn btn-primary"
             onClick={() => {
               setSearchTerm('');
               setRoleFilter('');
+              setVerificationFilter('');
               setPage(1);
               handleSearch();
             }}
@@ -1249,7 +1537,7 @@ const removeImage = (index) => {
   <div className="card border-0 shadow-sm">
     <div className="card-body">
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h4 className="card-title mb-0">Ирсэн хүсэлтүүд</h4>
+        <h4 className="card-title mb-0">Дансны цэнэглэлтийн хүсэлт</h4>
         <span className="badge bg-secondary">{requests.length} хүсэлт</span>
       </div>
 
@@ -1321,56 +1609,128 @@ const removeImage = (index) => {
     <div className="card-body">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h4 className="card-title mb-0">Ангилал удирдлага</h4>
-        <span className="badge bg-secondary">{categories.length} ангилал</span>
+        <div>
+          <span className="badge bg-primary me-2">
+            {categories.filter(c => !c.parent || (typeof c.parent === 'object' && c.parent === null)).length} үндсэн ангилал
+          </span>
+          <span className="badge bg-secondary">
+            {categories.filter(c => c.parent && c.parent !== null).length} дэд ангилал
+          </span>
+        </div>
       </div>
 
       {categoryError && (
         <div className="alert alert-danger">{categoryError}</div>
       )}
-      
+
       {categorySuccess && (
         <div className="alert alert-success">{categorySuccess}</div>
       )}
 
       <div className="row">
-        <div className="col-md-6">
+        <div className="col-md-5">
           <div className="card mb-4">
             <div className="card-body">
               <h5 className="card-title">Шинэ ангилал нэмэх</h5>
-              <div className="input-group mb-3">
+
+              {/* Toggle between parent and subcategory */}
+              <div className="btn-group mb-3 w-100" role="group">
+                <input
+                  type="radio"
+                  className="btn-check"
+                  name="categoryType"
+                  id="parentType"
+                  checked={!parentCategory}
+                  onChange={() => setParentCategory('')}
+                />
+                <label className="btn btn-outline-primary" htmlFor="parentType">
+                  Үндсэн ангилал
+                </label>
+                <input
+                  type="radio"
+                  className="btn-check"
+                  name="categoryType"
+                  id="subType"
+                  checked={!!parentCategory}
+                  onChange={() => {
+                    // Select first parent if exists
+                    const firstParent = categories.find(c => !c.parent || (typeof c.parent === 'object' && c.parent === null));
+                    if (firstParent) setParentCategory(firstParent._id);
+                  }}
+                />
+                <label className="btn btn-outline-primary" htmlFor="subType">
+                  Дэд ангилал
+                </label>
+              </div>
+
+              {/* If subcategory, select parent */}
+              {parentCategory && (
+                <div className="mb-3">
+                  <label className="form-label">Үндсэн ангилал сонгох</label>
+                  <select
+                    className="form-select"
+                    value={parentCategory}
+                    onChange={(e) => setParentCategory(e.target.value)}
+                  >
+                    <option value="">Үндсэн ангилал сонгох</option>
+                    {categories
+                      .filter(c => !c.parent || (typeof c.parent === 'object' && c.parent === null))
+                      .map((cat) => (
+                        <option key={cat._id} value={cat._id}>
+                          {language === 'MN' ? (cat.titleMn || cat.title) : cat.title}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="input-group">
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="Ангилалын нэр"
+                  placeholder={parentCategory ? "Дэд ангилалын нэр" : "Үндсэн ангилалын нэр"}
                   value={newCategory}
                   onChange={(e) => setNewCategory(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      document.getElementById('addCategoryBtn').click();
+                    }
+                  }}
                 />
-                <button 
+                <button
+                  id="addCategoryBtn"
                   className="btn btn-primary"
                   onClick={async () => {
                     if (!newCategory.trim()) {
                       setCategoryError('Ангилалын нэр оруулна уу');
                       return;
                     }
-                    
+
                     try {
                       const token = JSON.parse(localStorage.getItem('user'))?.token;
+                      const payload = {
+                        title: newCategory
+                      };
+
+                      if (parentCategory) {
+                        payload.parent = parentCategory;
+                      }
+
                       await axios.post(
                         'http://localhost:5000/api/category/',
-                        { title: newCategory },
+                        payload,
                         {
                           headers: {
                             Authorization: `Bearer ${token}`
                           }
                         }
                       );
-                      
+
                       setNewCategory('');
                       setCategoryError(null);
-                      setCategorySuccess('Ангилал амжилттай үүслээ!');
+                      setCategorySuccess(parentCategory ? 'Дэд ангилал амжилттай үүслээ!' : 'Үндсэн ангилал амжилттай үүслээ!');
                       fetchCategories();
-                      
-                      // Clear success message after 3 seconds
+
                       setTimeout(() => setCategorySuccess(null), 3000);
                     } catch (error) {
                       setCategoryError(error.response?.data?.message || 'Ангилал үүсгэхэд алдаа гарлаа');
@@ -1384,11 +1744,11 @@ const removeImage = (index) => {
           </div>
         </div>
 
-        <div className="col-md-6">
+        <div className="col-md-7">
           <div className="card">
             <div className="card-body">
-              <h5 className="card-title">Ангилалууд</h5>
-              
+              <h5 className="card-title">Ангилалын бүтэц</h5>
+
               {loading ? (
                 <div className="text-center py-2">
                   <div className="spinner-border spinner-border-sm" role="status">
@@ -1396,40 +1756,94 @@ const removeImage = (index) => {
                   </div>
                 </div>
               ) : categories.length > 0 ? (
-                <div className="list-group">
-                  {categories.map((category) => (
-                    <div 
-                      key={category._id} 
-                      className="list-group-item d-flex justify-content-between align-items-center"
-                    >
-                      {category.title}
-                      <button 
-                        className="btn btn-sm btn-outline-danger"
-                        onClick={async () => {
-                          if (window.confirm(`Та "${category.title}" ангилалыг устгахдаа итгэлтэй байна уу?`)) {
-                            try {
-                              const token = JSON.parse(localStorage.getItem('user'))?.token;
-                              await axios.delete(
-                                `http://localhost:5000/api/category/${category._id}`,
-                                {
-                                  headers: {
-                                    Authorization: `Bearer ${token}`
+                <div className="category-tree">
+                  {categories
+                    .filter(c => !c.parent || (typeof c.parent === 'object' && c.parent === null))
+                    .map((parentCat) => {
+                      const subs = categories.filter(c =>
+                        c.parent &&
+                        ((typeof c.parent === 'string' && c.parent === parentCat._id) ||
+                         (typeof c.parent === 'object' && c.parent?._id === parentCat._id))
+                      );
+
+                      return (
+                        <div key={parentCat._id} className="mb-3">
+                          <div className="list-group-item bg-light border">
+                            <div className="d-flex justify-content-between align-items-center">
+                              <div>
+                                <strong>{language === 'MN' ? (parentCat.titleMn || parentCat.title) : parentCat.title}</strong>
+                                <span className="badge bg-secondary ms-2">{subs.length} дэд ангилал</span>
+                              </div>
+                              <button
+                                className="btn btn-sm btn-outline-danger"
+                                onClick={async () => {
+                                  if (subs.length > 0) {
+                                    setCategoryError('Дэд ангилал бүхий үндсэн ангилалыг устгах боломжгүй!');
+                                    setTimeout(() => setCategoryError(null), 3000);
+                                    return;
                                   }
-                                }
-                              );
-                              fetchCategories();
-                              setCategorySuccess('Ангилал амжилттай устгагдлаа!');
-                              setTimeout(() => setCategorySuccess(null), 3000);
-                            } catch (error) {
-                              setCategoryError('Ангилал устгахэд алдаа гарлаа');
-                            }
-                          }
-                        }}
-                      >
-                        Устгах
-                      </button>
-                    </div>
-                  ))}
+
+                                  if (window.confirm(`Та "${parentCat.title}" ангилалыг устгахдаа итгэлтэй байна уу?`)) {
+                                    try {
+                                      const token = JSON.parse(localStorage.getItem('user'))?.token;
+                                      await axios.delete(
+                                        `http://localhost:5000/api/category/${parentCat._id}`,
+                                        { headers: { Authorization: `Bearer ${token}` }}
+                                      );
+                                      fetchCategories();
+                                      setCategorySuccess('Ангилал амжилттай устгагдлаа!');
+                                      setTimeout(() => setCategorySuccess(null), 3000);
+                                    } catch (error) {
+                                      setCategoryError('Ангилал устгахэд алдаа гарлаа');
+                                    }
+                                  }
+                                }}
+                              >
+                                Устгах
+                              </button>
+                            </div>
+                          </div>
+
+                          {subs.length > 0 && (
+                            <div className="ms-4 mt-2">
+                              {subs.map((subCat) => (
+                                <div
+                                  key={subCat._id}
+                                  className="list-group-item border-start-0 border-end-0 py-2"
+                                >
+                                  <div className="d-flex justify-content-between align-items-center">
+                                    <div className="text-muted">
+                                      ↳ {language === 'MN' ? (subCat.titleMn || subCat.title) : subCat.title}
+                                    </div>
+                                    <button
+                                      className="btn btn-sm btn-outline-danger"
+                                      onClick={async () => {
+                                        if (window.confirm(`Та "${subCat.title}" дэд ангилалыг устгахдаа итгэлтэй байна уу?`)) {
+                                          try {
+                                            const token = JSON.parse(localStorage.getItem('user'))?.token;
+                                            await axios.delete(
+                                              `http://localhost:5000/api/category/${subCat._id}`,
+                                              { headers: { Authorization: `Bearer ${token}` }}
+                                            );
+                                            fetchCategories();
+                                            setCategorySuccess('Дэд ангилал амжилттай устгагдлаа!');
+                                            setTimeout(() => setCategorySuccess(null), 3000);
+                                          } catch (error) {
+                                            setCategoryError('Дэд ангилал устгахэд алдаа гарлаа');
+                                          }
+                                        }
+                                      }}
+                                    >
+                                      Устгах
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                 </div>
               ) : (
                 <p className="text-muted">Ангилал байхгүй байна</p>
@@ -1442,26 +1856,128 @@ const removeImage = (index) => {
   </div>
 )}
 
+{activeTab === 'verifications' && (
+  <div className="card border-0 shadow-sm">
+    <div className="card-body">
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h4 className="card-title mb-0">
+          <BsCheckCircleFill className="me-2" />
+          Баталгаажуулалт шалгах
+        </h4>
+        <div>
+          {verificationStats && (
+            <>
+              <span className="badge bg-warning me-2">
+                {verificationStats.pending} Хүлээгдэж буй
+              </span>
+              <span className="badge bg-success me-2">
+                {verificationStats.verified} Баталгаажсан
+              </span>
+              <span className="badge bg-danger">
+                {verificationStats.rejected} Татгалзсан
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="text-center py-4">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+          <p className="mt-2">Баталгаажуулалт татаж байна...</p>
+        </div>
+      ) : error ? (
+        <div className="alert alert-warning">
+          <p>{error}</p>
+          <button
+            className="btn btn-sm btn-outline-secondary"
+            onClick={fetchPendingVerifications}
+          >
+            Дахин оролдох
+          </button>
+        </div>
+      ) : pendingVerifications.length > 0 ? (
+        <div className="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+          {pendingVerifications.map((user) => (
+            <div className="col" key={user._id}>
+              <div className="card h-100 hover-shadow" style={{ cursor: 'pointer' }} onClick={() => handleUserClick(user)}>
+                <div className="card-body">
+                  <div className="d-flex align-items-center mb-3">
+                    {user.photo?.filePath ? (
+                      <img
+                        src={user.photo.filePath}
+                        alt={user.name}
+                        className="rounded-circle me-3"
+                        style={{ width: '60px', height: '60px', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <div
+                        className="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-3"
+                        style={{ width: '60px', height: '60px' }}
+                      >
+                        <FiUser className="text-white" size={30} />
+                      </div>
+                    )}
+                    <div className="flex-grow-1">
+                      <h5 className="mb-1">{user.name}</h5>
+                      <p className="text-muted mb-0 small">{user.email}</p>
+                    </div>
+                  </div>
+
+                  <div className="mb-2">
+                    <small className="text-muted">
+                      <FiClock className="me-1" />
+                      Хүсэлт илгээсэн: {new Date(user.identityVerification?.requestedAt).toLocaleDateString('mn-MN')}
+                    </small>
+                  </div>
+
+                  <div className="d-flex justify-content-between align-items-center">
+                    <span className="badge bg-warning text-dark">
+                      Хүлээгдэж буй
+                    </span>
+                    <small className="text-primary">Үзэх →</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-5">
+          <BsCheckCircleFill size={48} className="text-muted mb-3" />
+          <p className="text-muted">Хүлээгдэж буй баталгаажуулалт байхгүй байна</p>
+        </div>
+      )}
+    </div>
+  </div>
+)}
+
 {activeTab === 'settings' && (
   <div className="card border-0 shadow-sm">
     <div className="card-body p-4">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h4 className="mb-0">
           <FiSettings className="me-2" />
-          {t('settings') || 'Тохиргоо'}
+          {t('settings') || 'Системийн тохиргоо'}
         </h4>
       </div>
 
-      <div className="settings-section">
-        <h5 className="mb-3 text-primary">{t('appearance') || 'Харагдац'}</h5>
-
-        <div className="card bg-light border-0 p-4 mb-4">
+      {/* Appearance Settings */}
+      <div className="settings-section mb-4">
+        <h5 className="mb-3 text-primary border-bottom pb-2">
+          <FiSun className="me-2" />
+          {t('appearance') || 'Харагдац'}
+        </h5>
+        <div className="card bg-light border-0 p-3">
           <div className="d-flex justify-content-between align-items-center">
             <div>
-              <h6 className="mb-0">
+              <h6 className="mb-1">
                 {isDarkMode ? <FiMoon className="me-2" /> : <FiSun className="me-2" />}
                 {t('darkMode') || 'Харанхуй горим'}
               </h6>
+              <small className="text-muted">Интерфейсийн өнгийн тохиргоо</small>
             </div>
             <div className="form-check form-switch">
               <input
@@ -1471,15 +1987,230 @@ const removeImage = (index) => {
                 id="darkModeSwitch"
                 checked={isDarkMode}
                 onChange={toggleTheme}
-                style={{
-                  width: '3em',
-                  height: '1.5em',
-                  cursor: 'pointer'
-                }}
+                style={{ width: '3em', height: '1.5em', cursor: 'pointer' }}
               />
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Platform Settings */}
+      <div className="settings-section mb-4">
+        <h5 className="mb-3 text-primary border-bottom pb-2">
+          <FiSettings className="me-2" />
+          Платформын тохиргоо
+        </h5>
+        <div className="row g-3">
+          <div className="col-md-6">
+            <label className="form-label fw-bold">Сайтын нэр</label>
+            <input type="text" className="form-control" defaultValue="Auction Platform" />
+          </div>
+          <div className="col-md-6">
+            <label className="form-label fw-bold">Холбоо барих имэйл</label>
+            <input type="email" className="form-control" defaultValue="admin@auction.mn" />
+          </div>
+          <div className="col-md-6">
+            <label className="form-label fw-bold">Холбоо барих утас</label>
+            <input type="tel" className="form-control" defaultValue="+976 7000-0000" />
+          </div>
+          <div className="col-md-6">
+            <label className="form-label fw-bold">Цагийн бүс</label>
+            <select className="form-select">
+              <option value="Asia/Ulaanbaatar" selected>Asia/Ulaanbaatar (UTC+8)</option>
+              <option value="Asia/Tokyo">Asia/Tokyo (UTC+9)</option>
+            </select>
+          </div>
+          <div className="col-12">
+            <div className="form-check form-switch">
+              <input className="form-check-input" type="checkbox" id="maintenanceMode" />
+              <label className="form-check-label fw-bold" htmlFor="maintenanceMode">
+                Засвар үйлчилгээний горим
+                <small className="d-block text-muted fw-normal">Идэвхжүүлбэл зөвхөн админ нэвтрэх боломжтой</small>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Fee Structure */}
+      <div className="settings-section mb-4">
+        <h5 className="mb-3 text-primary border-bottom pb-2">
+          <FiCreditCard className="me-2" />
+          Төлбөр, хураамж
+        </h5>
+        <div className="row g-3">
+          <div className="col-md-4">
+            <label className="form-label fw-bold">Борлуулалтын комисс (%)</label>
+            <input type="number" className="form-control" defaultValue="5" min="0" max="100" step="0.1" />
+            <small className="text-muted">Бараа зарагдах үед худалдагчаас суутгах хувь</small>
+          </div>
+          <div className="col-md-4">
+            <label className="form-label fw-bold">Бүртгэлийн хураамж (₮)</label>
+            <input type="number" className="form-control" defaultValue="0" min="0" />
+            <small className="text-muted">Шинэ бараа оруулахад төлөх хураамж</small>
+          </div>
+          <div className="col-md-4">
+            <label className="form-label fw-bold">Баталгаажуулалтын хураамж (₮)</label>
+            <input type="number" className="form-control" defaultValue="5000" min="0" />
+            <small className="text-muted">Хэрэглэгч баталгаажуулах үйлчилгээ</small>
+          </div>
+          <div className="col-md-6">
+            <label className="form-label fw-bold">Хамгийн бага зарах үнэ (₮)</label>
+            <input type="number" className="form-control" defaultValue="1000" min="0" />
+          </div>
+          <div className="col-md-6">
+            <label className="form-label fw-bold">Хамгийн их зарах үнэ (₮)</label>
+            <input type="number" className="form-control" defaultValue="100000000" min="0" />
+          </div>
+        </div>
+      </div>
+
+      {/* Verification Settings */}
+      <div className="settings-section mb-4">
+        <h5 className="mb-3 text-primary border-bottom pb-2">
+          <BsCheckCircleFill className="me-2" />
+          Баталгаажуулалтын тохиргоо
+        </h5>
+        <div className="row g-3">
+          <div className="col-md-6">
+            <label className="form-label fw-bold">Шалгах хугацаа (цаг)</label>
+            <input type="number" className="form-control" defaultValue="48" min="1" />
+            <small className="text-muted">Баталгаажуулалт шалгах дээд хугацаа</small>
+          </div>
+          <div className="col-md-6">
+            <label className="form-label fw-bold">Итгэл үнэлгээ өсгөх хэмжээ</label>
+            <input type="number" className="form-control" defaultValue="20" min="0" max="100" />
+            <small className="text-muted">Баталгаажсаны дараа нэмэгдэх оноо</small>
+          </div>
+          <div className="col-12">
+            <div className="form-check">
+              <input className="form-check-input" type="checkbox" id="requireVerificationToSell" defaultChecked />
+              <label className="form-check-label fw-bold" htmlFor="requireVerificationToSell">
+                Зарах эрх баталгаажуулалттай байх
+                <small className="d-block text-muted fw-normal">Баталгаажаагүй хэрэглэгч бараа оруулах боломжгүй</small>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Notification Settings */}
+      <div className="settings-section mb-4">
+        <h5 className="mb-3 text-primary border-bottom pb-2">
+          <FiUser className="me-2" />
+          Мэдэгдэл, имэйл
+        </h5>
+        <div className="row g-2">
+          <div className="col-md-6">
+            <div className="form-check">
+              <input className="form-check-input" type="checkbox" id="emailNewUser" defaultChecked />
+              <label className="form-check-label" htmlFor="emailNewUser">
+                Шинэ хэрэглэгч бүртгүүлэх үед имэйл илгээх
+              </label>
+            </div>
+          </div>
+          <div className="col-md-6">
+            <div className="form-check">
+              <input className="form-check-input" type="checkbox" id="emailVerificationApproved" defaultChecked />
+              <label className="form-check-label" htmlFor="emailVerificationApproved">
+                Баталгаажуулалт зөвшөөрөгдөх үед имэйл илгээх
+              </label>
+            </div>
+          </div>
+          <div className="col-md-6">
+            <div className="form-check">
+              <input className="form-check-input" type="checkbox" id="emailAuctionWon" defaultChecked />
+              <label className="form-check-label" htmlFor="emailAuctionWon">
+                Дуудлага худалдаа ялах үед имэйл илгээх
+              </label>
+            </div>
+          </div>
+          <div className="col-md-6">
+            <div className="form-check">
+              <input className="form-check-input" type="checkbox" id="emailOutbid" defaultChecked />
+              <label className="form-check-label" htmlFor="emailOutbid">
+                Санал хүчингүй болох үед имэйл илгээх
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Security Settings */}
+      <div className="settings-section mb-4">
+        <h5 className="mb-3 text-primary border-bottom pb-2">
+          <FiSettings className="me-2" />
+          Аюулгүй байдал
+        </h5>
+        <div className="row g-3">
+          <div className="col-md-6">
+            <label className="form-label fw-bold">Нэвтрэх оролдлогын лимит</label>
+            <input type="number" className="form-control" defaultValue="5" min="1" max="10" />
+            <small className="text-muted">Буруу нэвтрэх оролдлогын тоо</small>
+          </div>
+          <div className="col-md-6">
+            <label className="form-label fw-bold">Хаалтын хугацаа (минут)</label>
+            <input type="number" className="form-control" defaultValue="30" min="1" />
+            <small className="text-muted">Лимит давсны дараа хааж байх хугацаа</small>
+          </div>
+          <div className="col-md-6">
+            <label className="form-label fw-bold">Session timeout (минут)</label>
+            <input type="number" className="form-control" defaultValue="60" min="5" />
+            <small className="text-muted">Автоматаар гарах хугацаа</small>
+          </div>
+          <div className="col-md-6">
+            <div className="form-check mt-4">
+              <input className="form-check-input" type="checkbox" id="require2FA" />
+              <label className="form-check-label fw-bold" htmlFor="require2FA">
+                2-Factor Authentication шаардах
+                <small className="d-block text-muted fw-normal">Админд нэвтрэх үед SMS баталгаажуулалт</small>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* System Info */}
+      <div className="settings-section">
+        <h5 className="mb-3 text-primary border-bottom pb-2">
+          <FiSettings className="me-2" />
+          Системийн мэдээлэл
+        </h5>
+        <div className="row">
+          <div className="col-md-3">
+            <div className="card text-center p-3 bg-light">
+              <h2 className="text-primary mb-0">{totalCount || users.length}</h2>
+              <small className="text-muted">Нийт хэрэглэгч</small>
+            </div>
+          </div>
+          <div className="col-md-3">
+            <div className="card text-center p-3 bg-light">
+              <h2 className="text-success mb-0">{categories.filter(c => !c.parent).length}</h2>
+              <small className="text-muted">Үндсэн ангилал</small>
+            </div>
+          </div>
+          <div className="col-md-3">
+            <div className="card text-center p-3 bg-light">
+              <h2 className="text-warning mb-0">{requests.length}</h2>
+              <small className="text-muted">Хүлээгдэж буй хүсэлт</small>
+            </div>
+          </div>
+          <div className="col-md-3">
+            <div className="card text-center p-3 bg-light">
+              <h2 className="text-info mb-0">v1.0.0</h2>
+              <small className="text-muted">Системийн хувилбар</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Save Button */}
+      <div className="mt-4 text-end">
+        <button className="btn btn-outline-secondary me-2">Буцаах</button>
+        <button className="btn btn-primary">
+          <FiSettings className="me-2" />
+          Хадгалах
+        </button>
       </div>
     </div>
   </div>

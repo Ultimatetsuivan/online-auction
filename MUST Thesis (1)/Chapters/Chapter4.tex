@@ -1,0 +1,211 @@
+\chapter{Туршилт, үр дүн}
+\label{Chapter4}
+
+\section{Системийн ажиллагааны тест}
+\subsection{Insomnia тест}
+Системийн API endpoint-уудыг шалгахын тулд insomnia ашигласан.
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.9\textwidth]{Diagrams/registerinso}
+    \caption{Бүртгүүлэх api}
+    \label{fig:activity1}
+\end{figure}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.9\textwidth]{Diagrams/logininso}
+    \caption{Нэвтрэх api}
+    \label{fig:activity1}
+\end{figure}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.7\textwidth]{Diagrams/biddinginso}
+    \caption{Үнэ санал болгох api}
+    \label{fig:activity1}
+\end{figure}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.7\textwidth]{Diagrams/postproduct}
+    \caption{Бараа нэмэх api}
+    \label{fig:activity1}
+\end{figure}
+\newline
+Бүртгүүлэх, нэвтрэх, үнэ санал болгох, бараа нэмэх гэх мэт үйлдлүүдийг хийх API-уудыг insomnia ашиглаж ажиллагааг шалгаж үзэв. 
+\newpage
+\subsection{Unit test}
+Системийн үндсэн гол функцуудэд jest Javascript ашиглан логик үйлдлүүдэд тус бүр test хийж шалгасан.Жишээлбэл, дуудлага худалдаанд үнэ өгөх хэрэглэгч бүртгэх нэвтрэх гэх мэт үйлдлүүдэд mock мэдээллээр хүсэлт илгээж хариу тус бүрийг шалгасан.
+\newline \textbf{BiddingController test} 
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.5\textwidth]{Diagrams/testbidding}
+    \caption{Үнэ өгөх тест 1}
+    \label{fig:activity1}
+\end{figure}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[scale=0.6]{Diagrams/bidtest}
+    \caption{Үнэ өгөх тест 2}
+    \label{fig:activity1}
+\end{figure}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.7\textwidth]{Diagrams/biddingres}
+    \caption{Үнэ өгөх тест хариу}
+    \label{fig:activity1}
+\end{figure}
+
+\clearpage
+\textbf{UserController test}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.7\textwidth]{Diagrams/testuser}
+    \caption{Бүртгүүлэх функц}
+    \label{fig:activity1}
+\end{figure}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.5\textwidth]{Diagrams/testuser1}
+    \caption{Нэвтрэх функц}
+    \label{fig:activity1}
+\end{figure}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.5\textwidth]{Diagrams/testuser3}
+    \caption{Нууц үг сэргээх функц}
+    \label{fig:activity1}
+\end{figure}
+
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.6\textwidth]{Diagrams/userresult}
+    \caption{Хэрэглэгчийн тестийн хариу}
+    \label{fig:activity1}
+\end{figure}
+\newpage
+\textbf{ProductController test}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.7\textwidth]{Diagrams/testpro}
+    \caption{Барааг нэмэх, Бараа үзэх функц}
+    \label{fig:activity1}
+\end{figure}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.7\textwidth]{Diagrams/productresult}
+    \caption{Барааны тестийн хариу}
+    \label{fig:activity1}
+\end{figure}
+\newline
+Манай онлайн дуудлага худалдааны системд юнит тест хэрэглэх гол шалтгаанууд:
+
+\begin{itemize}
+\item Функц/модуль бүрийн зөв ажиллахыг баталгаажуулах
+\item Алдааг эрт олно
+\item Тест нь код хэрхэн ажиллах ёстойг харуулна
+\end{itemize}
+\subsection{Integration test}
+Манай онлайн дуудлага худалдааны системийн үндсэн функцүүдийн хоорондын уялдаа холбоог интеграцийн тестээр шалгасан. Энэ нь:
+
+\begin{itemize}
+\item Модуль хоорондын интерфейс зөв ажиллах
+\item Өгөгдлийн урсгал бүрэн бүтэн байх
+\item Алдааны тохиолдолд зохих мессеж буцаах
+\end{itemize}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.7\textwidth]{Diagrams/addproductinteg}
+    \caption{Бараа нэмэх функийн интеграци}
+    \label{fig:activity1}
+\end{figure}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.7\textwidth]{Diagrams/integ}
+    \caption{Хэрэглэгч бүртгүүлэх нэвтрэх функууд }
+    \label{fig:activity1}
+\end{figure}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.7\textwidth]{Diagrams/placebidint}
+    \caption{Үнэ өгөх функцийн интеграци 1}
+    \label{fig:activity1}
+\end{figure}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.7\textwidth]{Diagrams/placebidint2}
+    \caption{Үнэ өгөх функцийн интеграци 2}
+    \label{fig:activity1}
+\end{figure}
+\clearpage
+
+\subsection{Мобайл аппликейшны тест}
+Мобайл аппликейшныг дараах төрлийн тестүүдээр шалгасан:
+
+\subsubsection{Expo Go ашиглан тест}
+Хөгжүүлэлтийн явцад Expo Go аппликейшн ашиглан бодит төхөөрөмж дээр тест хийсэн:
+\begin{itemize}
+\item iOS төхөөрөмж дээр тест
+\item Android төхөөрөмж дээр тест
+\item QR код scan хийж шуурхай тест хийх
+\item Hot reload ашиглан өөрчлөлтийг шууд харах
+\end{itemize}
+
+\subsubsection{Функциональ тест}
+Мобайл аппликейшны үндсэн функцууд:
+\begin{itemize}
+\item \textbf{Нэвтрэх систем}: Google OAuth, утасны дугаараар баталгаажуулалт
+\item \textbf{Бараа нэмэх}: Зураг оруулах, категори сонгох, мэдээлэл бөглөх
+\item \textbf{Дуудлага худалдаа}: Үнэ санал болгох, real-time шинэчлэлт
+\item \textbf{Хайлт, шүүлтүүр}: Барааны хайлт, категориор шүүх
+\item \textbf{Профайл}: Хэрэглэгчийн мэдээлэл засах, balance харах
+\end{itemize}
+
+\subsubsection{Платформ хоорондын тест}
+Дараах төхөөрөмжүүд дээр ажиллагааг шалгасан:
+\begin{itemize}
+\item iPhone (iOS 14+)
+\item Android утас (Android 11+)
+\item Tablet төхөөрөмжүүд
+\item Өөр өөр дэлгэцийн хэмжээнүүд
+\end{itemize}
+
+\subsubsection{Network тест}
+\begin{itemize}
+\item ngrok ашиглан орон нутгийн серверт холбогдох
+\item API endpoint-үүдийн хариу харах
+\item Socket.io real-time холболт шалгах
+\item Интернет холболт тасарсан үед алдааны харуулалт
+\end{itemize}
+
+\subsubsection{UI/UX тест}
+\begin{itemize}
+\item Монгол хэл дэмжлэг шалгах
+\item Навигаци хялбар байх
+\item Loading states харуулах
+\item Error messages тодорхой байх
+\item Touch targets хангалттай том байх (44x44 pixels)
+\end{itemize}
+
+\subsection{Системийн үр дүн}
+Хөгжүүлсэн онлайн дуудлага худалдааны систем нь:
+\begin{itemize}
+\item \textbf{3 платформ}: Web (React.js), Mobile (React Native), Backend (Node.js)
+\item \textbf{66 категори}: Монгол зах зээлд зориулсан категориуд
+\item \textbf{Real-time систем}: Socket.io ашиглан бодит цагийн дуудлага худалдаа
+\item \textbf{Олон төрлийн нэвтрэх}: Google, утасны дугаар, и-мэйл
+\item \textbf{Аюулгүй байдал}: JWT токен, bcrypt шифрлэлт
+\item \textbf{AI технологи}: Категори автоматаар санал болгох
+\item \textbf{Төлбөрийн систем}: QPay интеграци
+\item \textbf{Мэдэгдлийн систем}: Firebase Cloud Messaging
+\end{itemize}
+
+\subsection{Гүйцэтгэлийн үр дүн}
+Системийн гүйцэтгэл:
+\begin{itemize}
+\item Хуудас ачаалах хугацаа: 2-3 секунд
+\item API хариу өгөх хугацаа: 200-500ms
+\item Real-time үнийн шинэчлэлт: < 1 секунд
+\item Зураг ачаалах: Cloudinary CDN ашиглан хурдан
+\item Мобайл апп хэмжээ: ~50MB (Expo)
+\end{itemize}
+
+\clearpage

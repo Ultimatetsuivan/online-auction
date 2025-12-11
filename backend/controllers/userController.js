@@ -92,8 +92,8 @@ const sendVerificationCodeOnly = asyncHandler(async (req, res) => {
   });
   
   const registerUser = asyncHandler(async (req, res) => {
-    const { name, email, phone, password, acceptEula } = req.body;
-    const acceptedEula = acceptEula === true || acceptEula === 'true';
+    const { surname, name, registrationNumber, email, phone, password, acceptEula, eulaAccepted } = req.body;
+    const acceptedEula = acceptEula === true || acceptEula === 'true' || eulaAccepted === true || eulaAccepted === 'true';
 
     if (!acceptedEula) {
       res.status(400);
@@ -110,12 +110,28 @@ const sendVerificationCodeOnly = asyncHandler(async (req, res) => {
     // Normalize email to lowercase and trim
     const normalizedEmail = email.toLowerCase().trim();
     const normalizedPhone = phone ? phone.trim() : null;
+    const normalizedRegistrationNumber = registrationNumber ? registrationNumber.trim() : null;
 
     // Check if email already exists
     const existingEmail = await User.findOne({ email: normalizedEmail });
     if (existingEmail) {
       res.status(409);
       throw new Error("Энэ имэйл хаяг аль хэдийн бүртгэлтэй байна");
+    }
+
+    // Check if registration number already exists
+    if (normalizedRegistrationNumber) {
+      const existingRegNumber = await User.findOne({ registrationNumber: normalizedRegistrationNumber });
+      if (existingRegNumber) {
+        res.status(409);
+        throw new Error("Энэ регистрийн дугаар аль хэдийн бүртгэлтэй байна");
+      }
+
+      // Validate registration number format
+      if (!/^УГ\d{8}$/.test(normalizedRegistrationNumber)) {
+        res.status(400);
+        throw new Error("Регистрийн дугаар буруу байна. Жишээ: УГ99999999");
+      }
     }
 
     // Check if phone already exists
@@ -134,7 +150,9 @@ const sendVerificationCodeOnly = asyncHandler(async (req, res) => {
     }
 
     const newUser = new User({
+      surname: surname ? surname.trim() : undefined,
       name,
+      registrationNumber: normalizedRegistrationNumber,
       email: normalizedEmail,
       phone: normalizedPhone,
       password,
@@ -145,7 +163,7 @@ const sendVerificationCodeOnly = asyncHandler(async (req, res) => {
 
     await newUser.save();
 
-    console.log(`[Registration] User registered successfully: ${normalizedEmail}, phone: ${normalizedPhone}`);
+    console.log(`[Registration] User registered successfully: ${normalizedEmail}, regNum: ${normalizedRegistrationNumber}`);
 
     res.status(201).json({ message: "Хэрэглэгч амжилттай бүртгэгдлээ" });
   });
@@ -639,6 +657,137 @@ const deleteCurrentUser = asyncHandler(async (req, res) => {
   });
 });
 
+// Add test funds for development/testing purposes
+const addTestFunds = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+  const { amount } = req.body;
+
+  // Validate amount
+  if (!amount || amount <= 0) {
+    res.status(400);
+    throw new Error("Invalid amount");
+  }
+
+  // Find user
+  const user = await User.findById(userId);
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found");
+  }
+
+  // Add test funds
+  user.balance = (user.balance || 0) + amount;
+  await user.save();
+
+  console.log(`Added ${amount}₮ test funds to user ${user.name}. New balance: ${user.balance}₮`);
+
+  res.status(200).json({
+    success: true,
+    message: `Added ${amount}₮ test funds`,
+    newBalance: user.balance,
+    amount: amount
+  });
+});
+
+// eMongolia Authentication
+const eMongoliaAuth = asyncHandler(async (req, res) => {
+  const { authCode, eMongoliaData } = req.body;
+
+  if (!eMongoliaData || !eMongoliaData.registerNumber) {
+    res.status(400);
+    throw new Error("eMongolia баталгаажуулалтын мэдээлэл дутуу байна");
+  }
+
+  const {
+    registerNumber,
+    lastName,
+    firstName,
+    dateOfBirth,
+    gender,
+    nationality
+  } = eMongoliaData;
+
+  // Check if user exists with this eMongolia ID
+  let user = await User.findOne({ eMongoliaId: registerNumber });
+
+  if (user) {
+    // User exists, update their eMongolia data
+    user.eMongoliaVerified = true;
+    user.eMongoliaData = {
+      registerNumber,
+      lastName,
+      firstName,
+      dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
+      gender,
+      nationality,
+      verifiedAt: new Date()
+    };
+
+    // Update user details if not set
+    if (!user.surname && lastName) user.surname = lastName;
+    if (!user.name && firstName) user.name = firstName;
+    if (!user.registrationNumber && registerNumber) user.registrationNumber = registerNumber;
+
+    await user.save();
+
+    console.log(`[eMongolia] User logged in via eMongolia: ${user.email || user.phone}`);
+  } else {
+    // New user, create account with eMongolia data
+    // Generate a temporary email if not provided
+    const tempEmail = `emongolia_${registerNumber.toLowerCase()}@temp.mn`;
+
+    user = new User({
+      eMongoliaId: registerNumber,
+      eMongoliaVerified: true,
+      eMongoliaData: {
+        registerNumber,
+        lastName,
+        firstName,
+        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
+        gender,
+        nationality,
+        verifiedAt: new Date()
+      },
+      surname: lastName,
+      name: firstName,
+      registrationNumber: registerNumber,
+      email: tempEmail,
+      password: crypto.randomBytes(32).toString('hex'), // Random password
+      eulaAccepted: false, // Will need to accept EULA
+      role: 'buyer'
+    });
+
+    await user.save();
+
+    console.log(`[eMongolia] New user created via eMongolia: ${registerNumber}`);
+  }
+
+  // Generate token
+  const token = generateToken(user._id);
+
+  res.cookie("token", token, {
+    path: "/",
+    httpOnly: true,
+    expires: new Date(Date.now() + 1000 * 86400),
+    sameSite: "none",
+    secure: true,
+  });
+
+  res.status(user.eulaAccepted ? 200 : 201).json({
+    _id: user._id,
+    name: user.name,
+    surname: user.surname,
+    email: user.email,
+    phone: user.phone,
+    role: user.role,
+    photo: user.photo,
+    eMongoliaVerified: user.eMongoliaVerified,
+    eulaAccepted: user.eulaAccepted,
+    token: token,
+    message: user.eulaAccepted ? "eMongolia-аар амжилттай нэвтэрлээ" : "EULA зөвшөөрөх шаардлагатай"
+  });
+});
+
 module.exports = {registerUser,
     loginUser,
     loginstatus,
@@ -657,6 +806,8 @@ module.exports = {registerUser,
     getGoogleClientId,
     updateUserPhoto,
     deleteCurrentUser,
-    pendingVerifications
-    
+    addTestFunds,
+    pendingVerifications,
+    eMongoliaAuth
+
 };

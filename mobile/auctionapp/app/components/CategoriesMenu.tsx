@@ -61,11 +61,15 @@ export default function CategoriesMenu({ data, onSelectCategory }: Props) {
               active && { backgroundColor: theme.brand100, borderColor: theme.brand600, borderWidth: 1 },
             ]}
           >
-            <Ionicons
-              name={(item.icon || "grid") as any}
-              size={26}
-              color={active ? theme.brand600 : theme.gray700}
-            />
+            {item.icon && item.icon.length <= 2 ? (
+              <Text style={{ fontSize: 26 }}>{item.icon}</Text>
+            ) : (
+              <Ionicons
+                name={(item.icon || "grid") as any}
+                size={26}
+                color={active ? theme.brand600 : theme.gray700}
+              />
+            )}
           </View>
           <Text style={styles.name} numberOfLines={2}>
             {item.name}

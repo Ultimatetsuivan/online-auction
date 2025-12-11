@@ -33,9 +33,9 @@ const productSchema = mongoose.Schema({
         default: []
     },
     category: {
-        type: String,
-        required: true,
-        default: "General"
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Category",
+        required: false // Changed to false to allow migration
     },
     brand: {
         type: String,
@@ -62,6 +62,18 @@ const productSchema = mongoose.Schema({
         type: Number,
         required: true
     },
+    reservePrice: {
+        type: Number,
+        default: null
+    },
+    buyNowPrice: {
+        type: Number,
+        default: null
+    },
+    minIncrement: {
+        type: Number,
+        default: 1
+    },
     bidThreshold: {
         type: Number,
         default: null  
@@ -78,6 +90,80 @@ const productSchema = mongoose.Schema({
     weight: {
         type: Number
     },
+    // ===== Vehicle-Specific Fields (for Cars, RVs, etc.) =====
+    vin: {
+        type: String,
+        trim: true,
+        uppercase: true,
+        sparse: true  // Allows null/undefined values, unique only when present
+    },
+    make: {
+        type: String,
+        trim: true
+    },
+    model: {
+        type: String,
+        trim: true
+    },
+    year: {
+        type: Number,
+        min: 1900,
+        max: 2100
+    },
+    mileage: {
+        type: Number,
+        min: 0
+    },
+    fuelType: {
+        type: String,
+        enum: ['gasoline', 'diesel', 'electric', 'hybrid', 'other'],
+        trim: true
+    },
+    transmission: {
+        type: String,
+        enum: ['automatic', 'manual', 'cvt', 'other'],
+        trim: true
+    },
+    vehicleTitle: {
+        type: String,
+        enum: ['clean', 'salvage', 'rebuilt', 'other'],
+        trim: true
+    },
+    // Vehicle History Report
+    vehicleHistoryReport: {
+        available: {
+            type: Boolean,
+            default: false
+        },
+        provider: {
+            type: String,
+            enum: ['AutoCheck', 'Carfax', 'Other', 'N/A'],
+            default: 'N/A'
+        },
+        reportUrl: {
+            type: String,
+            trim: true
+        },
+        unavailableReasons: [{
+            type: String
+        }]
+    },
+    // ===== End Vehicle Fields =====
+
+    // ===== Enhanced Item Specifics (flexible key-value pairs) =====
+    itemSpecifics: {
+        type: Map,
+        of: String,
+        default: new Map()
+    },
+
+    // ===== Rich Seller Description =====
+    sellerDescription: {
+        type: String,
+        trim: true,
+        default: ''
+    },
+
     currentBid: {
         type: Number,
         default: 0
@@ -119,10 +205,70 @@ const productSchema = mongoose.Schema({
         default: 'active'
     },
     // ===== End of Start System =====
+
+    // ===== Authenticity Verification System (Mercari-style) =====
     verified: {
         type: Boolean,
         default: false
     },
+    verification: {
+        status: {
+            type: String,
+            enum: ['none', 'pending', 'approved', 'rejected'],
+            default: 'none'
+        },
+        // Verification photos (specific angles required)
+        photos: [{
+            type: {
+                type: String,
+                enum: [
+                    'front', 'back', 'side', 'top', 'bottom',
+                    'logo', 'tag', 'serial', 'barcode', 'made-in-label',
+                    'sole', 'insole', 'stitching', 'hardware',
+                    'hallmark', 'clasp', 'engraving', 'authentication-card'
+                ]
+            },
+            url: String,
+            publicId: String,
+            required: {
+                type: Boolean,
+                default: false
+            }
+        }],
+        // Verification request details
+        requestedAt: {
+            type: Date
+        },
+        // Admin review
+        reviewedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User"
+        },
+        reviewedAt: {
+            type: Date
+        },
+        reviewNotes: {
+            type: String,
+            trim: true
+        },
+        // Badge level
+        badgeType: {
+            type: String,
+            enum: ['basic', 'premium', 'luxury'],
+            default: 'basic'
+        },
+        // Certificate of authenticity
+        certificateIssued: {
+            type: Boolean,
+            default: false
+        },
+        certificateNumber: {
+            type: String,
+            unique: true,
+            sparse: true
+        }
+    },
+
     sold: {
         type: Boolean,
         default: false
@@ -154,6 +300,19 @@ productSchema.index({
 // Pre-save hook: Handle status transitions and availability
 productSchema.pre('save', function(next) {
     const now = new Date();
+
+    console.log('[PRE-SAVE HOOK] Product:', this.title, 'Sold:', this.sold);
+
+    // If already sold, don't override the status
+    if (this.sold) {
+        console.log('[PRE-SAVE HOOK] Product is sold, setting status to ended');
+        this.auctionStatus = 'ended';
+        this.available = false;
+        next();
+        return;
+    }
+
+    console.log('[PRE-SAVE HOOK] Product not sold, checking time-based status');
 
     // Update auction status based on time
     if (this.auctionStart && this.bidDeadline) {
@@ -190,50 +349,72 @@ productSchema.virtual('timeRemaining').get(function() {
 
 // Static method: Activate scheduled auctions that should start now
 productSchema.statics.activateScheduledAuctions = async function() {
-    const now = new Date();
-
-    const result = await this.updateMany(
-        {
-            auctionStatus: 'scheduled',
-            auctionStart: { $lte: now }
-        },
-        {
-            $set: {
-                auctionStatus: 'active',
-                available: true
-            }
-        }
-    );
-
-    if (result.modifiedCount > 0) {
-        console.log(`[Auction Scheduler] Activated ${result.modifiedCount} scheduled auction(s)`);
+    // Check if MongoDB connection is ready
+    if (mongoose.connection.readyState !== 1) {
+        console.warn('[Product Model] MongoDB connection not ready for activateScheduledAuctions');
+        return 0;
     }
 
-    return result.modifiedCount;
+    const now = new Date();
+
+    try {
+        const result = await this.updateMany(
+            {
+                auctionStatus: 'scheduled',
+                auctionStart: { $lte: now }
+            },
+            {
+                $set: {
+                    auctionStatus: 'active',
+                    available: true
+                }
+            }
+        );
+
+        if (result.modifiedCount > 0) {
+            console.log(`[Auction Scheduler] Activated ${result.modifiedCount} scheduled auction(s)`);
+        }
+
+        return result.modifiedCount;
+    } catch (error) {
+        console.error('[Product Model] Error in activateScheduledAuctions:', error.message || error);
+        return 0;
+    }
 };
 
 // Static method: Mark expired auctions as ended
 productSchema.statics.updateExpiredAuctions = async function() {
-    const now = new Date();
-
-    const result = await this.updateMany(
-        {
-            auctionStatus: 'active',
-            bidDeadline: { $lte: now }
-        },
-        {
-            $set: {
-                available: false,
-                auctionStatus: 'ended'
-            }
-        }
-    );
-
-    if (result.modifiedCount > 0) {
-        console.log(`[Auction Scheduler] Ended ${result.modifiedCount} expired auction(s)`);
+    // Check if MongoDB connection is ready
+    if (mongoose.connection.readyState !== 1) {
+        console.warn('[Product Model] MongoDB connection not ready for updateExpiredAuctions');
+        return 0;
     }
 
-    return result.modifiedCount;
+    const now = new Date();
+
+    try {
+        const result = await this.updateMany(
+            {
+                auctionStatus: 'active',
+                bidDeadline: { $lte: now }
+            },
+            {
+                $set: {
+                    available: false,
+                    auctionStatus: 'ended'
+                }
+            }
+        );
+
+        if (result.modifiedCount > 0) {
+            console.log(`[Auction Scheduler] Ended ${result.modifiedCount} expired auction(s)`);
+        }
+
+        return result.modifiedCount;
+    } catch (error) {
+        console.error('[Product Model] Error in updateExpiredAuctions:', error.message || error);
+        return 0;
+    }
 };
 
 module.exports = mongoose.models.Product || mongoose.model("Product", productSchema);

@@ -12,6 +12,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { SavedFilters } from '../../components/SavedFilters';
 import { LikeButton } from '../../components/LikeButton';
+import { ProductImage } from '../../components/ProductImage';
 
 export const Product = () => {
   const toast = useToast();
@@ -591,10 +592,10 @@ useEffect(() => {
 
     // Automotive filters - only apply if in automotive category
     if (isAutomotiveCategory()) {
-      // Manufacturer filter
+      // Make/Manufacturer filter
       if (automotiveFilters.manufacturer) {
         result = result.filter(product =>
-          product.manufacturer?.toLowerCase() === automotiveFilters.manufacturer.toLowerCase()
+          product.make?.toLowerCase() === automotiveFilters.manufacturer.toLowerCase()
         );
       }
 
@@ -605,48 +606,17 @@ useEffect(() => {
         );
       }
 
-      // Engine type filter
+      // Fuel Type filter (was engineType)
       if (automotiveFilters.engineType) {
         result = result.filter(product =>
-          product.engineType?.toLowerCase() === automotiveFilters.engineType.toLowerCase()
+          product.fuelType?.toLowerCase() === automotiveFilters.engineType.toLowerCase()
         );
       }
 
-      // Engine capacity filter
-      if (automotiveFilters.engineCcMin) {
-        const minCc = parseFloat(automotiveFilters.engineCcMin);
-        result = result.filter(product => (product.engineCc || 0) >= minCc);
-      }
-      if (automotiveFilters.engineCcMax) {
-        const maxCc = parseFloat(automotiveFilters.engineCcMax);
-        result = result.filter(product => (product.engineCc || 0) <= maxCc);
-      }
-
-      // Body type filter
-      if (automotiveFilters.bodyType) {
-        result = result.filter(product =>
-          product.bodyType?.toLowerCase() === automotiveFilters.bodyType.toLowerCase()
-        );
-      }
-
-      // Gearbox filter
+      // Transmission filter (was gearbox)
       if (automotiveFilters.gearbox) {
         result = result.filter(product =>
-          product.gearbox?.toLowerCase() === automotiveFilters.gearbox.toLowerCase()
-        );
-      }
-
-      // Steering filter
-      if (automotiveFilters.steering) {
-        result = result.filter(product =>
-          product.steering?.toLowerCase() === automotiveFilters.steering.toLowerCase()
-        );
-      }
-
-      // Drive type filter
-      if (automotiveFilters.driveType) {
-        result = result.filter(product =>
-          product.driveType?.toLowerCase() === automotiveFilters.driveType.toLowerCase()
+          product.transmission?.toLowerCase() === automotiveFilters.gearbox.toLowerCase()
         );
       }
 
@@ -757,12 +727,13 @@ useEffect(() => {
     }
     
     if (selectedCategory && selectedCategory !== 'all') {
-      const category = categories.find(c => {
+      // Use allCategoriesWithChildren instead of categories to include subcategories
+      const category = allCategoriesWithChildren.find(c => {
         const categoryId = typeof c._id === 'string' ? c._id : c._id?.toString();
         const selectedId = typeof selectedCategory === 'string' ? selectedCategory : selectedCategory?.toString();
         return categoryId === selectedId;
       });
-      
+
       if (category) {
         // Use titleMn for Mongolian, title for English
         return language === 'MN' ? (category.titleMn || category.title) : (category.title || category.titleMn);
@@ -1120,6 +1091,323 @@ useEffect(() => {
               </button>
             </div>
             <div className="card-body">
+              {/* Automotive Filters - Only show for automotive category - SHOWN FIRST */}
+              {isAutomotiveCategory() && (
+                <div className="mb-4" style={{ borderTop: '2px solid #FF6A00', borderBottom: '2px solid #FF6A00', paddingTop: '1rem', paddingBottom: '1rem', backgroundColor: isDarkMode ? 'rgba(255, 106, 0, 0.05)' : 'rgba(255, 106, 0, 0.05)' }}>
+                  <div
+                    className="d-flex justify-content-between align-items-center mb-3"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => setCollapsedSections(prev => ({ ...prev, automotive: !prev.automotive }))}
+                  >
+                    <h6 className="mb-0 fw-bold" style={{ color: '#FF6A00' }}>
+                      <i className="bi bi-car-front me-2"></i>
+                      🚗 Автомашины шүүлтүүр
+                    </h6>
+                    <i className={`bi ${collapsedSections.automotive ? 'bi-chevron-down' : 'bi-chevron-up'}`} style={{ color: '#FF6A00' }}></i>
+                  </div>
+                  {!collapsedSections.automotive && (
+                    <div className="d-flex flex-column gap-3">
+                      {/* Manufacturer / Brand */}
+                      <div>
+                        <label className="form-label small mb-1 fw-bold" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
+                          Үйлдвэр
+                        </label>
+                        <select
+                          className="form-select form-select-sm"
+                          value={automotiveFilters.manufacturer}
+                          onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, manufacturer: e.target.value }))}
+                          style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                        >
+                          <option value="">Бүгд</option>
+                          <option value="Toyota">Toyota</option>
+                          <option value="Honda">Honda</option>
+                          <option value="Nissan">Nissan</option>
+                          <option value="Mazda">Mazda</option>
+                          <option value="Mitsubishi">Mitsubishi</option>
+                          <option value="Hyundai">Hyundai</option>
+                          <option value="Kia">Kia</option>
+                          <option value="Ford">Ford</option>
+                          <option value="Chevrolet">Chevrolet</option>
+                          <option value="Lexus">Lexus</option>
+                          <option value="BMW">BMW</option>
+                          <option value="Mercedes-Benz">Mercedes-Benz</option>
+                          <option value="Audi">Audi</option>
+                          <option value="Volkswagen">Volkswagen</option>
+                          <option value="Other">Бусад</option>
+                        </select>
+                      </div>
+
+                      {/* Model */}
+                      <div>
+                        <label className="form-label small mb-1 fw-bold" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
+                          Загвар
+                        </label>
+                        <input
+                          type="text"
+                          className="form-control form-control-sm"
+                          placeholder="Жишээ: Camry, Civic, Prius"
+                          value={automotiveFilters.model}
+                          onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, model: e.target.value }))}
+                          style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                        />
+                      </div>
+
+                      {/* Engine Type */}
+                      <div>
+                        <label className="form-label small mb-1 fw-bold" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
+                          Хөдөлгүүр
+                        </label>
+                        <select
+                          className="form-select form-select-sm"
+                          value={automotiveFilters.engineType}
+                          onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, engineType: e.target.value }))}
+                          style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                        >
+                          <option value="">Бүгд</option>
+                          <option value="gasoline">Бензин</option>
+                          <option value="diesel">Дизель</option>
+                          <option value="hybrid">Хайбрид</option>
+                          <option value="electric">Цахилгаан</option>
+                        </select>
+                      </div>
+
+                      {/* Engine Capacity (cc) */}
+                      <div>
+                        <label className="form-label small mb-1 fw-bold" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
+                          Мотор багтаамж (cc)
+                        </label>
+                        <div className="row g-2">
+                          <div className="col-6">
+                            <input
+                              type="number"
+                              className="form-control form-control-sm"
+                              placeholder="Доод"
+                              value={automotiveFilters.engineCcMin}
+                              onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, engineCcMin: e.target.value }))}
+                              style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                            />
+                          </div>
+                          <div className="col-6">
+                            <input
+                              type="number"
+                              className="form-control form-control-sm"
+                              placeholder="Дээд"
+                              value={automotiveFilters.engineCcMax}
+                              onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, engineCcMax: e.target.value }))}
+                              style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Body Type */}
+                      <div>
+                        <label className="form-label small mb-1 fw-bold" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
+                          Төрөл
+                        </label>
+                        <select
+                          className="form-select form-select-sm"
+                          value={automotiveFilters.bodyType}
+                          onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, bodyType: e.target.value }))}
+                          style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                        >
+                          <option value="">Бүгд</option>
+                          <option value="sedan">Седан</option>
+                          <option value="suv">SUV / Жип</option>
+                          <option value="hatchback">Хэтчбэк</option>
+                          <option value="van">Вэн</option>
+                          <option value="truck">Ачааны</option>
+                          <option value="coupe">Купе</option>
+                          <option value="wagon">Вагон</option>
+                          <option value="pickup">Пикап</option>
+                        </select>
+                      </div>
+
+                      {/* Gearbox */}
+                      <div>
+                        <label className="form-label small mb-1 fw-bold" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
+                          Хурдны хайрцаг
+                        </label>
+                        <select
+                          className="form-select form-select-sm"
+                          value={automotiveFilters.gearbox}
+                          onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, gearbox: e.target.value }))}
+                          style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                        >
+                          <option value="">Бүгд</option>
+                          <option value="automatic">Автомат</option>
+                          <option value="manual">Механик</option>
+                        </select>
+                      </div>
+
+                      {/* Steering */}
+                      <div>
+                        <label className="form-label small mb-1 fw-bold" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
+                          Хүрд
+                        </label>
+                        <select
+                          className="form-select form-select-sm"
+                          value={automotiveFilters.steering}
+                          onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, steering: e.target.value }))}
+                          style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                        >
+                          <option value="">Бүгд</option>
+                          <option value="left">Зүүн</option>
+                          <option value="right">Баруун</option>
+                        </select>
+                      </div>
+
+                      {/* Drive Type */}
+                      <div>
+                        <label className="form-label small mb-1 fw-bold" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
+                          Хөтлөгч
+                        </label>
+                        <select
+                          className="form-select form-select-sm"
+                          value={automotiveFilters.driveType}
+                          onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, driveType: e.target.value }))}
+                          style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                        >
+                          <option value="">Бүгд</option>
+                          <option value="fwd">Урд (FWD)</option>
+                          <option value="rwd">Хойд (RWD)</option>
+                          <option value="4wd">4x4 / AWD</option>
+                        </select>
+                      </div>
+
+                      {/* Mileage */}
+                      <div>
+                        <label className="form-label small mb-1 fw-bold" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
+                          Явсан (км)
+                        </label>
+                        <div className="row g-2">
+                          <div className="col-6">
+                            <input
+                              type="number"
+                              className="form-control form-control-sm"
+                              placeholder="Доод"
+                              value={automotiveFilters.mileageMin}
+                              onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, mileageMin: e.target.value }))}
+                              style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                            />
+                          </div>
+                          <div className="col-6">
+                            <input
+                              type="number"
+                              className="form-control form-control-sm"
+                              placeholder="Дээд"
+                              value={automotiveFilters.mileageMax}
+                              onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, mileageMax: e.target.value }))}
+                              style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Manufacture Year */}
+                      <div>
+                        <label className="form-label small mb-1 fw-bold" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
+                          Үйлдвэрлэсэн он
+                        </label>
+                        <div className="row g-2">
+                          <div className="col-6">
+                            <input
+                              type="number"
+                              className="form-control form-control-sm"
+                              placeholder="Доод"
+                              value={automotiveFilters.yearFrom}
+                              onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, yearFrom: e.target.value }))}
+                              style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                            />
+                          </div>
+                          <div className="col-6">
+                            <input
+                              type="number"
+                              className="form-control form-control-sm"
+                              placeholder="Дээд"
+                              value={automotiveFilters.yearTo}
+                              onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, yearTo: e.target.value }))}
+                              style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Import Year */}
+                      <div>
+                        <label className="form-label small mb-1 fw-bold" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
+                          Орж ирсэн он
+                        </label>
+                        <div className="row g-2">
+                          <div className="col-6">
+                            <input
+                              type="number"
+                              className="form-control form-control-sm"
+                              placeholder="Доод"
+                              value={automotiveFilters.importYearFrom}
+                              onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, importYearFrom: e.target.value }))}
+                              style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                            />
+                          </div>
+                          <div className="col-6">
+                            <input
+                              type="number"
+                              className="form-control form-control-sm"
+                              placeholder="Дээд"
+                              value={automotiveFilters.importYearTo}
+                              onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, importYearTo: e.target.value }))}
+                              style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Leasing */}
+                      <div>
+                        <label className="form-label small mb-1 fw-bold" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
+                          Лизинг
+                        </label>
+                        <select
+                          className="form-select form-select-sm"
+                          value={automotiveFilters.leasing}
+                          onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, leasing: e.target.value }))}
+                          style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                        >
+                          <option value="">Бүгд</option>
+                          <option value="with">Лизинг бүхий</option>
+                          <option value="without">Лизингүй</option>
+                        </select>
+                      </div>
+
+                      {/* Vehicle Color */}
+                      <div>
+                        <label className="form-label small mb-1 fw-bold" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
+                          Өнгө
+                        </label>
+                        <select
+                          className="form-select form-select-sm"
+                          value={automotiveFilters.vehicleColor}
+                          onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, vehicleColor: e.target.value }))}
+                          style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
+                        >
+                          <option value="">Бүгд</option>
+                          <option value="white">Цагаан</option>
+                          <option value="black">Хар</option>
+                          <option value="silver">Мөнгөлөг</option>
+                          <option value="gray">Саарал</option>
+                          <option value="red">Улаан</option>
+                          <option value="blue">Цэнхэр</option>
+                          <option value="green">Ногоон</option>
+                          <option value="yellow">Шар</option>
+                          <option value="brown">Хүрэн</option>
+                          <option value="other">Бусад</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Category Filter - Hierarchical with Subcategories */}
               <div className="mb-4">
                 <h6 className="mb-3 fw-bold" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
@@ -1507,323 +1795,6 @@ useEffect(() => {
                 </div>
               </div>
 
-              {/* Automotive Filters - Only show for automotive category */}
-              {isAutomotiveCategory() && (
-                <div className="mb-4" style={{ borderTop: '2px solid #FF6A00', paddingTop: '1rem' }}>
-                  <div
-                    className="d-flex justify-content-between align-items-center mb-3"
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => setCollapsedSections(prev => ({ ...prev, automotive: !prev.automotive }))}
-                  >
-                    <h6 className="mb-0 fw-bold" style={{ color: '#FF6A00' }}>
-                      <i className="bi bi-car-front me-2"></i>
-                      Автомашины шүүлтүүр
-                    </h6>
-                    <i className={`bi ${collapsedSections.automotive ? 'bi-chevron-down' : 'bi-chevron-up'}`} style={{ color: '#FF6A00' }}></i>
-                  </div>
-                  {!collapsedSections.automotive && (
-                    <div className="d-flex flex-column gap-3">
-                      {/* Manufacturer / Brand */}
-                      <div>
-                        <label className="form-label small mb-1" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
-                          Үйлдвэр
-                        </label>
-                        <select
-                          className="form-select form-select-sm"
-                          value={automotiveFilters.manufacturer}
-                          onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, manufacturer: e.target.value }))}
-                          style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
-                        >
-                          <option value="">Бүгд</option>
-                          <option value="Toyota">Toyota</option>
-                          <option value="Honda">Honda</option>
-                          <option value="Nissan">Nissan</option>
-                          <option value="Mazda">Mazda</option>
-                          <option value="Mitsubishi">Mitsubishi</option>
-                          <option value="Hyundai">Hyundai</option>
-                          <option value="Kia">Kia</option>
-                          <option value="Ford">Ford</option>
-                          <option value="Chevrolet">Chevrolet</option>
-                          <option value="Lexus">Lexus</option>
-                          <option value="BMW">BMW</option>
-                          <option value="Mercedes-Benz">Mercedes-Benz</option>
-                          <option value="Audi">Audi</option>
-                          <option value="Volkswagen">Volkswagen</option>
-                          <option value="Other">Бусад</option>
-                        </select>
-                      </div>
-
-                      {/* Model */}
-                      <div>
-                        <label className="form-label small mb-1" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
-                          Загвар
-                        </label>
-                        <input
-                          type="text"
-                          className="form-control form-control-sm"
-                          placeholder="Жишээ: Camry, Civic, Prius"
-                          value={automotiveFilters.model}
-                          onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, model: e.target.value }))}
-                          style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
-                        />
-                      </div>
-
-                      {/* Engine Type */}
-                      <div>
-                        <label className="form-label small mb-1" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
-                          Хөдөлгүүр
-                        </label>
-                        <select
-                          className="form-select form-select-sm"
-                          value={automotiveFilters.engineType}
-                          onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, engineType: e.target.value }))}
-                          style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
-                        >
-                          <option value="">Бүгд</option>
-                          <option value="gasoline">Бензин</option>
-                          <option value="diesel">Дизель</option>
-                          <option value="hybrid">Хайбрид</option>
-                          <option value="electric">Цахилгаан</option>
-                        </select>
-                      </div>
-
-                      {/* Engine Capacity (cc) */}
-                      <div>
-                        <label className="form-label small mb-1" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
-                          Мотор багтаамж (cc)
-                        </label>
-                        <div className="row g-2">
-                          <div className="col-6">
-                            <input
-                              type="number"
-                              className="form-control form-control-sm"
-                              placeholder="Доод"
-                              value={automotiveFilters.engineCcMin}
-                              onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, engineCcMin: e.target.value }))}
-                              style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
-                            />
-                          </div>
-                          <div className="col-6">
-                            <input
-                              type="number"
-                              className="form-control form-control-sm"
-                              placeholder="Дээд"
-                              value={automotiveFilters.engineCcMax}
-                              onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, engineCcMax: e.target.value }))}
-                              style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Body Type */}
-                      <div>
-                        <label className="form-label small mb-1" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
-                          Төрөл
-                        </label>
-                        <select
-                          className="form-select form-select-sm"
-                          value={automotiveFilters.bodyType}
-                          onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, bodyType: e.target.value }))}
-                          style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
-                        >
-                          <option value="">Бүгд</option>
-                          <option value="sedan">Седан</option>
-                          <option value="suv">SUV / Жип</option>
-                          <option value="hatchback">Хэтчбэк</option>
-                          <option value="van">Вэн</option>
-                          <option value="truck">Ачааны</option>
-                          <option value="coupe">Купе</option>
-                          <option value="wagon">Вагон</option>
-                          <option value="pickup">Пикап</option>
-                        </select>
-                      </div>
-
-                      {/* Gearbox */}
-                      <div>
-                        <label className="form-label small mb-1" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
-                          Хурдны хайрцаг
-                        </label>
-                        <select
-                          className="form-select form-select-sm"
-                          value={automotiveFilters.gearbox}
-                          onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, gearbox: e.target.value }))}
-                          style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
-                        >
-                          <option value="">Бүгд</option>
-                          <option value="automatic">Автомат</option>
-                          <option value="manual">Механик</option>
-                        </select>
-                      </div>
-
-                      {/* Steering */}
-                      <div>
-                        <label className="form-label small mb-1" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
-                          Хүрд
-                        </label>
-                        <select
-                          className="form-select form-select-sm"
-                          value={automotiveFilters.steering}
-                          onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, steering: e.target.value }))}
-                          style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
-                        >
-                          <option value="">Бүгд</option>
-                          <option value="left">Зүүн</option>
-                          <option value="right">Баруун</option>
-                        </select>
-                      </div>
-
-                      {/* Drive Type */}
-                      <div>
-                        <label className="form-label small mb-1" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
-                          Хөтлөгч
-                        </label>
-                        <select
-                          className="form-select form-select-sm"
-                          value={automotiveFilters.driveType}
-                          onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, driveType: e.target.value }))}
-                          style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
-                        >
-                          <option value="">Бүгд</option>
-                          <option value="fwd">Урд (FWD)</option>
-                          <option value="rwd">Хойд (RWD)</option>
-                          <option value="4wd">4x4 / AWD</option>
-                        </select>
-                      </div>
-
-                      {/* Mileage */}
-                      <div>
-                        <label className="form-label small mb-1" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
-                          Явсан (км)
-                        </label>
-                        <div className="row g-2">
-                          <div className="col-6">
-                            <input
-                              type="number"
-                              className="form-control form-control-sm"
-                              placeholder="Доод"
-                              value={automotiveFilters.mileageMin}
-                              onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, mileageMin: e.target.value }))}
-                              style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
-                            />
-                          </div>
-                          <div className="col-6">
-                            <input
-                              type="number"
-                              className="form-control form-control-sm"
-                              placeholder="Дээд"
-                              value={automotiveFilters.mileageMax}
-                              onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, mileageMax: e.target.value }))}
-                              style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Manufacture Year */}
-                      <div>
-                        <label className="form-label small mb-1" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
-                          Үйлдвэрлэсэн он
-                        </label>
-                        <div className="row g-2">
-                          <div className="col-6">
-                            <input
-                              type="number"
-                              className="form-control form-control-sm"
-                              placeholder="Доод"
-                              value={automotiveFilters.yearFrom}
-                              onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, yearFrom: e.target.value }))}
-                              style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
-                            />
-                          </div>
-                          <div className="col-6">
-                            <input
-                              type="number"
-                              className="form-control form-control-sm"
-                              placeholder="Дээд"
-                              value={automotiveFilters.yearTo}
-                              onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, yearTo: e.target.value }))}
-                              style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Import Year */}
-                      <div>
-                        <label className="form-label small mb-1" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
-                          Орж ирсэн он
-                        </label>
-                        <div className="row g-2">
-                          <div className="col-6">
-                            <input
-                              type="number"
-                              className="form-control form-control-sm"
-                              placeholder="Доод"
-                              value={automotiveFilters.importYearFrom}
-                              onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, importYearFrom: e.target.value }))}
-                              style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
-                            />
-                          </div>
-                          <div className="col-6">
-                            <input
-                              type="number"
-                              className="form-control form-control-sm"
-                              placeholder="Дээд"
-                              value={automotiveFilters.importYearTo}
-                              onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, importYearTo: e.target.value }))}
-                              style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Leasing */}
-                      <div>
-                        <label className="form-label small mb-1" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
-                          Лизинг
-                        </label>
-                        <select
-                          className="form-select form-select-sm"
-                          value={automotiveFilters.leasing}
-                          onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, leasing: e.target.value }))}
-                          style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
-                        >
-                          <option value="">Бүгд</option>
-                          <option value="with">Лизинг бүхий</option>
-                          <option value="without">Лизингүй</option>
-                        </select>
-                      </div>
-
-                      {/* Vehicle Color */}
-                      <div>
-                        <label className="form-label small mb-1" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
-                          Өнгө
-                        </label>
-                        <select
-                          className="form-select form-select-sm"
-                          value={automotiveFilters.vehicleColor}
-                          onChange={(e) => setAutomotiveFilters(prev => ({ ...prev, vehicleColor: e.target.value }))}
-                          style={{ backgroundColor: isDarkMode ? 'var(--color-surface)' : '#ffffff', color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}
-                        >
-                          <option value="">Бүгд</option>
-                          <option value="white">Цагаан</option>
-                          <option value="black">Хар</option>
-                          <option value="silver">Мөнгөлөг</option>
-                          <option value="gray">Саарал</option>
-                          <option value="red">Улаан</option>
-                          <option value="blue">Цэнхэр</option>
-                          <option value="green">Ногоон</option>
-                          <option value="yellow">Шар</option>
-                          <option value="brown">Хүрэн</option>
-                          <option value="other">Бусад</option>
-                        </select>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
               {/* Sort Options */}
               <div className="mb-3">
                 <h6 className="mb-3 fw-bold" style={{ color: isDarkMode ? 'var(--color-text)' : '#2c3e50' }}>
@@ -1976,8 +1947,8 @@ useEffect(() => {
                         <LikeButton product={product} size="md" />
                       </div>
 
-                      <img
-                        src={product.images?.find(img => img.isPrimary)?.url || '/default.png'}
+                      <ProductImage
+                        product={product}
                         className="card-img-top"
                         alt={product.title}
                         style={{ height: '200px', objectFit: 'cover' }}

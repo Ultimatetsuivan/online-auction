@@ -1,0 +1,10 @@
+                     <li className="nav-item">
+                       <button
+                         className={`nav-link d-flex align-items-center ${activeTab === 'dashboard' ? 'active' : ''}`}
+                         onClick={() => setActiveTab('dashboard')}
+                       >
+                         <FiShoppingBag className="me-2" />
+                         Dashboard
+                         <BsArrowRightShort className="ms-auto" />
+                       </button>
+                     </li>

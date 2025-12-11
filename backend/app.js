@@ -25,6 +25,13 @@ const depositRoute = require("./routes/depositRoute");
 const legalRoute = require("./routes/legalRoute");
 const adminAnalyticsRoute = require("./routes/adminAnalyticsRoute");
 const paymentWebhookRoute = require("./routes/paymentWebhookRoute");
+const reviewRoute = require("./routes/reviewRoute");
+const reportRoute = require("./routes/reportRoute");
+const watchlistRoute = require("./routes/watchlistRoute");
+const notificationSettingsRoute = require("./routes/notificationSettingsRoute");
+// COMMENTED OUT: Luxury item verification (replaced with identity verification)
+// const verificationRoute = require("./routes/verificationRoute");
+const identityVerificationRoute = require("./routes/identityVerificationRoute");
 
 const errorHandler = require("./middleware/errorMiddleWare");
 const { apiLimiter } = require("./middleware/rateLimiter");
@@ -35,6 +42,13 @@ initializeFirebase();
 
 const app = express();
 
+// Trust proxy - Required when behind a reverse proxy (ngrok, load balancer, etc.)
+// This allows express-rate-limit to correctly identify client IPs from X-Forwarded-For header
+// Set to 1 to trust the first proxy (more secure than 'true')
+// For development: trust ngrok and local proxies
+// For production: configure based on your infrastructure
+app.set('trust proxy', process.env.NODE_ENV === 'production' ? 1 : 'loopback, linklocal, uniquelocal');
+
 // Security middleware
 app.use(helmet({
   contentSecurityPolicy: false, // Disable CSP for API
@@ -43,34 +57,29 @@ app.use(helmet({
 app.use(mongoSanitize()); // Prevent NoSQL injection
 app.use(cookieParser());
 
-// Improved CORS configuration
-const allowedOrigins = process.env.ALLOWED_ORIGINS 
-  ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
-  : ['http://localhost:5173', 'http://localhost:3000'];
-
-  const ALLOWED_ORIGINS = [
+// CORS configuration
+const ALLOWED_ORIGINS = [
     'http://localhost:5173',   // Vite dev
     'http://127.0.0.1:5173',
     'http://localhost:5174',   // Vite dev (alternative port)
     'http://127.0.0.1:5174',
     'http://localhost:4173',   // Vite preview
     'http://127.0.0.1:4173',
-    'http://localhost:3000',   // (optional) CRA
+    'http://localhost:3000',   // React dev
     'http://127.0.0.1:3000',
-    'http://192.168.1.10:5173', // Your computer's IP for mobile access (new network)
-    'http://172.29.33.228:5173',
-    'http://192.168.56.1:5173',
-    'http://192.168.144.1:5173',
-    'http://192.168.140.1:5173',
-    'http://172.22.96.1:5173',
-    // add your deployed web origin(s) here when you have them, e.g.:
-    // 'https://auction.your-domain.mn'
+    // ngrok tunnels handled by wildcard in corsOptions
+    // Production domains can be added here when deployed
   ];
 
 const corsOptions = {
   origin: (origin, cb) => {
     // allow tools like curl/postman (no Origin header) and your whitelisted origins
-    if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+    // Also allow any ngrok domains for development
+    if (!origin ||
+        ALLOWED_ORIGINS.includes(origin) ||
+        (origin && (origin.includes('ngrok.io') || origin.includes('ngrok-free.dev')))) {
+      return cb(null, true);
+    }
     cb(new Error('Not allowed by CORS'));
   },
   credentials: true,
@@ -109,10 +118,17 @@ app.use("/api/mylist", myListRoute);
 app.use("/api/auth", phoneAuthRoute);
 app.use("/api/likes", likeRoute);
 app.use("/api/notifications", notificationRoute);
+app.use("/api/notification-settings", notificationSettingsRoute);
+app.use("/api/watchlist", watchlistRoute);
 app.use("/api/deposits", depositRoute);
 app.use("/api/legal", legalRoute);
 app.use("/api/admin", adminAnalyticsRoute);
 app.use("/api/webhook", paymentWebhookRoute);
+app.use("/api/reviews", reviewRoute);
+app.use("/api", reportRoute);
+// COMMENTED OUT: Luxury item verification route
+// app.use("/api/verification", verificationRoute);
+app.use("/api/identity-verification", identityVerificationRoute);
 
 app.use("/uploads", express.static(path.join(__dirname, "upload")));
 

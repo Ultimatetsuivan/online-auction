@@ -22,7 +22,7 @@ type AuctionCardProps = {
   onPress?: () => void;
 };
 
-export default function AuctionCard({ product, onPress }: AuctionCardProps) {
+const AuctionCard = React.memo<AuctionCardProps>(({ product, onPress }) => {
   const imageSource = product.localImage
     ? product.localImage
     : product.image
@@ -31,7 +31,8 @@ export default function AuctionCard({ product, onPress }: AuctionCardProps) {
 
   const price = product.currentBid || product.price || 0;
   const formattedPrice = typeof price === 'number' ? price.toLocaleString() : price;
-  const isSold = product.sold || !product.available;
+  // Only show as sold if explicitly sold
+  const isSold = product.sold === true;
 
   const isEndingSoon = () => {
     if (!product.timeLeft) return false;
@@ -115,24 +116,31 @@ export default function AuctionCard({ product, onPress }: AuctionCardProps) {
       </View>
     </TouchableOpacity>
   );
-}
+});
+
+AuctionCard.displayName = 'AuctionCard';
+
+export default AuctionCard;
 
 const styles = StyleSheet.create({
   card: {
     backgroundColor: "#fff",
-    borderRadius: 16,
+    borderRadius: 20,
     marginBottom: 16,
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: theme.gray100,
   },
   imageContainer: {
     width: "100%",
-    height: 200,
+    height: 220,
     position: "relative",
+    backgroundColor: theme.gray50,
   },
   image: {
     width: "100%",
@@ -181,14 +189,16 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   content: {
-    padding: 16,
+    padding: 18,
+    backgroundColor: theme.white,
   },
   title: {
     fontSize: 16,
     fontWeight: "700",
     color: theme.gray900,
-    marginBottom: 12,
+    marginBottom: 14,
     lineHeight: 22,
+    letterSpacing: -0.2,
   },
   priceRow: {
     flexDirection: "row",
@@ -250,9 +260,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: theme.brand600,
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingVertical: 16,
+    borderRadius: 14,
     gap: 8,
+    shadowColor: theme.brand600,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   bidButtonText: {
     color: "#fff",

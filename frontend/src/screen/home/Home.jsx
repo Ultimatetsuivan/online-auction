@@ -10,7 +10,7 @@ import { Link } from "react-router-dom";
 
 import { CountdownTimer } from '../../components/Timer';
 
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 
 import { buildApiUrl } from '../../config/api';
 
@@ -28,6 +28,8 @@ export const Home = () => {
   const navigate = useNavigate();
 
   const location = useLocation();
+
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const { t, language } = useLanguage();
   const { isDarkMode } = useTheme();
@@ -51,7 +53,10 @@ export const Home = () => {
 
   const [recentlyViewed, setRecentlyViewed] = useState([]);
 
-  const [selectedFilter, setSelectedFilter] = useState('recommended');
+  const [selectedFilter, setSelectedFilter] = useState(() => {
+    const tab = searchParams.get('tab');
+    return tab === 'mylist' ? 'mylist' : 'recommended';
+  });
 
   const [expiringProducts, setExpiringProducts] = useState([]);
 
@@ -201,33 +206,66 @@ export const Home = () => {
 
   }, [allProducts, selectedFilter]);
 
+  // Sync selectedFilter with URL parameter
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    const currentTab = tab === 'mylist' ? 'mylist' : 'recommended';
+    if (currentTab !== selectedFilter) {
+      setSelectedFilter(currentTab);
+    }
+  }, [searchParams]);
 
 
-  // Trending categories (most products)
+
+  // Helper function to get all subcategory IDs recursively
+  const getAllSubcategoryIds = (categoryId) => {
+    const subcats = allCategories.filter((c) => {
+      if (!c.parent) return false;
+      let parentId;
+      if (typeof c.parent === "object" && c.parent !== null) {
+        parentId = c.parent._id?.toString();
+      } else if (c.parent) {
+        parentId = c.parent.toString();
+      }
+      return parentId === categoryId.toString();
+    });
+
+    let allIds = [categoryId];
+    subcats.forEach((sub) => {
+      allIds = [...allIds, ...getAllSubcategoryIds(sub._id)];
+    });
+    return allIds;
+  };
+
+  // Trending categories (most products) - includes products from subcategories
 
   const trendingCategories = useMemo(() => {
 
     if (!categories.length || !allProducts.length) return [];
 
-    return categories.map(cat => ({
+    return categories.map(cat => {
+      // Get all category IDs including subcategories
+      const categoryIds = getAllSubcategoryIds(cat._id);
 
-      ...cat,
+      return {
+        ...cat,
+        count: allProducts.filter(p => {
+          // Handle both populated and non-populated category field
+          const productCategoryId = typeof p.category === 'object' && p.category !== null
+            ? p.category._id?.toString()
+            : p.category?.toString();
+          return categoryIds.some(id => id.toString() === productCategoryId);
+        }).length
+      };
 
-      count: allProducts.filter(p => {
-        // Handle both populated and non-populated category field
-        const productCategoryId = typeof p.category === 'object' && p.category !== null
-          ? p.category._id
-          : p.category;
-        return productCategoryId === cat._id;
-      }).length
+    }).sort((a, b) => b.count - a.count).slice(0, 6);
 
-    })).sort((a, b) => b.count - a.count).slice(0, 6);
-
-  }, [categories, allProducts]);
+  }, [categories, allProducts, allCategories]);
 
 
 
   const AuctionCard = ({ auction }) => {
+    const [imageError, setImageError] = useState(false);
 
     // Check if product is new (created within last 7 days)
 
@@ -245,6 +283,8 @@ export const Home = () => {
 
     };
 
+    const imageUrl = auction.images?.find(img => img.isPrimary)?.url || auction.images?.[0]?.url;
+
 
 
     return (
@@ -259,15 +299,16 @@ export const Home = () => {
 
             cursor: 'pointer',
 
-            transition: 'all 0.2s ease',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
 
-            boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
 
-            borderRadius: '10px',
+            borderRadius: '16px',
 
             overflow: 'hidden',
 
-            width: '100%'
+            width: '100%',
+            border: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}`
 
           }}
 
@@ -275,17 +316,21 @@ export const Home = () => {
 
           onMouseEnter={(e) => {
 
-            e.currentTarget.style.transform = 'translateY(-4px)';
+            e.currentTarget.style.transform = 'translateY(-6px) scale(1.02)';
 
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+            e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.15)';
+
+            e.currentTarget.style.borderColor = isDarkMode ? 'rgba(255, 106, 0, 0.3)' : 'rgba(255, 106, 0, 0.2)';
 
           }}
 
           onMouseLeave={(e) => {
 
-            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.transform = 'translateY(0) scale(1)';
 
-            e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.08)';
+            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+
+            e.currentTarget.style.borderColor = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)';
 
           }}
 
@@ -293,31 +338,45 @@ export const Home = () => {
 
           <div className="card-image-container position-relative" style={{ overflow: 'hidden' }}>
 
-            <img
+            {imageUrl && !imageError ? (
+              <img
 
-              src={auction.images?.find(img => img.isPrimary)?.url || '/default.png'}
+                src={imageUrl}
 
-              className="card-img-top"
+                className="card-img-top"
 
-              alt={auction.title}
+                alt={auction.title}
 
-              loading="lazy"
+                loading="lazy"
 
-              style={{
+                style={{
 
-                height: '180px',
+                  height: '200px',
 
-                objectFit: 'cover',
+                  objectFit: 'cover',
 
-                transition: 'transform 0.2s ease'
+                  transition: 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
 
-              }}
+                }}
 
-              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.08)'}
 
-              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
 
-            />
+                onError={() => setImageError(true)}
+
+              />
+            ) : (
+              <div
+                className="card-img-top d-flex align-items-center justify-content-center"
+                style={{
+                  height: '180px',
+                  backgroundColor: isDarkMode ? '#2d3748' : '#f8f9fa'
+                }}
+              >
+                <i className="bi bi-image text-muted" style={{ fontSize: '3rem' }}></i>
+              </div>
+            )}
 
 
 
@@ -461,9 +520,11 @@ export const Home = () => {
 
                   color: '#FF6A00',
 
-                  fontSize: '1.1rem',
+                  fontSize: '1.25rem',
 
-                  fontWeight: '700'
+                  fontWeight: '800',
+                  letterSpacing: '-0.5px',
+                  textShadow: '0 1px 2px rgba(255, 106, 0, 0.1)'
 
                 }}
 
@@ -488,37 +549,49 @@ export const Home = () => {
 
 
   const CategoryCard = ({ category }) => {
+    // Helper function to map Ionicons to Bootstrap Icons
+    const getBootstrapIcon = (icon) => {
+      if (!icon) return "box";
+
+      // If emoji (1-2 chars), return null to render as text
+      if (icon.length <= 2) return null;
+
+      // Map Ionicons names to Bootstrap Icons names
+      const iconMap = {
+        "cube-outline": "box",
+        "cube": "box",
+        "home-outline": "house",
+        "home": "house",
+        "cart-outline": "cart",
+        "cart": "cart",
+        "heart-outline": "heart",
+        "heart": "heart",
+      };
+
+      return iconMap[icon] || icon.replace('-outline', '');
+    };
+
+    const bootstrapIcon = getBootstrapIcon(category.icon);
 
     return (
-
       <div className="col-lg-2 col-md-3 col-sm-4 col-6 mb-3">
-
         <Link to={`/allproduct?category=${category._id}`} className="text-decoration-none">
-
           <div className="card h-100 text-center p-3 hover-effect">
-
             {category.icon && (
-
               <div className="mb-2">
-
-                <i className={`bi bi-${category.icon.replace('-outline', '')} fs-1`} style={{ color: '#FF6A00' }}></i>
-
+                {bootstrapIcon === null ? (
+                  <span style={{ fontSize: '3rem', lineHeight: 1 }}>{category.icon}</span>
+                ) : (
+                  <i className={`bi bi-${bootstrapIcon} fs-1`} style={{ color: '#FF6A00' }}></i>
+                )}
               </div>
-
             )}
-
             <h6 className="mb-1 fw-semibold">{category.titleMn || category.title}</h6>
-
             <p className="text-muted small mb-0">{category.count || 0} {t('items')}</p>
-
           </div>
-
         </Link>
-
       </div>
-
     );
-
   };
 
 
@@ -575,15 +648,16 @@ export const Home = () => {
 
   return (
 
-    <div className="home-page" style={{
+      <div className="home-page" style={{
 
       background: isDarkMode
 
         ? 'linear-gradient(180deg, rgba(20, 20, 20, 1) 0%, rgba(30, 30, 30, 1) 100%)'
 
-        : 'linear-gradient(180deg, rgba(255, 250, 245, 1) 0%, rgba(255, 255, 255, 1) 50%, rgba(250, 245, 240, 1) 100%)',
+        : 'linear-gradient(180deg, rgba(255, 250, 245, 0.8) 0%, rgba(255, 255, 255, 1) 50%, rgba(250, 245, 240, 0.8) 100%)',
 
-      minHeight: '100vh'
+      minHeight: '100vh',
+      transition: 'background 0.3s ease'
 
     }}>
 
@@ -691,7 +765,10 @@ export const Home = () => {
 
               }}
 
-              onClick={() => setSelectedFilter('recommended')}
+              onClick={() => {
+                setSearchParams({});
+                setSelectedFilter('recommended');
+              }}
 
             >
 
@@ -717,7 +794,10 @@ export const Home = () => {
 
               }}
 
-              onClick={() => setSelectedFilter('mylist')}
+              onClick={() => {
+                setSearchParams({ tab: 'mylist' });
+                setSelectedFilter('mylist');
+              }}
 
             >
 

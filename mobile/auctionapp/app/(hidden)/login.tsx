@@ -18,90 +18,37 @@ import { router } from "expo-router";
 import { api } from "../../src/api";
 import theme from "../theme";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as WebBrowser from "expo-web-browser";
-import * as Google from "expo-auth-session/providers/google";
-import { makeRedirectUri } from "expo-auth-session";
+import { useTheme } from "../../src/contexts/ThemeContext";
 
-type GoogleClientIds = {
-  web?: string | null;
-  android?: string | null;
-  ios?: string | null;
-  expo?: string | null;
-};
+// Google Sign-In temporarily disabled - will be implemented later
+// import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 
-WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
+  const { isDarkMode, themeColors } = useTheme();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
-  const [googleClients, setGoogleClients] = useState<GoogleClientIds>({});
 
-  const resolvedGoogleIds = useMemo(() => {
-    const web = googleClients.web ?? null;
-    const android = googleClients.android ?? null;
-    const ios = googleClients.ios ?? null;
-    const expo = googleClients.expo ?? null;
-    return { web, android, ios, expo };
-  }, [googleClients]);
-
-  const defaultGoogleClientId =
-    resolvedGoogleIds.expo ||
-    resolvedGoogleIds.android ||
-    resolvedGoogleIds.ios ||
-    resolvedGoogleIds.web ||
-    "DUMMY.apps.googleusercontent.com";
-  const hasGoogleClientConfig = Boolean(
-    resolvedGoogleIds.expo ||
-      resolvedGoogleIds.android ||
-      resolvedGoogleIds.ios ||
-      resolvedGoogleIds.web
-  );
-
-  const redirectUri = useMemo(() => {
-    if (Platform.OS === 'web') {
-      return makeRedirectUri({
-        scheme: 'https',
-        path: 'auth/callback'
-      });
-    }
-    // For mobile, we must use the proxy
-    return 'https://auth.expo.io/@buhuu/auctionapp';
-  }, []);
-
-  console.log("Google OAuth redirectUri =>", redirectUri);
-
-  const [googleRequest, googleResponse, googlePromptAsync] =
-    Google.useAuthRequest({
-      expoClientId: resolvedGoogleIds.expo || "377856194024-6ud79er14h5nnfhgpqbtuh2umldrk156.apps.googleusercontent.com",
-      iosClientId: resolvedGoogleIds.ios || "377856194024-6ud79er14h5nnfhgpqbtuh2umldrk156.apps.googleusercontent.com",
-      androidClientId: resolvedGoogleIds.android || undefined,
-      webClientId: resolvedGoogleIds.web || "377856194024-6ud79er14h5nnfhgpqbtuh2umldrk156.apps.googleusercontent.com",
-      redirectUri,
-    });
-
-  useEffect(() => {
-    const fetchClientId = async () => {
-      try {
-        const response = await api.get("/api/users/google/client-id");
-        if (response.data) {
-          const ids = response.data.clientIds || {};
-          console.log("Fetched Google Client IDs:", ids);
-          setGoogleClients({
-            web: ids.web ?? response.data.clientId ?? null,
-            android: ids.android ?? null,
-            ios: ids.ios ?? null,
-            expo: ids.expo ?? null,
-          });
-        }
-      } catch (error) {
-        console.error("Failed to fetch Google client ID:", error);
-      }
-    };
-    fetchClientId();
-  }, []);
+  // Google Sign-In configuration - temporarily disabled
+  // useEffect(() => {
+  //   const configureGoogleSignIn = async () => {
+  //     try {
+  //       const response = await api.get("/api/users/google/client-id");
+  //       const webClientId = response.data?.clientIds?.web || response.data?.clientId || "377856194024-6ud79er14h5nnfhgpqbtuh2umldrk156.apps.googleusercontent.com";
+  //       GoogleSignin.configure({
+  //         webClientId: webClientId,
+  //         offlineAccess: true,
+  //         forceCodeForRefreshToken: true,
+  //       });
+  //       console.log("Google Sign In configured with webClientId:", webClientId);
+  //     } catch (error) {
+  //       console.error("Failed to configure Google Sign In:", error);
+  //     }
+  //   };
+  //   configureGoogleSignIn();
+  // }, []);
 
   const persistUserSession = async (userData: any) => {
     await AsyncStorage.setItem("user", JSON.stringify(userData));
@@ -148,90 +95,18 @@ export default function LoginScreen() {
     }
   };
 
-  const handleGoogleCredential = async (accessToken: string) => {
-    try {
-      // Get user info from Google
-      const userInfoResponse = await fetch(
-        "https://www.googleapis.com/oauth2/v2/userinfo",
-        {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        }
-      );
-
-      const userInfo = await userInfoResponse.json();
-      console.log("Google user info:", userInfo);
-
-      // Send user info to backend
-      const response = await api.post("/api/users/google-mobile", {
-        googleId: userInfo.id,
-        email: userInfo.email,
-        name: userInfo.name,
-        picture: userInfo.picture,
-      });
-
-      if (response.status === 200) {
-        await persistUserSession(response.data);
-        navigateHome();
-      }
-    } catch (error: any) {
-      console.error("Google login error:", error);
-      console.error("Error response:", error.response?.data);
-      const errorMessage =
-        error.response?.data?.error ||
-        error.response?.data?.message ||
-        error.message ||
-        "Google нэвтрэх үед алдаа гарлаа.";
-      Alert.alert("Алдаа", errorMessage);
-    } finally {
-      setGoogleLoading(false);
-    }
+  // Google Sign-In handler - temporarily disabled, will show "not available" message
+  const handleGoogleSignIn = () => {
+    Alert.alert(
+      "Одоогоор ашиглах боломжгүй",
+      "Google нэвтрэх систем тун удахгүй нэмэгдэнэ."
+    );
   };
 
-  const handleGoogleLoginPress = async () => {
-    if (!hasGoogleClientConfig || !googleRequest) {
-      Alert.alert(
-        "Анхааруулга",
-        "Google нэвтрэх тохиргоо байхгүй байна. Энэ функцийг дараа ашиглах боломжтой."
-      );
-      return;
-    }
-    try {
-      setGoogleLoading(true);
-      const result = await googlePromptAsync({ useProxy: true });
-      if (!result || result.type !== "success") {
-        setGoogleLoading(false);
-      }
-    } catch (error) {
-      console.error("Google prompt error:", error);
-      Alert.alert(
-        "Алдаа",
-        "Google нэвтрэх явцад алдаа гарлаа. Дахин оролдоно уу."
-      );
-      setGoogleLoading(false);
-    }
-  };
-  useEffect(() => {
-    if (googleResponse?.type === "success") {
-      const accessToken = googleResponse.authentication?.accessToken;
-      console.log("Google auth success, access token:", accessToken ? "present" : "missing");
-      if (accessToken) {
-        handleGoogleCredential(accessToken);
-        return;
-      } else {
-        Alert.alert("Алдаа", "Google access token олдсонгүй");
-        setGoogleLoading(false);
-      }
-    }
-
-    if (googleResponse && googleResponse.type !== "success") {
-      console.log("Google auth not successful:", googleResponse.type);
-      setGoogleLoading(false);
-    }
-  }, [googleResponse]);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" />
+    <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
+      <StatusBar style={isDarkMode ? "light" : "dark"} />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardView}
@@ -241,14 +116,14 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
         >
           {/* Header */}
-          <View style={styles.header}>
+          <View style={[styles.header, { backgroundColor: themeColors.surface, borderBottomColor: themeColors.border }]}>
             <TouchableOpacity
               style={styles.backButton}
               onPress={() => router.back()}
             >
-              <Ionicons name="arrow-back" size={24} color={theme.gray900} />
+              <Ionicons name="arrow-back" size={24} color={themeColors.text} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Нэвтрэх</Text>
+            <Text style={[styles.headerTitle, { color: themeColors.text }]}>Нэвтрэх</Text>
             <View style={styles.placeholder} />
           </View>
 
@@ -265,18 +140,21 @@ export default function LoginScreen() {
           <View style={styles.formContainer}>
             {/* Email Input */}
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Имэйл</Text>
-              <View style={styles.inputWrapper}>
+              <Text style={[styles.label, { color: themeColors.text }]}>Имэйл</Text>
+              <View style={[styles.inputWrapper, { 
+                backgroundColor: themeColors.inputBg,
+                borderColor: themeColors.border 
+              }]}>
                 <Ionicons
                   name="mail-outline"
                   size={20}
-                  color={theme.gray500}
+                  color={themeColors.textSecondary}
                   style={styles.inputIcon}
                 />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: themeColors.text }]}
                   placeholder="example@email.com"
-                  placeholderTextColor={theme.gray400}
+                  placeholderTextColor={themeColors.textSecondary}
                   value={email}
                   onChangeText={setEmail}
                   keyboardType="email-address"
@@ -288,18 +166,21 @@ export default function LoginScreen() {
 
             {/* Password Input */}
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Нууц үг</Text>
-              <View style={styles.inputWrapper}>
+              <Text style={[styles.label, { color: themeColors.text }]}>Нууц үг</Text>
+              <View style={[styles.inputWrapper, { 
+                backgroundColor: themeColors.inputBg,
+                borderColor: themeColors.border 
+              }]}>
                 <Ionicons
                   name="lock-closed-outline"
                   size={20}
-                  color={theme.gray500}
+                  color={themeColors.textSecondary}
                   style={styles.inputIcon}
                 />
                 <TextInput
-                  style={[styles.input, styles.passwordInput]}
+                  style={[styles.input, styles.passwordInput, { color: themeColors.text }]}
                   placeholder="••••••••"
-                  placeholderTextColor={theme.gray400}
+                  placeholderTextColor={themeColors.textSecondary}
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
@@ -312,14 +193,17 @@ export default function LoginScreen() {
                   <Ionicons
                     name={showPassword ? "eye-outline" : "eye-off-outline"}
                     size={20}
-                    color={theme.gray500}
+                    color={themeColors.textSecondary}
                   />
                 </TouchableOpacity>
               </View>
             </View>
 
             {/* Forgot Password */}
-            <TouchableOpacity style={styles.forgotPasswordContainer}>
+            <TouchableOpacity 
+              style={styles.forgotPasswordContainer}
+              onPress={() => router.push("/(hidden)/forgot-password")}
+            >
               <Text style={styles.forgotPasswordText}>Нууц үг мартсан?</Text>
             </TouchableOpacity>
 
@@ -352,21 +236,22 @@ export default function LoginScreen() {
               <Text style={styles.phoneButtonText}>Утасны дугаараар нэвтрэх</Text>
             </TouchableOpacity>
 
-            {/* Google Auth Button */}
+            {/* Google Auth Button - Shows "not available" message when clicked */}
             <TouchableOpacity
-              style={[
-                styles.googleButton,
-                (!hasGoogleClientConfig || googleLoading) && styles.googleButtonDisabled,
-              ]}
-              onPress={handleGoogleLoginPress}
-              disabled={!hasGoogleClientConfig || googleLoading}
+              style={styles.googleButton}
+              onPress={handleGoogleSignIn}
             >
               <Ionicons name="logo-google" size={20} color="#EA4335" />
-              {googleLoading ? (
-                <ActivityIndicator color={theme.gray700} />
-              ) : (
-                <Text style={styles.googleButtonText}>Google-ээр нэвтрэх</Text>
-              )}
+              <Text style={styles.googleButtonText}>Google-ээр нэвтрэх</Text>
+            </TouchableOpacity>
+
+            {/* eMongolia Auth Button */}
+            <TouchableOpacity
+              style={styles.eMongoliaButton}
+              onPress={() => Alert.alert("eMongolia", "eMongolia нэвтрэх систем тун удахгүй нэмэгдэнэ")}
+            >
+              <Ionicons name="shield-checkmark" size={20} color="#0066CC" />
+              <Text style={styles.eMongoliaButtonText}>eMongolia-аар нэвтрэх</Text>
             </TouchableOpacity>
 
             {/* Register Link */}
@@ -570,5 +455,22 @@ const styles = StyleSheet.create({
   },
   googleButtonDisabled: {
     opacity: 0.6,
+  },
+  eMongoliaButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: theme.white,
+    borderWidth: 1.5,
+    borderColor: "#0066CC",
+    borderRadius: 12,
+    height: 52,
+    marginBottom: 16,
+    gap: 8,
+  },
+  eMongoliaButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#0066CC",
   },
 });

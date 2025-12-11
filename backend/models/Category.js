@@ -67,5 +67,5 @@ categorySchema.pre('save', function(next) {
     next();
 });
 
-const Category = mongoose.model("Category", categorySchema);
-module.exports = Category;
+// Export model, checking if it already exists to avoid OverwriteModelError
+module.exports = mongoose.models.Category || mongoose.model("Category", categorySchema);

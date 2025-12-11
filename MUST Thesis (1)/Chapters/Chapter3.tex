@@ -1,0 +1,175 @@
+% Бүлэг 3
+\chapter{Системийн хөгжүүлэлт}
+\label{Chapter3}
+
+\section{Хөгжүүлэлтийн орчин, технологийн сонголт}
+Backend:
+\begin{itemize}
+    \item Node js 
+    \begin{itemize}
+   \item Асинхрон, хурдан (Google V8 engine)
+   \item Нэг process-д олон холболт (Event Loop)
+   \item Real-time систем хөгжүүлэхэд тохиромжтой.
+\end{itemize}
+    \item Express js
+    \begin{itemize}
+   \item REST API бүтээхэд хялбар (GET, POST, PUT, DELETE)
+   \item Routes (URL хаяг) удирдах нь энгийн
+\end{itemize}
+    \item REST API
+    \begin{itemize}
+   \item CRUD үйлдлүүд (Create, Read, Update, Delete) хийхэд тохиромжтой
+   \item JSON формат-аар өгөгдөл дамжуулдаг (хялбар)
+\end{itemize}
+\end{itemize}
+Database:
+\begin{itemize}
+    \item MongodDB  (NoSQL шинжтэй, dynamic schema-тай аппликейшнд тохиромжтой.)
+\end{itemize}
+
+ Бусад хэрэгслүүд:
+ \begin{itemize}
+    \item Cloudinary (зураг хадгалах үед)
+    \item Github (frontend хөгжүүлэгчтэй хамтран ажиллахад)
+    \item Insomnia (API туршилтанд)
+\end{itemize}
+
+\section{Системийн модуль, бүрэлдэхүүн хэсгүүдийн тайлбар}
+Үнэ санал болгох модуль:
+ Үнэ санал болгох модуль хэрэглэгчид бараанд үнэ санал болгох болон  дуудлага худалдааны үнийн түүх харах боломжийг олгодог бөгөөд Express router болон MongoDB-ийн bidding collection ашиглан хөгжүүлсэн.
+\newline 
+Шинэ дуудлага худалдаа үүсгэх модуль:
+ Шинэ дуудлага худалдаа үүсгэх модуль хэрэглэгчид шинэ бараа нэмэх, барааны мэдээлэл өөрчлөх, устгах боломжийг олгодог бөгөөд Express router болон MongoDB-ийн product collection ашиглан хөгжүүлсэн.
+
+ \section{API болон өгөгдөл солилцоо}
+ Манай системийн үндсэн API Endpoint-ууд:
+  \begin{itemize}
+    \item /api/users
+    \begin{itemize}
+        \item /register
+        \item /login
+        \item /logout
+        \item /allusers
+        \item /userbalance
+        \item /send-code
+        \item /verify-email
+        \item /addBalance
+        \item /forgot-password
+        \item /verify-reset-token/:token
+        \item /reset-password/:token
+         \item /google
+         \item /google/client-id
+         \item /photo
+        
+    \end{itemize}
+    \item /api/product
+    \item /api/bidding
+    \item /api/category
+    \item /api/transaction
+    \item /api/request
+\end{itemize}
+ \section{Мобайл аппликейшны хөгжүүлэлт}
+\subsection{Мобайл технологийн сонголт}
+Мобайл аппликейшнд дараах технологиудыг ашигласан:
+\begin{itemize}
+    \item \textbf{React Native}
+    \begin{itemize}
+   \item Cross-platform (iOS, Android) хөгжүүлэлт нэг code base-ээр
+   \item JavaScript/TypeScript ашиглан хөгжүүлдэг
+   \item Native компонентуудтай ажиллах боломжтой
+   \item React.js-тэй адилхан архитектур (Component-based)
+\end{itemize}
+    \item \textbf{Expo}
+    \begin{itemize}
+   \item React Native аппликейшнийг хөгжүүлэх, тест хийх хялбар орчин
+   \item Hot reload - Код солих бүрт шууд харагдах
+   \item Олон built-in library (Camera, Location, Notification гэх мэт)
+   \item iOS болон Android дээр тест хийхэд хялбар
+\end{itemize}
+    \item \textbf{Expo Router}
+    \begin{itemize}
+   \item File-based routing систем
+   \item TypeScript дэмжлэгтэй
+   \item Deep linking автоматаар дэмждэг
+\end{itemize}
+\end{itemize}
+
+\subsection{Мобайл аппликейшны архитектур}
+Мобайл апп нь дараах үндсэн бүтэцтэй:
+\begin{itemize}
+    \item \textbf{Tab Navigation}: Үндсэн навигаци (Home, Search, Selling, Profile)
+    \item \textbf{Stack Navigation}: Дэлгэрэнгүй хуудсууд (Product details, Category view)
+    \item \textbf{Context API}: Global state management (Auth, Language)
+    \item \textbf{REST API Integration}: Backend-тэй холбогдох
+    \item \textbf{Real-time Updates}: Socket.io ашиглан бодит цагийн мэдээлэл
+\end{itemize}
+
+\subsection{Мобайл аппликейшны үндсэн функцууд}
+\subsubsection{Хэрэглэгчийн баталгаажуулалт}
+\begin{itemize}
+    \item Google OAuth нэвтрэх
+    \item Утасны дугаараар баталгаажуулалт (Firebase Phone Auth)
+    \item JWT token ашиглан session удирдлага
+    \item Автомат нэвтрэлт (AsyncStorage)
+\end{itemize}
+
+\subsubsection{Бараа удирдах}
+\begin{itemize}
+    \item Бараа нэмэх (20 хүртэл зураг)
+    \item AI категори санал болгох систем
+    \item Rich text editor ашиглан дэлгэрэнгүй тайлбар
+    \item Автомашины тусгай мэдээлэл (VIN, Model, Year гэх мэт)
+    \item Дуудлага худалдаа эхлэх огноо тохируулах
+\end{itemize}
+
+\subsubsection{Дуудлага худалдаа}
+\begin{itemize}
+    \item Бодит цагийн үнийн шинэчлэлт
+    \item Countdown таймер
+    \item Үнийн түүхийн график
+    \item Өрсөлдөгчдийн мэдэгдэл
+    \item Watchlist функц
+\end{itemize}
+
+\subsection{Мобайл дизайн загвар}
+Мобайл апп нь Mongolian marketplace-д зориулагдсан учир:
+\begin{itemize}
+    \item Монгол, Англи хэлний дэмжлэг
+    \item Төгрөг валютын харуулалт
+    \item Японы аукшин сайтуудын (Mercari, Yahoo Auctions) дизайн загвар
+    \item Responsive дизайн (Phone, Tablet)
+    \item Dark mode дэмжлэг
+\end{itemize}
+
+ \section{Аюулгүй байдал ба нэвтрэлт}
+Манай системд хэрэглэгч нэвтрэхдээ Админ болон хэрэглэгч гэж 2 түвшинд хуваагддаг.
+\begin{itemize}
+\item \textbf{Энгийн хэрэглэгч}: Дуудлагад оролцох, бараа байршуулах эрхтэй
+\item \textbf{Админ хэрэглэгч}: Системийн бүх үйл ажиллагааг удирдах эрхтэй
+\end{itemize}
+\newline
+\subsection{Ашиглах технологи}
+\begin{itemize}
+\item \textbf{Express.js middleware}: Хандалтыг шалгах
+\item \textbf{JWT токен}: Хэрэглэгчийн session удирдах
+\item \textbf{MongoDB}: Хэрэглэгчийн мэдээллийг хадгалах
+\end{itemize}
+\subsection{Ажиллах процесс}
+\begin{enumerate}
+\item Хэрэглэгч нэвтрэхдээ токен үүсгэгдэнэ
+\item Хүсэлт бүрд токеныг шалгана
+\item Токен хүчингүй бол хандалтыг хязгаарлана
+\end{enumerate}
+
+\subsection{Алдааны Тохиолдолд}
+
+\begin{itemize}
+\item Токен байхгүй: \texttt{401 Unauthorized}
+\item Админ эрхгүй: \texttt{403 Forbidden}
+\item Буруу токен: \texttt{401 Unauthorized}
+\end{itemize}
+Манай систем нь өгөгдлүүдээ mongoDB дээр хадгалдаг  ба зураг файлыг cloudinary-д байршуулдаг.Нууц үг гэх мэт эмзэг өгөгдлийг bcrypt ашиглаж шифрлэлт хийж хадгалдаг .
+ 
+
+% \section{Бүлгийн дүгнэлт}
+% Зохиомжийн хэсэгт өгөгдлийн ерөнхий схем болон өмнөх шинжилгээний класс диаграм дээр үндэслэн зохиомжийн класс диаграм, дарааллын диаграмуудыг гаргасан. Хамгийн гол төлөвийн диаграмыг бас давхар гаргаж өгсөн байгаа. Бусад ижил төстэй томоохон сайтуудаас жишээ авч вебийн туршилтын загварыг гаргасан байгаа.

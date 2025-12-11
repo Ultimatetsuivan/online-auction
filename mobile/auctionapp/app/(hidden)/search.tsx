@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   SafeAreaView,
   View,
@@ -7,169 +7,126 @@ import {
   TextInput,
   StyleSheet,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import theme from "../theme";
+import { api } from "../../src/api";
 
 export default function SearchScreen() {
-  const [mode, setMode] = useState<"none" | "category" | "brand">("none");
   const [query, setQuery] = useState("");
+  const [categories, setCategories] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedParent, setExpandedParent] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const response = await api.get("/api/category/");
+      const categoriesData = response.data?.data || response.data || [];
+      setCategories(categoriesData);
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const parentCategories = categories.filter(c => !c.parent);
+  const getSubcategories = (parentId: string) => {
+    return categories.filter(c => {
+      const parent = c.parent?._id || c.parent;
+      return parent === parentId;
+    });
+  };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.gray900 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.white }}>
       {/* Header with back */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={22} color="#fff" />
+          <Ionicons name="chevron-back" size={24} color={theme.gray900} />
         </TouchableOpacity>
-        <Text style={styles.title}>Search</Text>
-        <View style={{ width: 22 }} />
+        <Text style={styles.title}>Хайлт</Text>
+        <View style={{ width: 24 }} />
       </View>
 
       {/* Search input */}
       <View style={styles.searchBar}>
-        <Ionicons name="search" size={18} color={theme.gray500} />
+        <Ionicons name="search" size={20} color={theme.gray500} />
         <TextInput
-          placeholder="なにをお探しですか？"
+          placeholder="Та юу хайж байна вэ?"
           placeholderTextColor={theme.gray500}
           style={styles.input}
           value={query}
           onChangeText={setQuery}
+          returnKeyType="search"
         />
-        <Ionicons name="camera-outline" size={22} color={theme.gray500} />
       </View>
 
-      {/* Tabs below search */}
-      <View style={styles.tabRow}>
-        <TouchableOpacity
-          style={[styles.tab, mode === "category" && styles.tabActive]}
-          onPress={() => setMode("category")}
-        >
-          <Ionicons name="grid-outline" size={16} color="#fff" />
-          <Text style={styles.tabText}>カテゴリー</Text>
-        </TouchableOpacity>
+      {/* Categories with Subcategories */}
+      <ScrollView style={styles.content}>
+        <Text style={styles.sectionTitle}>Бүх ангилал</Text>
 
-        <TouchableOpacity
-          style={[styles.tab, mode === "brand" && styles.tabActive]}
-          onPress={() => setMode("brand")}
-        >
-          <Ionicons name="pricetag-outline" size={16} color="#fff" />
-          <Text style={styles.tabText}>ブランド</Text>
-        </TouchableOpacity>
-      </View>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={theme.brand600} />
+          </View>
+        ) : (
+          <View style={styles.categoriesContainer}>
+            {parentCategories.map((parent) => {
+              const subcategories = getSubcategories(parent._id);
+              const isExpanded = expandedParent === parent._id;
 
-      {/* Dynamic content */}
-      {mode === "none" && (
-        <View style={styles.historyContainer}>
-          <Text style={styles.sectionTitle}>検索履歴</Text>
-          <Text style={styles.emptyText}>検索履歴はありません</Text>
-          <TouchableOpacity style={styles.helpRow}>
-            <Text style={styles.helpText}>検索のヘルプ</Text>
-            <Ionicons name="chevron-forward" size={14} color={theme.brand600} />
-          </TouchableOpacity>
-        </View>
-      )}
+              return (
+                <View key={parent._id} style={styles.categoryGroup}>
+                  {/* Parent Category */}
+                  <TouchableOpacity
+                    style={styles.parentCategory}
+                    onPress={() => setExpandedParent(isExpanded ? null : parent._id)}
+                  >
+                    <View style={styles.parentCategoryLeft}>
+                      {parent.icon && <Text style={styles.parentIcon}>{parent.icon}</Text>}
+                      <Text style={styles.parentName}>{parent.titleMn || parent.title}</Text>
+                    </View>
+                    <Ionicons
+                      name={isExpanded ? "chevron-up" : "chevron-down"}
+                      size={20}
+                      color={theme.gray600}
+                    />
+                  </TouchableOpacity>
 
-      {mode === "category" && <CategoryTree />}
-      {mode === "brand" && <BrandStub />}
+                  {/* Subcategories */}
+                  {isExpanded && subcategories.length > 0 && (
+                    <View style={styles.subcategoriesContainer}>
+                      {subcategories.map((sub) => (
+                        <TouchableOpacity
+                          key={sub._id}
+                          style={styles.subcategory}
+                          onPress={() => {
+                            // Navigate to search results with this subcategory
+                            router.push(`/category/${sub._id}`);
+                          }}
+                        >
+                          <Text style={styles.subcategoryName}>
+                            {sub.titleMn || sub.title}
+                          </Text>
+                          <Ionicons name="chevron-forward" size={16} color={theme.gray400} />
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        )}
+      </ScrollView>
     </SafeAreaView>
-  );
-}
-
-/* ---------- Category tree ---------- */
-function CategoryTree() {
-  const [selectedParent, setSelectedParent] = useState<string | null>(null);
-  const [selectedSub, setSelectedSub] = useState<string | null>(null);
-
-  const categories = [
-    {
-      id: "clothes",
-      name: "Clothes",
-      children: [
-        {
-          id: "women",
-          name: "Women",
-          children: [
-            { id: "dress", name: "Dress", children: [{ id: "all", name: "All" }, { id: "onepiece", name: "One Piece" }] },
-            { id: "tops", name: "Tops", children: [{ id: "all", name: "All" }, { id: "tshirt", name: "T-Shirts" }] },
-          ],
-        },
-      ],
-    },
-  ];
-
-  const parents = categories;
-  const subs = selectedParent
-    ? parents.find((c) => c.id === selectedParent)?.children || []
-    : [];
-  const subs2 = selectedSub
-    ? subs.find((s) => s.id === selectedSub)?.children || []
-    : [];
-
-  return (
-    <ScrollView contentContainerStyle={styles.catContainer}>
-      {!selectedParent && (
-        <>
-          <Text style={styles.sectionTitle}>カテゴリー一覧</Text>
-          {parents.map((c) => (
-            <TouchableOpacity key={c.id} style={styles.row} onPress={() => setSelectedParent(c.id)}>
-              <Text style={styles.rowText}>{c.name}</Text>
-              <Ionicons name="chevron-forward" size={16} color="#aaa" />
-            </TouchableOpacity>
-          ))}
-        </>
-      )}
-
-      {selectedParent && !selectedSub && (
-        <>
-          <TouchableOpacity onPress={() => setSelectedParent(null)} style={styles.backRow}>
-            <Ionicons name="chevron-back" size={18} color="#fff" />
-            <Text style={styles.backText}>Back</Text>
-          </TouchableOpacity>
-          {subs.map((s) => (
-            <TouchableOpacity key={s.id} style={styles.row} onPress={() => setSelectedSub(s.id)}>
-              <Text style={styles.rowText}>{s.name}</Text>
-              <Ionicons name="chevron-forward" size={16} color="#aaa" />
-            </TouchableOpacity>
-          ))}
-        </>
-      )}
-
-      {selectedSub && (
-        <>
-          <TouchableOpacity onPress={() => setSelectedSub(null)} style={styles.backRow}>
-            <Ionicons name="chevron-back" size={18} color="#fff" />
-            <Text style={styles.backText}>Back</Text>
-          </TouchableOpacity>
-          {subs2.map((sub) => (
-            <TouchableOpacity
-              key={sub.id}
-              style={styles.row}
-              onPress={() =>
-                router.push({
-                  pathname: "/category/221",
-                  params: { name: sub.name },
-                })
-              }
-            >
-              <Text style={styles.rowText}>{sub.name}</Text>
-              <Ionicons name="chevron-forward" size={16} color="#aaa" />
-            </TouchableOpacity>
-          ))}
-        </>
-      )}
-    </ScrollView>
-  );
-}
-
-/* ---------- Brand tab stub ---------- */
-function BrandStub() {
-  return (
-    <View style={{ padding: 16 }}>
-      <Text style={styles.sectionTitle}>ブランド</Text>
-      <Text style={styles.emptyText}>ブランド検索はまだありません</Text>
-    </View>
   );
 }
 
@@ -180,54 +137,96 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    height: 50,
+    paddingVertical: 16,
+    backgroundColor: theme.white,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.gray200,
   },
-  title: { color: "#fff", fontWeight: "800", fontSize: 18 },
+  title: {
+    color: theme.gray900,
+    fontWeight: "800",
+    fontSize: 20,
+  },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#1C1C1E",
+    backgroundColor: theme.gray100,
     marginHorizontal: 16,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    height: 44,
-    gap: 8,
-  },
-  input: { flex: 1, color: "#fff", fontSize: 15 },
-  tabRow: {
-    flexDirection: "row",
-    justifyContent: "flex-start",
-    gap: 12,
+    marginVertical: 16,
+    borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    height: 48,
+    gap: 12,
   },
-  tab: {
-    flexDirection: "row",
+  input: {
+    flex: 1,
+    color: theme.gray900,
+    fontSize: 16,
+  },
+  content: {
+    flex: 1,
+    backgroundColor: theme.white,
+  },
+  sectionTitle: {
+    color: theme.gray900,
+    fontWeight: "700",
+    fontSize: 18,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  loadingContainer: {
+    padding: 40,
     alignItems: "center",
-    gap: 6,
-    backgroundColor: "#2A2A2D",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 30,
   },
-  tabActive: { backgroundColor: theme.brand600 },
-  tabText: { color: "#fff", fontWeight: "700", fontSize: 14 },
-  historyContainer: { padding: 16 },
-  sectionTitle: { color: "#fff", fontWeight: "800", fontSize: 16, marginBottom: 12 },
-  emptyText: { color: "#aaa", fontSize: 14 },
-  helpRow: { flexDirection: "row", alignItems: "center", marginTop: 14 },
-  helpText: { color: theme.brand600, fontWeight: "600", marginRight: 4 },
-  catContainer: { padding: 16 },
-  row: {
+  categoriesContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+  },
+  categoryGroup: {
+    marginBottom: 8,
+    backgroundColor: theme.white,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.gray200,
+    overflow: "hidden",
+  },
+  parentCategory: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#1C1C1E",
-    padding: 14,
-    borderRadius: 8,
-    marginBottom: 6,
+    padding: 16,
+    backgroundColor: theme.white,
   },
-  rowText: { color: "#fff", fontWeight: "600" },
-  backRow: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
-  backText: { color: "#fff", fontWeight: "700", marginLeft: 6 },
+  parentCategoryLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  parentIcon: {
+    fontSize: 24,
+  },
+  parentName: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: theme.gray900,
+  },
+  subcategoriesContainer: {
+    backgroundColor: theme.gray50,
+    borderTopWidth: 1,
+    borderTopColor: theme.gray200,
+  },
+  subcategory: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
+    paddingLeft: 52,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.gray200,
+  },
+  subcategoryName: {
+    fontSize: 15,
+    color: theme.gray700,
+  },
 });

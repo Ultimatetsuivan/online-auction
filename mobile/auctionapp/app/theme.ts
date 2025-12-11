@@ -48,6 +48,30 @@ const theme = {
   danger800: "#EE1A1A",
   danger900: "#CC0000",
 
+  // Success colors - Green palette (#10B981)
+  success50: "#ECFDF5",
+  success100: "#D1FAE5",
+  success200: "#A7F3D0",
+  success300: "#6EE7B7",
+  success400: "#34D399",
+  success500: "#10B981",
+  success600: "#059669",
+  success700: "#047857",
+  success800: "#065F46",
+  success900: "#064E3B",
+
+  // Info colors - Blue palette (#3B82F6)
+  info50: "#EFF6FF",
+  info100: "#DBEAFE",
+  info200: "#BFDBFE",
+  info300: "#93C5FD",
+  info400: "#60A5FA",
+  info500: "#3B82F6",
+  info600: "#2563EB",
+  info700: "#1D4ED8",
+  info800: "#1E40AF",
+  info900: "#1E3A8A",
+
   // Gray colors - Light theme
   gray50: "#F8FAFC",
   gray100: "#F1F5F9",

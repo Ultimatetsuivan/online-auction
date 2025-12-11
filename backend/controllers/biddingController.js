@@ -1,4 +1,5 @@
 const asyncHandler = require("express-async-handler");
+const mongoose = require("mongoose");
 const BiddingProduct = require("../models/bidding");
 const Product = require("../models/Product");
 const User = require("../models/User");
@@ -7,6 +8,7 @@ const {sendEmail} = require("../utils/mail");
 const { sendPushNotification, notifyProductLikers } = require("../utils/pushNotification");
 const { createNotification } = require("./notificationController");
 const { updateTrustScore } = require("../utils/trustScore");
+const { getIO } = require("../utils/socket");
 
 
 const getBiddingHistory = asyncHandler(async (req, res) => {
@@ -28,9 +30,15 @@ const placeBid = asyncHandler(async (req, res) => {
       return res.status(400).json({ message: "Бүх талбарыг бөглөнө үү" });
   }
 
-  const product = await Product.findById(productId);
+  const product = await Product.findById(productId).populate('user');
   if (!product || product.sold) {
       return res.status(400).json({ message: "Энэ бараанд үнэ санал болгох боломжгүй" });
+  }
+
+  // Prevent sellers from bidding on their own products
+  const sellerId = product.user?._id || product.user;
+  if (sellerId && sellerId.toString() === userId.toString()) {
+      return res.status(403).json({ message: "Худалдагч өөрийн бараанд санал өгөх боломжгүй" });
   }
 
   try {
@@ -50,6 +58,25 @@ const placeBid = asyncHandler(async (req, res) => {
               product: productId,
               price: price
           });
+
+          // Populate user for socket emission
+          await biddingProduct.populate('user');
+
+          // Emit real-time socket events for bid threshold reached
+          try {
+              const io = getIO();
+              io.emit('bidUpdate', product);
+              io.emit('newBid', {
+                  _id: biddingProduct._id,
+                  user: biddingProduct.user,
+                  product: productId,
+                  price: biddingProduct.price,
+                  createdAt: biddingProduct.createdAt
+              });
+              console.log(`✓ Socket events emitted for bid threshold sale: ${price}₮ on product ${productId}`);
+          } catch (socketError) {
+              console.error('Socket emission error:', socketError.message);
+          }
 
           const buyer = await User.findById(userId);
           const seller = await User.findById(product.user);
@@ -76,7 +103,7 @@ const placeBid = asyncHandler(async (req, res) => {
               body: `Та "${product.title}"-г ${price.toLocaleString()}₮-өөр худалдан авлаа`,
               type: "won_auction",
               productId: productId,
-              actionUrl: `/product/${productId}`
+              actionUrl: `/products/${productId}`
           });
 
           await sendPushNotification(product.user, {
@@ -84,7 +111,7 @@ const placeBid = asyncHandler(async (req, res) => {
               body: `"${product.title}" ${price.toLocaleString()}₮-өөр зарагдлаа`,
               type: "sold",
               productId: productId,
-              actionUrl: `/product/${productId}`
+              actionUrl: `/products/${productId}`
           });
 
           // Create in-app notifications
@@ -93,7 +120,7 @@ const placeBid = asyncHandler(async (req, res) => {
               productId: productId,
               title: "Баяр хүргэе!",
               message: `Та "${product.title}"-г ${price.toLocaleString()}₮-өөр худалдан авлаа`,
-              actionUrl: `/product/${productId}`
+              actionUrl: `/products/${productId}`
           });
 
           await createNotification(product.user, {
@@ -101,7 +128,7 @@ const placeBid = asyncHandler(async (req, res) => {
               productId: productId,
               title: "Бараа зарагдлаа",
               message: `"${product.title}" ${price.toLocaleString()}₮-өөр зарагдлаа`,
-              actionUrl: `/product/${productId}`
+              actionUrl: `/products/${productId}`
           });
 
           // Notify users who liked this product
@@ -110,7 +137,7 @@ const placeBid = asyncHandler(async (req, res) => {
               body: `"${product.title}" зарагдлаа`,
               type: "like_update",
               productId: productId,
-              actionUrl: `/product/${productId}`
+              actionUrl: `/products/${productId}`
           });
 
           return res.status(200).json({
@@ -122,37 +149,29 @@ const placeBid = asyncHandler(async (req, res) => {
           });
       }
 
-      const existingUserBid = await BiddingProduct.findOne({ 
-          user: userId, 
-          product: productId 
-      });
-      
-      if (existingUserBid) {
-          if (price <= existingUserBid.price) {
-              return res.status(400).json({ 
-                  message: "Та өмнөх үнийн дүнгээс өндөр үнийн дүн байршуулна уу" 
-              });
-          }
-          existingUserBid.price = price;
-          await existingUserBid.save();
-          
-          product.currentBid = price;
-          await product.save();
-          
-          return res.status(200).json({ 
-              biddingProduct: existingUserBid,
-              product 
+      // Check if this user has bid before (for validation only)
+      const existingUserBid = await BiddingProduct.findOne({
+          user: userId,
+          product: productId
+      }).sort({ price: -1 }); // Get their highest bid
+
+      if (existingUserBid && price <= existingUserBid.price) {
+          return res.status(400).json({
+              message: "Та өмнөх үнийн дүнгээс өндөр үнийн дүн байршуулна уу"
           });
       }
 
       const highestBid = await BiddingProduct.findOne({ product: productId })
           .sort({ price: -1 });
-      
+
       if (highestBid && price <= highestBid.price) {
-          return res.status(400).json({ 
-              message: "Та өмнөх үнийн дүнгээс өндөр үнийн дүн байршуулна уу" 
+          return res.status(400).json({
+              message: "Та өмнөх үнийн дүнгээс өндөр үнийн дүн байршуулна уу"
           });
       }
+
+      // Always create a NEW bid record (not update existing one)
+      // This ensures all bid history is preserved
 
       const biddingProduct = await BiddingProduct.create({
           user: userId,
@@ -164,6 +183,31 @@ const placeBid = asyncHandler(async (req, res) => {
       product.highestBidder = userId;
       await product.save();
 
+      // Populate the user field for the new bid before sending via socket
+      await biddingProduct.populate('user');
+
+      // Emit real-time socket events
+      try {
+          const io = getIO();
+
+          // Emit bid update (for price changes)
+          io.emit('bidUpdate', product);
+
+          // Emit new bid (for bid history)
+          io.emit('newBid', {
+              _id: biddingProduct._id,
+              user: biddingProduct.user,
+              product: productId,
+              price: biddingProduct.price,
+              createdAt: biddingProduct.createdAt
+          });
+
+          console.log(`✓ Socket events emitted for new bid: ${price}₮ on product ${productId}`);
+      } catch (socketError) {
+          console.error('Socket emission error:', socketError.message);
+          // Don't fail the bid if socket fails
+      }
+
       // Notify previous highest bidder that they've been outbid
       if (previousHighestBidder && previousHighestBidder.toString() !== userId.toString()) {
           await sendPushNotification(previousHighestBidder, {
@@ -171,7 +215,7 @@ const placeBid = asyncHandler(async (req, res) => {
               body: `"${product.title}" дээр илүү өндөр үнэ санал ирлээ`,
               type: "outbid",
               productId: productId,
-              actionUrl: `/product/${productId}`,
+              actionUrl: `/products/${productId}`,
               image: product.images?.[0]?.url
           });
 
@@ -180,7 +224,7 @@ const placeBid = asyncHandler(async (req, res) => {
               productId: productId,
               title: "Таны үнийн санал давлаа",
               message: `"${product.title}" дээр илүү өндөр үнэ санал ирлээ`,
-              actionUrl: `/product/${productId}`
+              actionUrl: `/products/${productId}`
           });
       }
 
@@ -191,7 +235,7 @@ const placeBid = asyncHandler(async (req, res) => {
               body: `"${product.title}" дээр ${price.toLocaleString()}₮ үнэ санал ирлээ`,
               type: "new_bid",
               productId: productId,
-              actionUrl: `/product/${productId}`
+              actionUrl: `/products/${productId}`
           });
 
           await createNotification(product.user, {
@@ -199,13 +243,14 @@ const placeBid = asyncHandler(async (req, res) => {
               productId: productId,
               title: "Шинэ үнийн санал",
               message: `"${product.title}" дээр ${price.toLocaleString()}₮ үнэ санал ирлээ`,
-              actionUrl: `/product/${productId}`
+              actionUrl: `/products/${productId}`
           });
       }
 
       res.status(200).json({
           biddingProduct,
-          product
+          product,
+          reserveMet: !product.reservePrice || product.currentBid >= product.reservePrice 
       });
 
   } catch (error) {
@@ -237,6 +282,211 @@ const checkUserBidStatus = asyncHandler(async (req, res) => {
     currentBid: product.currentBid,
     userBid: userBid?.price || null
   });
+});
+
+const getMyBids = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+
+  const myBidGroups = await BiddingProduct.aggregate([
+    { $match: { user: new mongoose.Types.ObjectId(userId) } },
+    { $sort: { price: -1, createdAt: -1 } },
+    {
+      $group: {
+        _id: "$product",
+        userMaxBid: { $first: "$price" },
+        lastBidAt: { $first: "$createdAt" }
+      }
+    }
+  ]);
+
+  if (!myBidGroups.length) {
+    return res.status(200).json({ bids: [] });
+  }
+
+  const productIds = myBidGroups.map((bid) => bid._id);
+  const products = await Product.find({
+    _id: { $in: productIds },
+    auctionStatus: { $in: ['active', 'ended'] } // Filter out scheduled auctions
+  })
+    .select("title images currentBid highestBidder bidDeadline auctionStatus")
+    .lean();
+
+  const productMap = new Map(
+    products.map((product) => [product._id.toString(), product])
+  );
+
+  const now = Date.now();
+  const bids = myBidGroups
+    .map((bid) => {
+      const product = productMap.get(bid._id.toString());
+      if (!product) return null;
+
+      const timeRemaining = product.bidDeadline
+        ? Math.max(new Date(product.bidDeadline).getTime() - now, 0)
+        : null;
+
+      const primaryImage =
+        product.images?.find?.((img) => img.isPrimary)?.url ||
+        product.images?.[0]?.url ||
+        null;
+
+      return {
+        productId: product._id,
+        title: product.title,
+        image: primaryImage,
+        userMaxBid: bid.userMaxBid,
+        currentHighestBid: product.currentBid ?? 0,
+        isLeading:
+          product.highestBidder?.toString() === userId.toString(),
+        timeRemaining,
+        auctionStatus: product.auctionStatus
+          ? product.auctionStatus.toUpperCase()
+          : "ACTIVE",
+        lastBidAt: bid.lastBidAt
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => new Date(b.lastBidAt) - new Date(a.lastBidAt))
+    .map(({ lastBidAt, ...rest }) => rest);
+
+  res.status(200).json({ bids });
+});
+
+const getMyWins = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+
+  const myBidGroups = await BiddingProduct.aggregate([
+    { $match: { user: new mongoose.Types.ObjectId(userId) } },
+    { $sort: { price: -1, createdAt: -1 } },
+    {
+      $group: {
+        _id: "$product",
+        userMaxBid: { $first: "$price" },
+        lastBidAt: { $first: "$createdAt" }
+      }
+    }
+  ]);
+
+  if (!myBidGroups.length) {
+    return res.status(200).json({ wins: [] });
+  }
+
+  const productIds = myBidGroups.map((bid) => bid._id);
+  const products = await Product.find({
+    _id: { $in: productIds },
+    auctionStatus: { $in: ['active', 'ended'] } // Filter out scheduled auctions
+  })
+    .select("title images currentBid highestBidder bidDeadline auctionStatus sold soldTo")
+    .lean();
+
+  const productMap = new Map(
+    products.map((product) => [product._id.toString(), product])
+  );
+
+  const wins = myBidGroups
+    .map((bid) => {
+      const product = productMap.get(bid._id.toString());
+      if (!product) return null;
+
+      const isWinner =
+        (product.sold && product.soldTo?.toString() === userId.toString()) ||
+        (product.auctionStatus === "ended" &&
+          product.highestBidder?.toString() === userId.toString());
+
+      if (!isWinner) return null;
+
+      const primaryImage =
+        product.images?.find?.((img) => img.isPrimary)?.url ||
+        product.images?.[0]?.url ||
+        null;
+
+      return {
+        productId: product._id,
+        title: product.title,
+        image: primaryImage,
+        userMaxBid: bid.userMaxBid,
+        finalPrice: product.currentBid ?? bid.userMaxBid,
+        auctionStatus: product.auctionStatus
+          ? product.auctionStatus.toUpperCase()
+          : "ENDED",
+        result: "won",
+        lastBidAt: bid.lastBidAt
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => new Date(b.lastBidAt) - new Date(a.lastBidAt))
+    .map(({ lastBidAt, ...rest }) => rest);
+
+  res.status(200).json({ wins });
+});
+
+const getMyLosses = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+
+  const myBidGroups = await BiddingProduct.aggregate([
+    { $match: { user: new mongoose.Types.ObjectId(userId) } },
+    { $sort: { price: -1, createdAt: -1 } },
+    {
+      $group: {
+        _id: "$product",
+        userMaxBid: { $first: "$price" },
+        lastBidAt: { $first: "$createdAt" }
+      }
+    }
+  ]);
+
+  if (!myBidGroups.length) {
+    return res.status(200).json({ losses: [] });
+  }
+
+  const productIds = myBidGroups.map((bid) => bid._id);
+  const products = await Product.find({
+    _id: { $in: productIds },
+    auctionStatus: { $in: ['active', 'ended'] } // Filter out scheduled auctions
+  })
+    .select("title images currentBid highestBidder bidDeadline auctionStatus sold soldTo")
+    .lean();
+
+  const productMap = new Map(
+    products.map((product) => [product._id.toString(), product])
+  );
+
+  const losses = myBidGroups
+    .map((bid) => {
+      const product = productMap.get(bid._id.toString());
+      if (!product) return null;
+
+      const auctionEnded = product.auctionStatus === "ended" || product.sold;
+      const isWinner =
+        (product.sold && product.soldTo?.toString() === userId.toString()) ||
+        (product.auctionStatus === "ended" &&
+          product.highestBidder?.toString() === userId.toString());
+
+      if (!auctionEnded || isWinner) return null;
+
+      const primaryImage =
+        product.images?.find?.((img) => img.isPrimary)?.url ||
+        product.images?.[0]?.url ||
+        null;
+
+      return {
+        productId: product._id,
+        title: product.title,
+        image: primaryImage,
+        userMaxBid: bid.userMaxBid,
+        finalPrice: product.currentBid ?? 0,
+        auctionStatus: product.auctionStatus
+          ? product.auctionStatus.toUpperCase()
+          : "ENDED",
+        result: "lost",
+        lastBidAt: bid.lastBidAt
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => new Date(b.lastBidAt) - new Date(a.lastBidAt))
+    .map(({ lastBidAt, ...rest }) => rest);
+
+  res.status(200).json({ losses });
 });
 
 const sellProduct = asyncHandler(async (req, res) => {
@@ -312,14 +562,14 @@ const sellProduct = asyncHandler(async (req, res) => {
           body: `Та "${product.title}"-г ${price.toLocaleString()}₮-өөр худалдан авлаа`,
           type: "won_auction",
           productId: productId,
-          actionUrl: `/product/${productId}`
+          actionUrl: `/products/${productId}`
         }),
         sendPushNotification(product.user, {
           title: "Бараа зарагдлаа",
           body: `"${product.title}" ${price.toLocaleString()}₮-өөр зарагдлаа`,
           type: "sold",
           productId: productId,
-          actionUrl: `/product/${productId}`
+          actionUrl: `/products/${productId}`
         })
       ]);
 
@@ -330,14 +580,14 @@ const sellProduct = asyncHandler(async (req, res) => {
           productId: productId,
           title: "Худалдан авалт амжилттай",
           message: `Та "${product.title}"-г ${price.toLocaleString()}₮-өөр худалдан авлаа`,
-          actionUrl: `/product/${productId}`
+          actionUrl: `/products/${productId}`
         }),
         createNotification(product.user, {
           type: "sold",
           productId: productId,
           title: "Бараа зарагдлаа",
           message: `"${product.title}" ${price.toLocaleString()}₮-өөр зарагдлаа`,
-          actionUrl: `/product/${productId}`
+          actionUrl: `/products/${productId}`
         })
       ]);
     } catch (emailError) {
@@ -372,5 +622,8 @@ module.exports = {
     getBiddingHistory, 
     placeBid,
     sellProduct,
-    checkUserBidStatus
+    checkUserBidStatus,
+    getMyBids,
+    getMyWins,
+    getMyLosses
 };

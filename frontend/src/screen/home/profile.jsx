@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
-import { FiUser, FiShoppingBag, FiPlusCircle, FiClock, FiCreditCard, FiSettings,FiCamera, FiRefreshCw, FiSearch, FiMoon, FiSun} from 'react-icons/fi';
+import { FiUser, FiShoppingBag, FiPlusCircle, FiClock, FiCreditCard, FiSettings,FiCamera, FiRefreshCw, FiSearch, FiMoon, FiSun, FiTrendingUp, FiBarChart2} from 'react-icons/fi';
 import { BsArrowRightShort, BsCheckCircleFill } from 'react-icons/bs';
 import "../../index.css";
 import "./ProfileForm.css";
@@ -9,6 +9,11 @@ import { useToast } from '../../components/common/Toast';
 import { useTheme } from '../../context/ThemeContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { buildApiUrl } from '../../config/api';
+import { MyBidsPanel } from '../../components/bidding/MyBidsPanel';
+import { SellerDashboard } from '../../components/selling/SellerDashboard';
+import { CarSelector } from '../../components/CarSelector';
+import { CategorySuggester } from '../../components/CategorySuggester';
+import { Editor } from '@tinymce/tinymce-react';
 
 const MAX_IMAGE_UPLOADS = 20;
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
@@ -218,22 +223,60 @@ export const Profile = () => {
     }
 
     try {
-      const confirmSale = window.confirm(`${t('confirmSell')} ${currentBid}₮${t('sureToSell')}`);
-      if (!confirmSale) return;
-
-      const response = await axios.post(
-        buildApiUrl('/api/bidding/sell'),
-        { productId, price: currentBid },
+      // Fetch bid history to get top bidder info
+      const bidHistoryResponse = await axios.get(
+        buildApiUrl(`/api/bidding/${productId}`),
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      if (response.data.sold) {
-        toast.success(`${t('soldSuccessfully')} ${response.data.transactionId}`);
-        const productsResponse = await axios.get(buildApiUrl('/api/product/my'), {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setProducts(productsResponse.data);
+      const bidsData = bidHistoryResponse.data?.history || bidHistoryResponse.data || [];
+      const pastBids = Array.isArray(bidsData) ? bidsData : [];
+
+      if (pastBids.length === 0) {
+        toast.error('No bids yet. Cannot sell to top bidder.');
+        return;
       }
+
+      const topBid = pastBids[0];
+      const topBidder = topBid?.user?.name || 'Anonymous';
+      const topBidAmount = topBid?.price || currentBid;
+
+      // Show detailed confirmation dialog with details
+      const confirmMessage = `⚠️ CONFIRM INSTANT SALE\n\n` +
+        `You are about to sell this item instantly to:\n\n` +
+        `Buyer: ${topBidder}\n` +
+        `Amount: $${formatNumber(topBidAmount.toString())}\n\n` +
+        `This action is IRREVERSIBLE and will:\n` +
+        `• End the auction immediately\n` +
+        `• Mark the item as sold\n` +
+        `• Notify the winning bidder\n\n` +
+        `Are you absolutely sure you want to proceed?`;
+
+      const firstConfirm = window.confirm(confirmMessage);
+      if (!firstConfirm) return;
+
+      // Second confirmation to prevent accidents
+      const secondConfirm = window.confirm(
+        `FINAL CONFIRMATION\n\n` +
+        `This is your last chance to cancel.\n\n` +
+        `Sell to ${topBidder} for $${formatNumber(topBidAmount.toString())}?`
+      );
+      if (!secondConfirm) return;
+
+      const response = await axios.post(
+        buildApiUrl(`/api/product/${productId}/sell-now`),
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      toast.success(`Item sold to ${topBidder} for $${formatNumber(topBidAmount.toString())}!`);
+
+      // Refresh products list
+      const productsResponse = await axios.get(buildApiUrl('/api/product/my'), {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setProducts(productsResponse.data);
+
     } catch (error) {
       console.error('Sell product error:', error);
       const errorMessage = error.response?.data?.message || error.message || t('sellError');
@@ -385,6 +428,31 @@ const handleChange = (e) => {
 
 };
 
+// Helper function to check if category is automotive
+const isAutomotiveCategory = (categoryId) => {
+  if (!categoryId || !categories.length) return false;
+  const selectedCat = categories.find(c => c._id === categoryId);
+  if (!selectedCat) return false;
+  const titleMn = (selectedCat?.titleMn || '').toLowerCase();
+  const titleEn = (selectedCat?.title || '').toLowerCase();
+  return titleMn.includes('автомашин') ||
+    titleMn.includes('машин') ||
+    titleMn.includes('авто') ||
+    titleEn.includes('car') ||
+    titleEn.includes('vehicle') ||
+    titleEn.includes('auto');
+};
+
+// Auto-generate title for cars when year, manufacturer, and model are filled
+useEffect(() => {
+  if (isAutomotiveCategory(formData.category) && formData.year && formData.manufacturer && formData.model) {
+    const autoTitle = `${formData.year} ${formData.manufacturer} ${formData.model}`;
+    if (formData.title !== autoTitle) {
+      setFormData(prev => ({ ...prev, title: autoTitle }));
+    }
+  }
+}, [formData.year, formData.manufacturer, formData.model, formData.category]);
+
 // Handle parent category change
 const handleParentCategoryChange = (e) => {
   const parentId = e.target.value;
@@ -405,6 +473,99 @@ const handleParentCategoryChange = (e) => {
     setSubcategories(subs);
   } else {
     setSubcategories([]);
+  }
+};
+
+// Handle AI category suggestion selection
+const handleAICategorySelect = (suggestedCategoryName) => {
+  const searchName = suggestedCategoryName.toLowerCase().trim();
+
+  // Create a scoring function to find the best match
+  const scoreCategory = (cat) => {
+    const titleEn = (cat.title || '').toLowerCase().trim();
+    const titleMn = (cat.titleMn || '').toLowerCase().trim();
+
+    // Exact match gets highest score
+    if (titleEn === searchName || titleMn === searchName) {
+      return cat.parent ? 100 : 200; // Prefer parent categories for exact matches
+    }
+
+    // Check for word-level matches (e.g., "electronics" matches "Electronics" but not "Car Electronics")
+    const wordsEn = titleEn.split(/\s+/);
+    const wordsMn = titleMn.split(/\s+/);
+    const searchWords = searchName.split(/\s+/);
+
+    // If all search words match category words exactly
+    const allWordsMatchEn = searchWords.every(sw => wordsEn.some(w => w === sw));
+    const allWordsMatchMn = searchWords.every(sw => wordsMn.some(w => w === sw));
+
+    if (allWordsMatchEn || allWordsMatchMn) {
+      return cat.parent ? 80 : 150; // Prefer parent categories
+    }
+
+    // Partial word match
+    const hasPartialMatchEn = wordsEn.some(w => w.includes(searchName) || searchName.includes(w));
+    const hasPartialMatchMn = wordsMn.some(w => w.includes(searchName) || searchName.includes(w));
+
+    if (hasPartialMatchEn || hasPartialMatchMn) {
+      return cat.parent ? 40 : 60; // Still prefer parent categories
+    }
+
+    return 0;
+  };
+
+  // Score all categories and find the best match
+  const scoredCategories = categories
+    .map(cat => ({ cat, score: scoreCategory(cat) }))
+    .filter(item => item.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  if (scoredCategories.length === 0) {
+    toast.warning(`Could not find category matching "${suggestedCategoryName}". Please select manually.`);
+    return;
+  }
+
+  const matchedCategory = scoredCategories[0].cat;
+
+  // Check if this is a subcategory or parent category
+  if (matchedCategory.parent) {
+    // It's a subcategory - set both parent and subcategory
+    const parentId = typeof matchedCategory.parent === 'object' && matchedCategory.parent !== null
+      ? matchedCategory.parent._id?.toString()
+      : matchedCategory.parent?.toString();
+
+    setParentCategory(parentId);
+
+    // Update subcategories list
+    const subs = categories.filter(cat => {
+      if (!cat.parent) return false;
+      const parentCategoryId = typeof cat.parent === 'object' && cat.parent !== null
+        ? cat.parent._id?.toString()
+        : cat.parent?.toString();
+      return parentCategoryId === parentId;
+    });
+    setSubcategories(subs);
+
+    // Set the selected subcategory
+    setFormData(prev => ({ ...prev, category: matchedCategory._id }));
+    toast.success(`Category set to: ${matchedCategory.title || matchedCategory.titleMn}`);
+  } else {
+    // It's a parent category - just set the parent
+    setParentCategory(matchedCategory._id);
+
+    // Update subcategories list
+    const subs = categories.filter(cat => {
+      if (!cat.parent) return false;
+      const parentCategoryId = typeof cat.parent === 'object' && cat.parent !== null
+        ? cat.parent._id?.toString()
+        : cat.parent?.toString();
+      return parentCategoryId === matchedCategory._id;
+    });
+    setSubcategories(subs);
+
+    // Clear subcategory selection
+    setFormData(prev => ({ ...prev, category: '' }));
+    toast.info(`Parent category set to: ${matchedCategory.title || matchedCategory.titleMn}. Please select a subcategory.`);
   }
 };
 
@@ -454,6 +615,28 @@ const removeImage = (index) => {
     else if (diffDays <= 7) duration = '7';
     else duration = '14';
 
+    // Find and set parent category
+    const categoryId = product.category?._id || product.category || '';
+    if (categoryId && categories.length > 0) {
+      const selectedCat = categories.find(c => c._id === categoryId);
+      if (selectedCat?.parent) {
+        const parentId = typeof selectedCat.parent === 'object' && selectedCat.parent !== null
+          ? selectedCat.parent._id?.toString()
+          : selectedCat.parent?.toString();
+        setParentCategory(parentId);
+
+        // Find and set subcategories
+        const subs = categories.filter(cat => {
+          if (!cat.parent) return false;
+          const parentCategoryId = typeof cat.parent === 'object' && cat.parent !== null
+            ? cat.parent._id?.toString()
+            : cat.parent?.toString();
+          return parentCategoryId === parentId;
+        });
+        setSubcategories(subs);
+      }
+    }
+
     // Load product data into form
     setFormData({
       title: product.title || '',
@@ -461,7 +644,7 @@ const removeImage = (index) => {
       price: product.price || '',
       startingBid: product.price || product.currentBid || '',
       sellType: 'auction',
-      category: product.category?._id || product.category || '',
+      category: categoryId,
       height: product.height || '',
       length: product.length || '',
       width: product.width || '',
@@ -471,6 +654,9 @@ const removeImage = (index) => {
       images: product.images?.map(img => ({ preview: img.url, file: null })) || [],
       duration: duration,
       endTime: endTimeStr,
+      startMode: 'immediate',
+      scheduledDate: '',
+      scheduledTime: '',
       manufacturer: product.manufacturer || '',
       model: product.model || '',
       year: product.year || '',
@@ -657,12 +843,22 @@ const removeImage = (index) => {
       formDataToSend.append('category', 'General');
     }
     
-    // Only append new images (those with file property)
+    // Handle images: new uploads and existing URLs
+    const existingImageUrls = [];
     formData.images.forEach((imageObj, index) => {
       if (imageObj.file) {
+        // New image file to upload
         formDataToSend.append(`images`, imageObj.file);
+      } else if (imageObj.preview) {
+        // Existing image URL from server (when editing)
+        existingImageUrls.push(imageObj.preview);
       }
     });
+
+    // Send existing image URLs separately for editing
+    if (editingProductId && existingImageUrls.length > 0) {
+      formDataToSend.append('existingImages', JSON.stringify(existingImageUrls));
+    }
 
     let response;
     if (editingProductId) {
@@ -896,6 +1092,28 @@ const removeImage = (index) => {
                   <li className="nav-item">
                     <button 
                       type="button"
+                      className={`nav-link d-flex align-items-center ${activeTab === 'bids' ? 'active' : ''}`}
+                      onClick={() => setActiveTab('bids')}
+                    >
+                      <FiTrendingUp className="me-2" />
+                      My bids
+                      <BsArrowRightShort className="ms-auto" />
+                    </button>
+                  </li>
+                  <li className="nav-item">
+                    <button 
+                      type="button"
+                      className={`nav-link d-flex align-items-center ${activeTab === 'sellingDashboard' ? 'active' : ''}`}
+                      onClick={() => setActiveTab('sellingDashboard')}
+                    >
+                      <FiBarChart2 className="me-2" />
+                      Selling dashboard
+                      <BsArrowRightShort className="ms-auto" />
+                    </button>
+                  </li>
+                  <li className="nav-item">
+                    <button 
+                      type="button"
                       className={`nav-link d-flex align-items-center ${activeTab === '' ? 'active' : ''}`}
                       onClick={() => setActiveTab('')}
                     >
@@ -1037,6 +1255,37 @@ const removeImage = (index) => {
                         </div>
                       </div>
 
+                      {/* AI Category Suggester - NEW FEATURE */}
+                      <div className="col-12 mt-3">
+                        <CategorySuggester
+                          title={formData.title}
+                          description={formData.description}
+                          currentCategory={formData.category}
+                          onCategorySelect={handleAICategorySelect}
+                        />
+                      </div>
+
+                      {/* Automotive Fields - Show immediately after category if it's a car */}
+                      {isAutomotiveCategory(formData.category) && (
+                        <>
+                          <div className="col-12 mt-3">
+                            <h5 className="section-title mb-3 text-primary">
+                              <span className="bg-primary bg-opacity-10 px-3 py-1 rounded">{t('automotiveInfo')}</span>
+                            </h5>
+                          </div>
+
+                          {/* Car Selector - Uses NHTSA API */}
+                          <CarSelector
+                            manufacturer={formData.manufacturer}
+                            model={formData.model}
+                            year={formData.year}
+                            onManufacturerChange={(value) => setFormData(prev => ({ ...prev, manufacturer: value }))}
+                            onModelChange={(value) => setFormData(prev => ({ ...prev, model: value }))}
+                            onYearChange={(value) => setFormData(prev => ({ ...prev, year: value }))}
+                          />
+                        </>
+                      )}
+
                       {/* Title */}
                       <div className="col-12 col-md-6">
                         <label className="form-label">{t('productName')}*</label>
@@ -1048,28 +1297,93 @@ const removeImage = (index) => {
                           onChange={(e) => {
                             if (e.target.value.length <= titleMaxLen) handleChange(e);
                           }}
-                          placeholder="iPhone 13 Pro 128GB"
+                          placeholder={isAutomotiveCategory(formData.category) ? "2020 Toyota Camry" : "iPhone 13 Pro 128GB"}
                           required
+                          readOnly={isAutomotiveCategory(formData.category) && formData.year && formData.manufacturer && formData.model}
                         />
-                        <div className="text-end small text-muted">{formData.title.length}/{titleMaxLen}</div>
+                        <div className="text-end small text-muted">
+                          {isAutomotiveCategory(formData.category) && formData.year && formData.manufacturer && formData.model ? (
+                            <span className="text-success">
+                              <i className="bi bi-magic"></i> Auto-generated
+                            </span>
+                          ) : (
+                            `${formData.title.length}/${titleMaxLen}`
+                          )}
+                        </div>
                       </div>
 
 
-                      {/* Description */}
+                      {/* Description - Rich Text Editor */}
                       <div className="col-12">
-                        <label className="form-label">{t('description')}*</label>
-                        <textarea
-                          className="form-control"
-                          name="description"
-                          value={formData.description}
-                          onChange={(e) => {
-                            if (e.target.value.length <= descMaxLen) handleChange({ target: { name: 'description', value: e.target.value } });
-                          }}
-                          rows={4}
-                          placeholder={t('description')}
-                          required
-                        />
-                        <div className="text-end small text-muted">{formData.description.length}/{descMaxLen}</div>
+                        <label className="form-label d-flex align-items-center justify-content-between">
+                          <span>
+                            <i className="bi bi-text-paragraph me-2"></i>
+                            {t('description')}*
+                            <span className="badge bg-info ms-2" style={{ fontSize: '0.7rem' }}>
+                              <i className="bi bi-magic me-1"></i>Rich Text
+                            </span>
+                          </span>
+                        </label>
+                        <div className="border rounded" style={{ minHeight: '300px' }}>
+                          <Editor
+                            apiKey="no-api-key"
+                            value={formData.description}
+                            onEditorChange={(content) => {
+                              // Allow HTML content, don't limit by character count for rich text
+                              setFormData(prev => ({ ...prev, description: content }));
+                            }}
+                            init={{
+                              height: 400,
+                              menubar: true,
+                              plugins: [
+                                'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                                'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                                'insertdatetime', 'media', 'table', 'help', 'wordcount', 'emoticons'
+                              ],
+                              toolbar: 'undo redo | blocks fontsize | ' +
+                                'bold italic forecolor backcolor | alignleft aligncenter ' +
+                                'alignright alignjustify | bullist numlist outdent indent | ' +
+                                'table image link emoticons | removeformat code preview help',
+                              content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+                              placeholder: 'Write a creative and detailed product description...\n\n' +
+                                'Tips:\n' +
+                                '• Use formatting to highlight key features\n' +
+                                '• Add images to showcase your product\n' +
+                                '• Create tables for specifications\n' +
+                                '• Use bullet points for easy reading',
+
+                              // Image upload configuration
+                              images_upload_handler: function (blobInfo, success, failure) {
+                                // Convert to base64 for simplicity
+                                const reader = new FileReader();
+                                reader.readAsDataURL(blobInfo.blob());
+                                reader.onloadend = function() {
+                                  success(reader.result);
+                                };
+                                reader.onerror = function() {
+                                  failure('Image upload failed');
+                                };
+                              },
+
+                              // Paste cleanup
+                              paste_data_images: true,
+                              paste_as_text: false,
+
+                              // Auto-resize
+                              autoresize_bottom_margin: 20,
+
+                              // Remove branding
+                              branding: false,
+
+                              // Promotion disabled
+                              promotion: false
+                            }}
+                          />
+                        </div>
+                        <div className="text-muted small mt-2">
+                          <i className="bi bi-info-circle me-1"></i>
+                          Use the toolbar to format your description with <strong>bold</strong>, <em>italic</em>, colors, lists, tables, images, and more!
+                        </div>
                       </div>
 
                       {/* Starting Price */}
@@ -1207,85 +1521,11 @@ const removeImage = (index) => {
                       </div>
                       {/* ===== End of Start System ===== */}
 
-                      {/* Conditional Automotive Fields */}
-                      {formData.category && categories.length > 0 && (() => {
-                        const selectedCat = categories.find(c => c._id === formData.category);
-                        if (!selectedCat) {
-                          console.log('Category not found:', formData.category);
-                          return false;
-                        }
-                        const titleMn = (selectedCat?.titleMn || '').toLowerCase();
-                        const titleEn = (selectedCat?.title || '').toLowerCase();
-                        const shouldShow =
-                          titleMn.includes('автомашин') ||
-                          titleMn.includes('машин') ||
-                          titleMn.includes('авто') ||
-                          titleEn.includes('car') ||
-                          titleEn.includes('vehicle') ||
-                          titleEn.includes('auto');
-                        console.log('Category check:', {
-                          categoryId: formData.category,
-                          categoryTitle: selectedCat?.title,
-                          categoryTitleMn: selectedCat?.titleMn,
-                          titleMnLower: titleMn,
-                          titleEnLower: titleEn,
-                          shouldShow
-                        });
-                        return shouldShow;
-                      })() && (
+                      {/* Additional Automotive Details (mileage, engine, fuel, etc.) */}
+                      {isAutomotiveCategory(formData.category) && (
                         <>
-                          <div className="col-12 mt-3">
-                            <h5 className="section-title mb-3 text-primary">
-                              <span className="bg-primary bg-opacity-10 px-3 py-1 rounded">{t('automotiveInfo')}</span>
-                            </h5>
-                          </div>
 
                           <div className="col-md-6">
-                            <div className="form-floating">
-                              <input
-                                type="text"
-                                className="form-control"
-                                id="manufacturer"
-                                name="manufacturer"
-                                value={formData.manufacturer}
-                                onChange={handleChange}
-                                placeholder=" "
-                              />
-                              <label htmlFor="manufacturer">{t('manufacturer')} (Toyota, BMW, ...)</label>
-                            </div>
-                          </div>
-
-                          <div className="col-md-6">
-                            <div className="form-floating">
-                              <input
-                                type="text"
-                                className="form-control"
-                                id="model"
-                                name="model"
-                                value={formData.model}
-                                onChange={handleChange}
-                                placeholder=" "
-                              />
-                              <label htmlFor="model">{t('model')} (Camry, X5, ...)</label>
-                            </div>
-                          </div>
-
-                          <div className="col-md-4">
-                            <div className="form-floating">
-                              <input
-                                type="text"
-                                className="form-control"
-                                id="year"
-                                name="year"
-                                value={formData.year}
-                                onChange={handleChange}
-                                placeholder=" "
-                              />
-                              <label htmlFor="year">{t('year')}</label>
-                            </div>
-                          </div>
-
-                          <div className="col-md-4">
                             <div className="form-floating">
                               <input
                                 type="text"
@@ -1300,7 +1540,7 @@ const removeImage = (index) => {
                             </div>
                           </div>
 
-                          <div className="col-md-4">
+                          <div className="col-md-6">
                             <div className="form-floating">
                               <input
                                 type="text"
@@ -1377,14 +1617,12 @@ const removeImage = (index) => {
                                 value={formData.condition}
                                 onChange={handleChange}
                               >
-                                <option value="">{t('selectCategory')}</option>
-                                <option value="Шинэ">{t('new')}</option>
-                                <option value="Хэрэглэсэн">{t('used')}</option>
-                                <option value="Маш сайн">{t('likeNew')}</option>
-                                <option value="Сайн">Сайн</option>
-                                <option value="Дундаж">Дундаж</option>
+                                <option value="">{language === 'MN' ? 'Байдал сонгох' : 'Select Condition'}</option>
+                                <option value="Шинэ">{language === 'MN' ? 'Шинэ' : 'Brand New'}</option>
+                                <option value="Орж ирээд явааγүй">{language === 'MN' ? 'Орж ирээд явааγүй' : 'Imported, Not Driven'}</option>
+                                <option value="Хуучин">{language === 'MN' ? 'Хуучин' : 'Used/Old'}</option>
                               </select>
-                              <label htmlFor="condition">{t('condition')}</label>
+                              <label htmlFor="condition">{language === 'MN' ? 'Байдал' : 'Condition'}</label>
                             </div>
                           </div>
                         </>
@@ -1592,26 +1830,77 @@ const removeImage = (index) => {
                     >
                       {t('details')}
                     </button>
-                    {!product.sold && (
+
+                    {/* Sell Now - only for active auctions with bids */}
+                    {!product.sold && product.auctionStatus === 'active' && (
                       <button
-                        className="btn btn-sm btn-primary flex-grow-1"
+                        className="btn btn-sm btn-success flex-grow-1"
                         onClick={() => handleSellProduct(product._id, product.currentBid)}
+                        title="End auction now and sell to top bidder"
                       >
-                        {t('sell')}
+                        <i className="bi bi-check-circle me-1"></i>
+                        Sell Now
                       </button>
                     )}
-                    <button
-                      className="btn btn-sm btn-outline-warning flex-grow-1"
-                      onClick={() => handleEditProduct(product)}
-                    >
-                      {t('edit')}
-                    </button>
-                    <button
-                      className="btn btn-sm btn-outline-danger flex-grow-1"
-                      onClick={() => handleDeleteProduct(product._id)}
-                    >
-                      {t('delete')}
-                    </button>
+
+                    {/* Edit - only for active auctions */}
+                    {!product.sold && product.auctionStatus === 'active' && (
+                      <button
+                        className="btn btn-sm btn-outline-warning flex-grow-1"
+                        onClick={() => handleEditProduct(product)}
+                      >
+                        <i className="bi bi-pencil me-1"></i>
+                        {t('edit')}
+                      </button>
+                    )}
+
+                    {/* Extend Auction - for ended but unsold auctions */}
+                    {!product.sold && product.auctionStatus === 'ended' && (
+                      <button
+                        className="btn btn-sm btn-outline-info flex-grow-1"
+                        onClick={() => {
+                          handleEditProduct(product);
+                          toast.info('Update the auction duration to extend');
+                        }}
+                        title="Extend auction duration"
+                      >
+                        <i className="bi bi-clock-history me-1"></i>
+                        Extend
+                      </button>
+                    )}
+
+                    {/* Relist - ONLY for ended but unsold auctions (no bids or no one could afford) */}
+                    {!product.sold && product.auctionStatus === 'ended' && (
+                      <button
+                        className="btn btn-sm btn-outline-success flex-grow-1"
+                        onClick={() => {
+                          // Create a new listing based on this product
+                          const newProduct = { ...product };
+                          delete newProduct._id;
+                          newProduct.sold = false;
+                          newProduct.auctionStatus = 'active';
+                          newProduct.currentBid = 0;
+                          handleEditProduct(newProduct);
+                          setEditingProductId(null); // Make it a new product
+                          toast.info('Creating new listing from this product');
+                        }}
+                        title="Create new auction from this product"
+                      >
+                        <i className="bi bi-arrow-repeat me-1"></i>
+                        Relist
+                      </button>
+                    )}
+
+                    {/* Delete - always available for unsold items */}
+                    {!product.sold && (
+                      <button
+                        className="btn btn-sm btn-outline-danger flex-grow-1"
+                        onClick={() => handleDeleteProduct(product._id)}
+                      >
+                        <i className="bi bi-trash me-1"></i>
+                        {t('delete')}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1647,6 +1936,33 @@ const removeImage = (index) => {
     </div>
   </div>
 )}
+            {activeTab === 'bids' && (
+              <div className="card shadow-sm border-0 mb-4">
+                <div className="card-body">
+                  <div className="d-flex justify-content-between align-items-center mb-4">
+                    <h4 className="mb-0 d-flex align-items-center">
+                      <FiTrendingUp className="me-2" />
+                      My bidding
+                    </h4>
+                  </div>
+                  <MyBidsPanel />
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'sellingDashboard' && (
+              <div className="card shadow-sm border-0 mb-4">
+                <div className="card-body">
+                  <div className="d-flex justify-content-between align-items-center mb-4">
+                    <h4 className="mb-0 d-flex align-items-center">
+                      <FiBarChart2 className="me-2" />
+                      Selling dashboard
+                    </h4>
+                  </div>
+                  <SellerDashboard />
+                </div>
+              </div>
+            )}
             {activeTab === 'history' && (
               <div className="card shadow-sm border-0 mb-4">
                 <div className="card-body">
@@ -1771,7 +2087,7 @@ const removeImage = (index) => {
 
             <button
               type="submit"
-              className="btn btn-primary w-100 py-3"
+              className="btn btn-primary w-100 py-3 mb-2"
               disabled={rechargeLoading}
             >
               {rechargeLoading ? (
@@ -1782,6 +2098,33 @@ const removeImage = (index) => {
               ) : (
                 t('rechargeWithQpay')
               )}
+            </button>
+
+            {/* Test Funds Button - For Development/Testing */}
+            <button
+              type="button"
+              className="btn btn-outline-success w-100 py-2"
+              onClick={async () => {
+                try {
+                  const token = JSON.parse(localStorage.getItem('user'))?.token;
+                  const testAmount = 1000000; // Add 1,000,000₮ for testing
+
+                  const response = await axios.post(
+                    buildApiUrl('/api/users/add-test-funds'),
+                    { amount: testAmount },
+                    { headers: { Authorization: `Bearer ${token}` } }
+                  );
+
+                  setUser(prev => ({ ...prev, balance: response.data.newBalance }));
+                  toast.success(`Added ${testAmount.toLocaleString()}₮ test funds! New balance: ${response.data.newBalance.toLocaleString()}₮`);
+                } catch (error) {
+                  console.error('Add test funds error:', error);
+                  toast.error(error.response?.data?.message || 'Failed to add test funds');
+                }
+              }}
+            >
+              <i className="bi bi-cash-stack me-2"></i>
+              Add Test Funds (1,000,000₮)
             </button>
           </form>
         </div>

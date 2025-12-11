@@ -17,8 +17,10 @@ import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import theme from "../theme";
 import { api } from "../../src/api";
+import { useTheme } from "../../src/contexts/ThemeContext";
 
 export default function SellingScreen() {
+  const { isDarkMode, themeColors } = useTheme();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -80,11 +82,13 @@ export default function SellingScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar style="dark" />
+      <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
+        <StatusBar style={isDarkMode ? "light" : "dark"} />
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={theme.brand600} />
-          <Text style={styles.loadingText}>Ачаалж байна...</Text>
+          <Text style={[styles.loadingText, { color: themeColors.textSecondary }]}>
+            Ачаалж байна...
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -92,15 +96,17 @@ export default function SellingScreen() {
 
   if (!user) {
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar style="dark" />
+      <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
+        <StatusBar style={isDarkMode ? "light" : "dark"} />
         <ScrollView contentContainerStyle={styles.guestContainer}>
           <View style={styles.guestContent}>
             <View style={styles.iconCircle}>
               <Ionicons name="cube-outline" size={64} color={theme.brand600} />
             </View>
-            <Text style={styles.guestTitle}>Нэвтрэх шаардлагатай</Text>
-            <Text style={styles.guestSubtitle}>
+            <Text style={[styles.guestTitle, { color: themeColors.text }]}>
+              Нэвтрэх шаардлагатай
+            </Text>
+            <Text style={[styles.guestSubtitle, { color: themeColors.textSecondary }]}>
               Өөрийн зарыг харахын тулд нэвтэрнэ үү
             </Text>
 
@@ -126,35 +132,55 @@ export default function SellingScreen() {
   const displayListings = selectedTab === "active" ? activeListings : endedListings;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" />
+    <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
+      <StatusBar style={isDarkMode ? "light" : "dark"} />
 
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Миний зарууд</Text>
+      <View style={[styles.header, { 
+        backgroundColor: themeColors.surface,
+        borderBottomColor: themeColors.border 
+      }]}>
+        <Text style={[styles.headerTitle, { color: themeColors.text }]}>
+          Миний зарууд
+        </Text>
         <TouchableOpacity
           style={styles.addButton}
-          onPress={() => router.push("/(tabs)/search")}
+          onPress={() => router.push("/(hidden)/add-product")}
         >
           <Ionicons name="add" size={20} color={theme.white} />
         </TouchableOpacity>
       </View>
 
       {/* Tabs */}
-      <View style={styles.tabContainer}>
+      <View style={[styles.tabContainer, { 
+        backgroundColor: themeColors.surface,
+        borderBottomColor: themeColors.border 
+      }]}>
         <TouchableOpacity
-          style={[styles.tab, selectedTab === "active" && styles.tabActive]}
+          style={[
+            styles.tab,
+            { backgroundColor: themeColors.inputBg },
+            selectedTab === "active" && styles.tabActive
+          ]}
           onPress={() => setSelectedTab("active")}
         >
-          <Text style={[styles.tabText, selectedTab === "active" && styles.tabTextActive]}>
+          <Text style={[styles.tabText, selectedTab === "active" && styles.tabTextActive, {
+            color: selectedTab === "active" ? theme.white : themeColors.text
+          }]}>
             Идэвхтэй ({activeListings.length})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tab, selectedTab === "ended" && styles.tabActive]}
+          style={[
+            styles.tab,
+            { backgroundColor: themeColors.inputBg },
+            selectedTab === "ended" && styles.tabActive
+          ]}
           onPress={() => setSelectedTab("ended")}
         >
-          <Text style={[styles.tabText, selectedTab === "ended" && styles.tabTextActive]}>
+          <Text style={[styles.tabText, selectedTab === "ended" && styles.tabTextActive, {
+            color: selectedTab === "ended" ? theme.white : themeColors.text
+          }]}>
             Дууссан ({endedListings.length})
           </Text>
         </TouchableOpacity>
@@ -184,10 +210,10 @@ export default function SellingScreen() {
               size={64}
               color={theme.gray400}
             />
-            <Text style={styles.emptyTitle}>
+            <Text style={[styles.emptyTitle, { color: themeColors.text }]}>
               {selectedTab === "active" ? "Идэвхтэй зар байхгүй" : "Дууссан зар байхгүй"}
             </Text>
-            <Text style={styles.emptySubtitle}>
+            <Text style={[styles.emptySubtitle, { color: themeColors.textSecondary }]}>
               {selectedTab === "active"
                 ? "Шинэ зар нэмээд худалдаа эхлүүлээрэй"
                 : "Таны дууссан зарууд энд харагдана"}
@@ -209,6 +235,7 @@ export default function SellingScreen() {
 }
 
 function ListingCard({ listing, isActive }: { listing: any; isActive: boolean }) {
+  const { themeColors } = useTheme();
   const deadline = new Date(listing.bidDeadline);
   const now = new Date();
   const timeLeft = deadline.getTime() - now.getTime();
@@ -227,11 +254,11 @@ function ListingCard({ listing, isActive }: { listing: any; isActive: boolean })
 
   return (
     <TouchableOpacity
-      style={styles.card}
-      onPress={() => {
-        // Navigate to listing detail/edit
-        // router.push(`/product/${listing._id}`);
-      }}
+      style={[styles.card, { 
+        backgroundColor: themeColors.surface,
+        borderColor: themeColors.border 
+      }]}
+      onPress={() => router.push(`/product/${listing._id}`)}
       activeOpacity={0.7}
     >
       {listing.images?.[0]?.url ? (
@@ -247,7 +274,7 @@ function ListingCard({ listing, isActive }: { listing: any; isActive: boolean })
       )}
 
       <View style={styles.cardContent}>
-        <Text style={styles.cardTitle} numberOfLines={2}>
+        <Text style={[styles.cardTitle, { color: themeColors.text }]} numberOfLines={2}>
           {listing.title}
         </Text>
 
@@ -258,7 +285,9 @@ function ListingCard({ listing, isActive }: { listing: any; isActive: boolean })
           </View>
           <View style={styles.cardStat}>
             <Ionicons name="people" size={16} color={theme.gray500} />
-            <Text style={styles.cardBids}>{listing.bids?.length || 0} санал</Text>
+            <Text style={[styles.cardBids, { color: themeColors.textSecondary }]}>
+              {listing.bids?.length || 0} санал
+            </Text>
           </View>
         </View>
 
@@ -270,7 +299,7 @@ function ListingCard({ listing, isActive }: { listing: any; isActive: boolean })
           </View>
 
           {!isActive && listing.bids?.length > 0 && (
-            <Text style={styles.winnerText}>
+            <Text style={[styles.winnerText, { color: themeColors.textSecondary }]}>
               Хамгийн өндөр: ₮{listing.currentBid?.toLocaleString()}
             </Text>
           )}
@@ -283,7 +312,6 @@ function ListingCard({ listing, isActive }: { listing: any; isActive: boolean })
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.gray50,
   },
   centerContainer: {
     flex: 1,
@@ -291,7 +319,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   loadingText: {
-    color: theme.gray500,
     fontSize: 16,
     marginTop: 12,
   },
@@ -315,12 +342,10 @@ const styles = StyleSheet.create({
   guestTitle: {
     fontSize: 24,
     fontWeight: "800",
-    color: theme.gray900,
     marginBottom: 8,
   },
   guestSubtitle: {
     fontSize: 14,
-    color: theme.gray500,
     textAlign: "center",
     marginBottom: 32,
     lineHeight: 20,
@@ -360,14 +385,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: theme.white,
     borderBottomWidth: 1,
-    borderBottomColor: theme.gray200,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: "800",
-    color: theme.gray900,
   },
   addButton: {
     width: 40,
@@ -379,18 +401,15 @@ const styles = StyleSheet.create({
   },
   tabContainer: {
     flexDirection: "row",
-    backgroundColor: theme.white,
     paddingHorizontal: 16,
     paddingVertical: 8,
     gap: 12,
     borderBottomWidth: 1,
-    borderBottomColor: theme.gray200,
   },
   tab: {
     flex: 1,
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: theme.gray100,
     alignItems: "center",
   },
   tabActive: {
@@ -399,7 +418,6 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 14,
     fontWeight: "700",
-    color: theme.gray700,
   },
   tabTextActive: {
     color: theme.white,
@@ -411,12 +429,10 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   card: {
-    backgroundColor: theme.white,
     borderRadius: 12,
     marginBottom: 16,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: theme.gray200,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -438,7 +454,6 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: "700",
-    color: theme.gray900,
     marginBottom: 8,
   },
   cardStats: {
@@ -458,7 +473,6 @@ const styles = StyleSheet.create({
   },
   cardBids: {
     fontSize: 14,
-    color: theme.gray600,
   },
   cardFooter: {
     flexDirection: "row",
@@ -488,7 +502,6 @@ const styles = StyleSheet.create({
   },
   winnerText: {
     fontSize: 12,
-    color: theme.gray600,
   },
   emptyContainer: {
     flex: 1,
@@ -500,13 +513,11 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: theme.gray900,
     marginTop: 16,
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: theme.gray500,
     textAlign: "center",
     lineHeight: 20,
     marginBottom: 24,

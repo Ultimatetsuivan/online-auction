@@ -7,25 +7,28 @@ import {
   ScrollView,
   Alert,
   Image,
-  Modal,
-  ActivityIndicator,
+  // Modal, // REMOVED - no longer using modal
+  // ActivityIndicator, // REMOVED - no longer using
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as ImagePicker from "expo-image-picker";
+// import * as ImagePicker from "expo-image-picker"; // REMOVED - no longer using
 import theme from "../theme";
 import { api } from "../../src/api";
+import { useTheme } from "../../src/contexts/ThemeContext";
 
 export default function ProfileScreen() {
+  const { isDarkMode, themeColors } = useTheme();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [verificationModalVisible, setVerificationModalVisible] = useState(false);
-  const [documentImage, setDocumentImage] = useState<string | null>(null);
-  const [selfieImage, setSelfieImage] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
+  // OLD verification modal state - COMMENTED OUT
+  // const [verificationModalVisible, setVerificationModalVisible] = useState(false);
+  // const [documentImage, setDocumentImage] = useState<string | null>(null);
+  // const [selfieImage, setSelfieImage] = useState<string | null>(null);
+  // const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     loadUser();
@@ -51,6 +54,8 @@ export default function ProfileScreen() {
     }
   };
 
+  // OLD verification functions - COMMENTED OUT (Now using identity-verification screen)
+  /*
   const requestCameraPermission = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
@@ -156,6 +161,7 @@ export default function ProfileScreen() {
       setUploading(false);
     }
   };
+  */
 
   const handleLogout = () => {
     Alert.alert("Гарах", "Та гарахдаа итгэлтэй байна уу?", [
@@ -179,10 +185,12 @@ export default function ProfileScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar style="dark" />
+      <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
+        <StatusBar style={isDarkMode ? "light" : "dark"} />
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Ачаалж байна...</Text>
+          <Text style={[styles.loadingText, { color: themeColors.text }]}>
+            Ачаалж байна...
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -190,15 +198,17 @@ export default function ProfileScreen() {
 
   if (!user) {
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar style="dark" />
+      <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
+        <StatusBar style={isDarkMode ? "light" : "dark"} />
         <ScrollView contentContainerStyle={styles.guestContainer}>
           <View style={styles.guestContent}>
             <View style={styles.iconCircle}>
               <Ionicons name="person-outline" size={64} color={theme.brand600} />
             </View>
-            <Text style={styles.guestTitle}>Нэвтрэх шаардлагатай</Text>
-            <Text style={styles.guestSubtitle}>
+            <Text style={[styles.guestTitle, { color: themeColors.text }]}>
+              Нэвтрэх шаардлагатай
+            </Text>
+            <Text style={[styles.guestSubtitle, { color: themeColors.textSecondary }]}>
               Бүх боломжуудыг ашиглахын тулд нэвтэрнэ үү
             </Text>
 
@@ -222,16 +232,16 @@ export default function ProfileScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" />
+    <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
+      <StatusBar style={isDarkMode ? "light" : "dark"} />
       <ScrollView>
         {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Профайл</Text>
+        <View style={[styles.header, { backgroundColor: themeColors.surface, borderBottomColor: themeColors.border }]}>
+          <Text style={[styles.headerTitle, { color: themeColors.text }]}>Профайл</Text>
         </View>
 
         {/* User Info */}
-        <View style={styles.userSection}>
+        <View style={[styles.userSection, { backgroundColor: themeColors.surface }]}>
           <View style={styles.avatarContainer}>
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>
@@ -239,8 +249,12 @@ export default function ProfileScreen() {
               </Text>
             </View>
           </View>
-          <Text style={styles.userName}>{user.name || "User"}</Text>
-          <Text style={styles.userEmail}>{user.email}</Text>
+          <Text style={[styles.userName, { color: themeColors.text }]}>
+            {user.name || "User"}
+          </Text>
+          <Text style={[styles.userEmail, { color: themeColors.textSecondary }]}>
+            {user.email}
+          </Text>
           {user.balance !== undefined && (
             <View style={styles.balanceCard}>
               <Text style={styles.balanceLabel}>Үлдэгдэл</Text>
@@ -249,21 +263,108 @@ export default function ProfileScreen() {
           )}
         </View>
 
+        {/* Personal Information Section */}
+        <View style={[styles.personalInfoSection, { backgroundColor: themeColors.sectionBg }]}>
+          <Text style={[styles.sectionTitle, { color: themeColors.text }]}>
+            Хувийн мэдээлэл
+          </Text>
+
+          <View style={[styles.infoCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+            {user.surname && (
+              <View style={[styles.infoRow, { borderBottomColor: themeColors.border }]}>
+                <Text style={[styles.infoLabel, { color: themeColors.textSecondary }]}>Овог:</Text>
+                <Text style={[styles.infoValue, { color: themeColors.text }]}>{user.surname}</Text>
+              </View>
+            )}
+
+            {user.name && (
+              <View style={[styles.infoRow, { borderBottomColor: themeColors.border }]}>
+                <Text style={[styles.infoLabel, { color: themeColors.textSecondary }]}>Нэр:</Text>
+                <Text style={[styles.infoValue, { color: themeColors.text }]}>{user.name}</Text>
+              </View>
+            )}
+
+            {user.email && (
+              <View style={[styles.infoRow, { borderBottomColor: themeColors.border }]}>
+                <Text style={[styles.infoLabel, { color: themeColors.textSecondary }]}>Имэйл:</Text>
+                <Text style={[styles.infoValue, { color: themeColors.text }]}>{user.email}</Text>
+              </View>
+            )}
+
+            {user.phone && (
+              <View style={[styles.infoRow, { borderBottomColor: themeColors.border }]}>
+                <Text style={[styles.infoLabel, { color: themeColors.textSecondary }]}>Утас:</Text>
+                <Text style={[styles.infoValue, { color: themeColors.text }]}>{user.phone}</Text>
+              </View>
+            )}
+
+            {user.registrationNumber && (
+              <View style={[styles.infoRow, { borderBottomColor: themeColors.border }]}>
+                <Text style={[styles.infoLabel, { color: themeColors.textSecondary }]}>Регистр:</Text>
+                <Text style={[styles.infoValue, { color: themeColors.text }]}>
+                  {user.registrationNumber}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* eMongolia Verification Status */}
+          {user.eMongoliaVerified ? (
+            <View style={styles.eMongoliaVerifiedCard}>
+              <Ionicons name="shield-checkmark" size={24} color="#10B981" />
+              <View style={styles.eMongoliaTextContainer}>
+                <Text style={styles.eMongoliaVerifiedTitle}>eMongolia баталгаажсан</Text>
+                <Text style={styles.eMongoliaVerifiedSubtitle}>
+                  {user.eMongoliaData?.verifiedAt &&
+                    `Баталгаажуулсан: ${new Date(user.eMongoliaData.verifiedAt).toLocaleDateString('mn-MN')}`
+                  }
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.eMongoliaButton}
+              onPress={() => Alert.alert(
+                "eMongolia баталгаажуулалт",
+                "Та eMongolia-аар өөрийн мэдээллээ баталгаажуулах уу?",
+                [
+                  { text: "Цуцлах", style: "cancel" },
+                  {
+                    text: "Баталгаажуулах",
+                    onPress: () => {
+                      Alert.alert("eMongolia", "eMongolia баталгаажуулалт тун удахгүй нэмэгдэнэ");
+                      // TODO: Implement eMongolia OAuth flow here
+                    }
+                  }
+                ]
+              )}
+            >
+              <Ionicons name="shield-checkmark" size={20} color="#0066CC" />
+              <Text style={styles.eMongoliaButtonText}>eMongolia-аар баталгаажуулах</Text>
+              <Ionicons name="chevron-forward" size={20} color="#0066CC" />
+            </TouchableOpacity>
+          )}
+        </View>
+
         {/* Verification Status */}
         {user && (
-          <View style={styles.verificationSection}>
+          <View style={[styles.verificationSection, { backgroundColor: themeColors.sectionBg }]}>
             {user.isVerified ? (
               <View style={styles.verifiedBadge}>
                 <Ionicons name="shield-checkmark" size={24} color="#10B981" />
-                <Text style={styles.verifiedText}>Баталгаажсан хэрэглэгч</Text>
+                <Text style={[styles.verifiedText, { color: themeColors.text }]}>
+                  Хэрэглэгч баталгаажсан
+                </Text>
               </View>
             ) : (
               <TouchableOpacity
-                style={styles.verifyButton}
-                onPress={() => setVerificationModalVisible(true)}
+                style={[styles.verifyButton, { backgroundColor: themeColors.surface }]}
+                onPress={() => router.push("/(hidden)/identity-verification")}
               >
                 <Ionicons name="shield-outline" size={20} color={theme.brand600} />
-                <Text style={styles.verifyButtonText}>Хэрэглэгч баталгаажуулах</Text>
+                <Text style={[styles.verifyButtonText, { color: themeColors.text }]}>
+                  Иргэний үнэмлэхээр баталгаажуулах
+                </Text>
                 <Ionicons name="chevron-forward" size={20} color={theme.brand600} />
               </TouchableOpacity>
             )}
@@ -271,165 +372,89 @@ export default function ProfileScreen() {
         )}
 
         {/* Menu Items */}
-        <View style={styles.menuSection}>
+        <View style={[styles.menuSection, { backgroundColor: themeColors.sectionBg }]}>
           <MenuItem
             icon="add-circle-outline"
             title="Бүтээгдэхүүн нэмэх"
             onPress={() => router.push("/(tabs)/search")}
             highlight
+            themeColors={themeColors}
           />
           <MenuItem
             icon="cube-outline"
             title="Миний зарууд"
             onPress={() => router.push("/(tabs)/selling")}
+            themeColors={themeColors}
           />
           <MenuItem
-            icon="bag-handle-outline"
-            title="Худалдан авсан"
-            onPress={() => {}}
+            icon="wallet-outline"
+            title="Данс"
+            onPress={() => router.push("/(hidden)/balance")}
+            themeColors={themeColors}
           />
+        </View>
+
+        {/* Bidding Section */}
+        <View style={[styles.menuSection, { backgroundColor: themeColors.sectionBg }]}>
+          <MenuItem
+            icon="hammer-outline"
+            title="Миний санал"
+            onPress={() => router.push("/(hidden)/my-bids")}
+            themeColors={themeColors}
+          />
+          <MenuItem
+            icon="trophy-outline"
+            title="Миний хожлууд"
+            onPress={() => router.push("/(hidden)/my-wins")}
+            themeColors={themeColors}
+          />
+          <MenuItem
+            icon="close-circle-outline"
+            title="Алдсан дуудлагууд"
+            onPress={() => router.push("/(hidden)/my-losses")}
+            themeColors={themeColors}
+          />
+        </View>
+
+        {/* Saved & Settings */}
+        <View style={[styles.menuSection, { backgroundColor: themeColors.sectionBg }]}>
           <MenuItem
             icon="heart-outline"
-            title="Хадгалсан"
+            title="Таалагдсан"
             onPress={() => router.push("/(tabs)/notifications")}
+            themeColors={themeColors}
           />
           <MenuItem
-            icon="card-outline"
-            title="Төлбөрийн хэрэгсэл"
-            onPress={() => {}}
+            icon="eye-outline"
+            title="Хянах жагсаалт"
+            onPress={() => router.push("/(hidden)/watchlist")}
+            themeColors={themeColors}
+          />
+          <MenuItem
+            icon="notifications-outline"
+            title="Мэдэгдлийн тохиргоо"
+            onPress={() => router.push("/(hidden)/notification-settings")}
+            themeColors={themeColors}
           />
           <MenuItem
             icon="settings-outline"
             title="Тохиргоо"
             onPress={() => router.push("/(hidden)/settings")}
+            themeColors={themeColors}
           />
         </View>
 
         {/* Logout */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        <TouchableOpacity 
+          style={[styles.logoutButton, { backgroundColor: themeColors.surface }]} 
+          onPress={handleLogout}
+        >
           <Ionicons name="log-out-outline" size={20} color="#EF4444" />
           <Text style={styles.logoutText}>Гарах</Text>
         </TouchableOpacity>
       </ScrollView>
 
-      {/* Verification Modal */}
-      <Modal
-        visible={verificationModalVisible}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setVerificationModalVisible(false)}
-      >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setVerificationModalVisible(false)}>
-              <Ionicons name="close" size={28} color={theme.gray900} />
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>Хэрэглэгч баталгаажуулах</Text>
-            <View style={{ width: 28 }} />
-          </View>
-
-          <ScrollView style={styles.modalContent}>
-            <Text style={styles.modalDescription}>
-              Хэрэглэгчийн баталгаажуулалт хийхийн тулд өөрийн иргэний үнэмлэх эсвэл гадаад паспортын зургийг болон таны нүүрний селфи зургийг авна уу.
-            </Text>
-
-            {/* Document Upload */}
-            <View style={styles.uploadSection}>
-              <Text style={styles.uploadTitle}>
-                <Ionicons name="card-outline" size={18} color={theme.gray700} /> Бичиг баримт
-              </Text>
-              {documentImage ? (
-                <View style={styles.imagePreview}>
-                  <Image source={{ uri: documentImage }} style={styles.previewImage} />
-                  <TouchableOpacity
-                    style={styles.removeImageButton}
-                    onPress={() => setDocumentImage(null)}
-                  >
-                    <Ionicons name="close-circle" size={24} color="#EF4444" />
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <View style={styles.uploadButtons}>
-                  <TouchableOpacity
-                    style={styles.uploadButton}
-                    onPress={() => takePhoto("document")}
-                  >
-                    <Ionicons name="camera" size={24} color={theme.brand600} />
-                    <Text style={styles.uploadButtonText}>Камераар авах</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.uploadButton}
-                    onPress={() => pickImage("document")}
-                  >
-                    <Ionicons name="image" size={24} color={theme.brand600} />
-                    <Text style={styles.uploadButtonText}>Зураг сонгох</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
-
-            {/* Selfie Upload */}
-            <View style={styles.uploadSection}>
-              <Text style={styles.uploadTitle}>
-                <Ionicons name="person-outline" size={18} color={theme.gray700} /> Селфи зураг
-              </Text>
-              {selfieImage ? (
-                <View style={styles.imagePreview}>
-                  <Image source={{ uri: selfieImage }} style={styles.previewImage} />
-                  <TouchableOpacity
-                    style={styles.removeImageButton}
-                    onPress={() => setSelfieImage(null)}
-                  >
-                    <Ionicons name="close-circle" size={24} color="#EF4444" />
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <View style={styles.uploadButtons}>
-                  <TouchableOpacity
-                    style={styles.uploadButton}
-                    onPress={() => takePhoto("selfie")}
-                  >
-                    <Ionicons name="camera" size={24} color={theme.brand600} />
-                    <Text style={styles.uploadButtonText}>Камераар авах</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.uploadButton}
-                    onPress={() => pickImage("selfie")}
-                  >
-                    <Ionicons name="image" size={24} color={theme.brand600} />
-                    <Text style={styles.uploadButtonText}>Зураг сонгох</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
-
-            <View style={styles.infoBox}>
-              <Ionicons name="information-circle" size={20} color={theme.brand600} />
-              <Text style={styles.infoText}>
-                Таны хувийн мэдээлэл нууцлагдах бөгөөд зөвхөн баталгаажуулалтын зориулалтаар ашиглагдана.
-              </Text>
-            </View>
-
-            <TouchableOpacity
-              style={[
-                styles.submitButton,
-                (!documentImage || !selfieImage || uploading) && styles.submitButtonDisabled,
-              ]}
-              onPress={submitVerification}
-              disabled={!documentImage || !selfieImage || uploading}
-            >
-              {uploading ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <>
-                  <Ionicons name="checkmark-circle" size={20} color="#fff" />
-                  <Text style={styles.submitButtonText}>Илгээх</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
+      {/* OLD Verification Modal - REMOVED (Now using identity-verification screen) */}
     </SafeAreaView>
   );
 }
@@ -439,31 +464,41 @@ function MenuItem({
   title,
   onPress,
   highlight,
+  themeColors,
 }: {
   icon: string;
   title: string;
   onPress: () => void;
   highlight?: boolean;
+  themeColors?: any;
 }) {
+  const { themeColors: defaultThemeColors } = useTheme();
+  const colors = themeColors || defaultThemeColors;
+  
   return (
     <TouchableOpacity
-      style={[styles.menuItem, highlight && styles.menuItemHighlight]}
+      style={[styles.menuItem, highlight && styles.menuItemHighlight, {
+        backgroundColor: colors.surface,
+        borderBottomColor: colors.border
+      }]}
       onPress={onPress}
     >
       <View style={styles.menuItemLeft}>
         <Ionicons
           name={icon as any}
           size={22}
-          color={highlight ? theme.brand600 : theme.gray700}
+          color={highlight ? theme.brand600 : colors.textSecondary}
         />
-        <Text style={[styles.menuItemText, highlight && styles.menuItemTextHighlight]}>
+        <Text style={[styles.menuItemText, highlight && styles.menuItemTextHighlight, {
+          color: highlight ? theme.brand600 : colors.text
+        }]}>
           {title}
         </Text>
       </View>
       <Ionicons
         name="chevron-forward"
         size={20}
-        color={highlight ? theme.brand600 : theme.gray400}
+        color={highlight ? theme.brand600 : colors.textSecondary}
       />
     </TouchableOpacity>
   );
@@ -472,7 +507,6 @@ function MenuItem({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.gray50,
   },
   loadingContainer: {
     flex: 1,
@@ -480,7 +514,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   loadingText: {
-    color: theme.gray500,
     fontSize: 16,
   },
   guestContainer: {
@@ -503,12 +536,10 @@ const styles = StyleSheet.create({
   guestTitle: {
     fontSize: 24,
     fontWeight: "800",
-    color: theme.gray900,
     marginBottom: 8,
   },
   guestSubtitle: {
     fontSize: 14,
-    color: theme.gray500,
     textAlign: "center",
     marginBottom: 32,
     lineHeight: 20,
@@ -545,17 +576,13 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: theme.white,
     borderBottomWidth: 1,
-    borderBottomColor: theme.gray200,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: "800",
-    color: theme.gray900,
   },
   userSection: {
-    backgroundColor: theme.white,
     paddingVertical: 32,
     paddingHorizontal: 16,
     alignItems: "center",
@@ -580,12 +607,10 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 20,
     fontWeight: "700",
-    color: theme.gray900,
     marginBottom: 4,
   },
   userEmail: {
     fontSize: 14,
-    color: theme.gray500,
     marginBottom: 16,
   },
   balanceCard: {
@@ -606,7 +631,6 @@ const styles = StyleSheet.create({
     color: theme.brand600,
   },
   menuSection: {
-    backgroundColor: theme.white,
     paddingVertical: 8,
     marginBottom: 16,
   },
@@ -617,7 +641,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: theme.gray100,
   },
   menuItemHighlight: {
     backgroundColor: theme.brand50,
@@ -628,7 +651,6 @@ const styles = StyleSheet.create({
   },
   menuItemText: {
     fontSize: 16,
-    color: theme.gray900,
     marginLeft: 12,
   },
   menuItemTextHighlight: {
@@ -639,7 +661,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: theme.white,
     paddingVertical: 16,
     marginBottom: 32,
   },
@@ -797,5 +818,76 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: theme.white,
+  },
+  personalInfoSection: {
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 16,
+  },
+  infoCard: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+  },
+  infoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+  },
+  infoLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  infoValue: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  eMongoliaVerifiedCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#D1FAE5",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    gap: 12,
+  },
+  eMongoliaTextContainer: {
+    flex: 1,
+  },
+  eMongoliaVerifiedTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#10B981",
+    marginBottom: 2,
+  },
+  eMongoliaVerifiedSubtitle: {
+    fontSize: 12,
+    color: "#059669",
+  },
+  eMongoliaButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#EFF6FF",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#0066CC",
+  },
+  eMongoliaButtonText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#0066CC",
+    marginLeft: 12,
   },
 });

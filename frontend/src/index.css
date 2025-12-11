@@ -69,32 +69,149 @@
   box-shadow: 0 10px 20px rgba(0,0,0,0.1);
 }
 .btn-primary {
-  background-color: #FFA239;
-  border-color: #FFA239;
-  color: #fff;
+  background-color: #FFA239 !important;
+  border-color: #FFA239 !important;
+  color: #fff !important;
 }
 .btn-primary:hover {
-  background-color: #E68A1F;
-  border-color: #E68A1F;
+  background-color: #E68A1F !important;
+  border-color: #E68A1F !important;
+}
+
+.btn-primary:focus,
+.btn-primary:active {
+  background-color: #E68A1F !important;
+  border-color: #E68A1F !important;
+  box-shadow: 0 0 0 0.25rem rgba(255, 106, 0, 0.25) !important;
 }
 
 .btn-outline-primary {
-  color: #FFA239;
-  border-color: #FFA239;
-  background-color: transparent;
+  color: #FFA239 !important;
+  border-color: #FFA239 !important;
+  background-color: transparent !important;
 }
 
 .btn-outline-primary:hover {
-  color: #fff;
-  background-color: #FFA239;
-  border-color: #FFA239;
+  color: #fff !important;
+  background-color: #FFA239 !important;
+  border-color: #FFA239 !important;
 }
 
-.btn-outline-primary.active {
-  color: #fff;
-  background-color: #FFA239;
-  border-color: #FFA239;
+.btn-outline-primary.active,
+.btn-outline-primary:active {
+  color: #fff !important;
+  background-color: #FFA239 !important;
+  border-color: #FFA239 !important;
 }
+
+.btn-outline-primary:focus {
+  box-shadow: 0 0 0 0.25rem rgba(255, 106, 0, 0.25) !important;
+}
+
+/* Button group active state */
+.btn-group > .btn-outline-primary.active {
+  background-color: #FFA239 !important;
+  border-color: #FFA239 !important;
+  color: #fff !important;
+}
+
+/* Replace Bootstrap's info (blue/cyan) with orange */
+.text-info {
+  color: #FF6A00 !important;
+}
+
+.bg-info {
+  background-color: #FF6A00 !important;
+  color: white !important;
+}
+
+.border-info {
+  border-color: #FF6A00 !important;
+}
+
+/* Replace Bootstrap's primary border with orange */
+.border-primary {
+  border-color: #FF6A00 !important;
+}
+
+/* Replace Bootstrap's primary text with orange */
+.text-primary {
+  color: #FF6A00 !important;
+}
+
+.bg-primary {
+  background-color: #FF6A00 !important;
+  color: white !important;
+}
+
+.btn-info {
+  background-color: #FF6A00;
+  border-color: #FF6A00;
+  color: white;
+}
+
+.btn-info:hover {
+  background-color: #E55F00;
+  border-color: #E55F00;
+}
+
+.alert-info {
+  background-color: rgba(255, 106, 0, 0.1);
+  border-color: #FF6A00;
+  color: #CC5500;
+}
+
+.badge.bg-info {
+  background-color: #FF6A00 !important;
+}
+
+/* Search hover effect */
+.hover-primary:hover {
+  background-color: rgba(255, 106, 0, 0.1) !important;
+  color: #FF6A00 !important;
+}
+
+/* Override Bootstrap checkbox/radio blue to orange */
+.form-check-input:checked {
+  background-color: #FF6A00 !important;
+  border-color: #FF6A00 !important;
+}
+
+.form-check-input:focus {
+  border-color: #FF6A00 !important;
+  box-shadow: 0 0 0 0.25rem rgba(255, 106, 0, 0.25) !important;
+}
+
+/* Override form control focus state */
+.form-control:focus,
+.form-select:focus {
+  border-color: #FF6A00 !important;
+  box-shadow: 0 0 0 0.25rem rgba(255, 106, 0, 0.25) !important;
+}
+
+/* Badge with primary styling */
+.badge.bg-primary {
+  background-color: #FF6A00 !important;
+}
+
+.badge.text-primary {
+  color: #FF6A00 !important;
+}
+
+/* Link colors */
+a.text-primary {
+  color: #FF6A00 !important;
+}
+
+a.text-primary:hover {
+  color: #E55F00 !important;
+}
+
+/* Save filter button */
+.btn-outline-primary.btn-sm {
+  border-radius: 20px;
+}
+
 .home-page {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
@@ -1202,4 +1319,48 @@
   background-color: #F73838;
   border-color: #F73838;
   color: white;
+}
+
+/* Admin verification styles */
+.hover-row {
+  transition: background-color 0.2s ease;
+}
+
+.hover-row:hover {
+  background-color: rgba(0, 123, 255, 0.05) !important;
+}
+
+.hover-shadow {
+  transition: box-shadow 0.3s ease, transform 0.2s ease;
+}
+
+.hover-shadow:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  transform: translateY(-2px);
+}
+
+/* Image zoom on hover */
+.verification-image {
+  transition: transform 0.3s ease;
+}
+
+.verification-image:hover {
+  transform: scale(1.05);
+}
+
+/* MyList Single Column Layout */
+.my-list-single-column {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 100% !important;
+  float: none !important;
+  clear: both !important;
+}
+
+.my-list-single-column .mercari-product-card {
+  width: 100% !important;
+  max-width: 100% !important;
+  display: block !important;
+  float: none !important;
 }

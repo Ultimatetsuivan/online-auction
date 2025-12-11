@@ -51,7 +51,10 @@ const apiLimiter = rateLimit({
     },
     standardHeaders: true,
     legacyHeaders: false,
+    // Trust proxy is set in app.js, so X-Forwarded-For will be used correctly
     // store: new RedisStore({ client: redisClient }), // Uncomment for Redis
+    // Validate trust proxy configuration
+    validate: { trustProxy: false } // Skip validation since we configure it properly in app.js
 });
 
 // Bidding rate limiter - prevent spam bidding

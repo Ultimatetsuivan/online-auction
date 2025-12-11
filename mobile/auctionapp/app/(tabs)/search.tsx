@@ -17,9 +17,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import theme from "../theme";
 import { api } from "../../src/api";
-// import * as ImagePicker from "expo-image-picker"; // optional
+import * as ImagePicker from "expo-image-picker";
 
-type Photo = { uri: string };
+type Photo = { uri: string; type?: string; name?: string };
 
 export default function SellScreen() {
   const [title, setTitle] = useState("");
@@ -50,15 +50,41 @@ export default function SellScreen() {
   };
 
   const addPhoto = async () => {
-    // Optional real picker:
-    // const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 });
-    // if (!res.canceled) setPhotos((p) => [...p, { uri: res.assets[0].uri }]);
+    try {
+      // Request media library permissions
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-    // Fallback (no library): push a dummy image so UI flows
-    setPhotos((p) => [
-      ...p,
-      { uri: "https://images.unsplash.com/photo-1526045612212-70caf35c14df?w=800" },
-    ]);
+      if (!permissionResult.granted) {
+        Alert.alert('Зөвшөөрөл шаардлагатай', 'Зураг сонгохын тулд галерей руу нэвтрэх зөвшөөрөл өгнө үү');
+        return;
+      }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: false,
+        quality: 0.8,
+        allowsEditing: true,
+        aspect: [4, 3],
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const fileName = asset.uri.split('/').pop() || `photo-${Date.now()}.jpg`;
+
+        setPhotos((p) => [
+          ...p,
+          {
+            uri: asset.uri,
+            type: 'image/jpeg',
+            name: fileName,
+          },
+        ]);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Алдаа', 'Зураг сонгоход алдаа гарлаа');
+    }
   };
 
   const removePhoto = (idx: number) => {
@@ -189,18 +215,18 @@ export default function SellScreen() {
               formData.append('price', price);
               formData.append('category', categoryId || '');
               formData.append('condition', condition || 'Хэрэглэгдсэн');
-              formData.append('bidDeadline', deadline.toISOString());
-              formData.append('bidThreshold', '1000'); // Default threshold
+              formData.append('auctionDuration', days.toString());
+              formData.append('startMode', 'immediate');
 
-              // Add images (currently dummy URLs, would need real file upload)
-              // For now, we'll send without images since we're using dummy URLs
-              // photos.forEach((photo, index) => {
-              //   formData.append('images', {
-              //     uri: photo.uri,
-              //     type: 'image/jpeg',
-              //     name: `product-${index}.jpg`,
-              //   } as any);
-              // });
+              // Add images from the photo picker
+              photos.forEach((photo, index) => {
+                const imageFile = {
+                  uri: photo.uri,
+                  type: photo.type || 'image/jpeg',
+                  name: photo.name || `product-${index}.jpg`,
+                } as any;
+                formData.append('images', imageFile);
+              });
 
               const response = await api.post('/api/product/', formData, {
                 headers: {
@@ -292,7 +318,10 @@ function PickerChip({
       // Check if this category has children
       const response = await api.get(`/api/category/`);
       const allCategories = response.data?.data || response.data || [];
-      const children = allCategories.filter((cat: any) => cat.parent === category._id);
+      const children = allCategories.filter((cat: any) => {
+        const parentId = cat.parent?._id || cat.parent;
+        return parentId === category._id;
+      });
 
       if (children.length > 0) {
         // Has children - navigate deeper
@@ -325,7 +354,10 @@ function PickerChip({
       try {
         const response = await api.get(`/api/category/`);
         const allCategories = response.data?.data || response.data || [];
-        const children = allCategories.filter((cat: any) => cat.parent === targetCategory._id);
+        const children = allCategories.filter((cat: any) => {
+          const parentId = cat.parent?._id || cat.parent;
+          return parentId === targetCategory._id;
+        });
 
         setCurrentLevel(children);
         setBreadcrumb(breadcrumb.slice(0, index + 1));
@@ -402,7 +434,11 @@ function PickerChip({
                       onPress={() => handleCategoryClick(cat)}
                     >
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                        <Ionicons name={cat.icon || "cube-outline"} size={16} color={theme.brand600} />
+                        {cat.icon ? (
+                          <Text style={{ fontSize: 16 }}>{cat.icon}</Text>
+                        ) : (
+                          <Ionicons name="cube-outline" size={16} color={theme.brand600} />
+                        )}
                         <Text style={styles.sheetRowText}>{cat.titleMn || cat.title}</Text>
                       </View>
                       <Ionicons name="chevron-forward" size={14} color="#aaa" />

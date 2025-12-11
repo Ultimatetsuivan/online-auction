@@ -195,6 +195,108 @@ export const Categories = () => {
     }
   };
 
+  // Helper function to get all subcategory IDs recursively
+  const getAllSubcategoryIds = (categoryId) => {
+    const subcats = categories.filter((c) => {
+      if (!c.parent) return false;
+      let parentId;
+      if (typeof c.parent === "object" && c.parent !== null) {
+        parentId = c.parent._id?.toString();
+      } else if (c.parent) {
+        parentId = c.parent.toString();
+      }
+      return parentId === categoryId.toString();
+    });
+
+    let allIds = [categoryId];
+    subcats.forEach((sub) => {
+      allIds = [...allIds, ...getAllSubcategoryIds(sub._id)];
+    });
+    return allIds;
+  };
+
+  // Get product count including subcategories
+  const getProductCountWithSubcategories = (categoryId) => {
+    const categoryIds = getAllSubcategoryIds(categoryId);
+    return products.filter((p) => {
+      const productCategoryId =
+        typeof p.category === "object" && p.category !== null
+          ? p.category._id?.toString()
+          : p.category?.toString();
+      return categoryIds.some((id) => id.toString() === productCategoryId);
+    }).length;
+  };
+
+  // Get icon for category based on name or icon field
+  const getCategoryIcon = (category) => {
+    // If icon is emoji (1-2 chars), return null to display as text instead
+    if (category?.icon && category.icon.length <= 2) {
+      return null; // Will be handled separately as emoji text
+    }
+
+    // Map Ionicons names to Bootstrap Icons names
+    const iconMap = {
+      "cube-outline": "box",
+      "cube": "box",
+      "home-outline": "house",
+      "home": "house",
+      "cart-outline": "cart",
+      "cart": "cart",
+      "heart-outline": "heart",
+      "heart": "heart",
+      "star-outline": "star",
+      "star": "star",
+      "phone-portrait-outline": "phone",
+      "laptop-outline": "laptop",
+      "car-outline": "car-front",
+      "bicycle-outline": "bicycle",
+    };
+
+    // If icon field exists and has a mapping, use it
+    if (category?.icon && iconMap[category.icon]) {
+      return iconMap[category.icon];
+    }
+
+    // Otherwise map based on category name
+    const title = (category?.titleMn || category?.title || category?.name || "").toLowerCase();
+
+    if (title.includes("гэр ахуй") || title.includes("home") || title.includes("household")) {
+      return "house-heart";
+    }
+    if (title.includes("хувцас") || title.includes("загвар") || title.includes("clothing") || title.includes("fashion")) {
+      return "bag";
+    }
+    if (title.includes("электроникс") || title.includes("it") || title.includes("electronics")) {
+      return "laptop";
+    }
+    if (title.includes("хүүхэд") || title.includes("нялх") || title.includes("children") || title.includes("baby")) {
+      return "heart";
+    }
+    if (title.includes("тээвэр") || title.includes("машин") || title.includes("vehicle") || title.includes("car")) {
+      return "car-front";
+    }
+    if (title.includes("гоо") || title.includes("сайхан") || title.includes("beauty")) {
+      return "heart-fill";
+    }
+    if (title.includes("тэжээвэр") || title.includes("амьтан") || title.includes("pet")) {
+      return "heart";
+    }
+    if (title.includes("хобби") || title.includes("зугаа") || title.includes("hobby") || title.includes("entertainment")) {
+      return "controller";
+    }
+    if (title.includes("ажил") || title.includes("үйлчилгээ") || title.includes("job") || title.includes("service")) {
+      return "briefcase";
+    }
+    if (title.includes("үл хөдлөх") || title.includes("хөрөнгө") || title.includes("real estate") || title.includes("property")) {
+      return "building";
+    }
+    if (title.includes("үйлдвэрлэл") || title.includes("бизнес") || title.includes("manufacturing") || title.includes("business")) {
+      return "shop";
+    }
+
+    return "folder"; // default icon
+  };
+
   if (loading) {
     return (
       <div className="d-flex justify-content-center align-items-center" style={{ height: "70vh" }}>
@@ -238,6 +340,7 @@ export const Categories = () => {
       >
         <div className="container text-center">
           <h2 className="fw-bold mb-1">
+            <i className="bi bi-folder-fill me-2"></i>
             {t("categories") || "Categories"}
           </h2>
           <p className="mb-0">
@@ -286,7 +389,14 @@ export const Categories = () => {
                     }`}
                   >
                     {index === breadcrumb.length - 1 && !selectedCategoryId ? (
-                      cat.titleMn || cat.title
+                      <>
+                        {cat.icon && cat.icon.length <= 2 ? (
+                          <span className="me-1" style={{ fontSize: "1.2rem" }}>{cat.icon}</span>
+                        ) : (
+                          <i className={`bi bi-${getCategoryIcon(cat)} me-1`}></i>
+                        )}
+                        {cat.titleMn || cat.title}
+                      </>
                     ) : (
                       <button
                         type="button"
@@ -298,6 +408,11 @@ export const Categories = () => {
                         }}
                         style={{ color: "#FF6A00", textDecoration: "none" }}
                       >
+                        {cat.icon && cat.icon.length <= 2 ? (
+                          <span className="me-1" style={{ fontSize: "1.2rem" }}>{cat.icon}</span>
+                        ) : (
+                          <i className={`bi bi-${getCategoryIcon(cat)} me-1`}></i>
+                        )}
                         {cat.titleMn || cat.title}
                       </button>
                     )}
@@ -305,6 +420,11 @@ export const Categories = () => {
                 ))}
                 {selectedCategory && (
                   <li className="breadcrumb-item active">
+                    {selectedCategory.icon && selectedCategory.icon.length <= 2 ? (
+                      <span className="me-1" style={{ fontSize: "1.2rem" }}>{selectedCategory.icon}</span>
+                    ) : (
+                      <i className={`bi bi-${getCategoryIcon(selectedCategory)} me-1`}></i>
+                    )}
                     {selectedCategory.titleMn || selectedCategory.title}
                   </li>
                 )}
@@ -317,11 +437,16 @@ export const Categories = () => {
             <div className="d-flex justify-content-between align-items-center mb-3">
               <div>
                 <h3
-                  className="mb-1 fw-bold"
+                  className="mb-1 fw-bold d-flex align-items-center"
                   style={{
                     color: isDarkMode ? "var(--color-text)" : "#ff6a00",
                   }}
                 >
+                  {selectedCategory.icon && selectedCategory.icon.length <= 2 ? (
+                    <span className="me-2" style={{ fontSize: "1.8rem" }}>{selectedCategory.icon}</span>
+                  ) : (
+                    <i className={`bi bi-${getCategoryIcon(selectedCategory)} me-2`} style={{ fontSize: "1.5rem" }}></i>
+                  )}
                   {selectedCategory.titleMn || selectedCategory.title}
                 </h3>
               </div>
@@ -397,14 +522,11 @@ export const Categories = () => {
               <div className="row">
                 {currentLevel.length > 0 ? (
                   currentLevel.map((category) => {
-                    // count products in this category for display
-                    const count = products.filter((p) => {
-                      const productCategoryId =
-                        typeof p.category === "object" && p.category !== null
-                          ? p.category._id
-                          : p.category;
-                      return productCategoryId === category._id;
-                    }).length;
+                    // count products in this category AND all subcategories
+                    const count = getProductCountWithSubcategories(category._id);
+
+                    const iconName = getCategoryIcon(category);
+                    const iconClass = `bi bi-${iconName}`;
 
                     return (
                       <div
@@ -417,22 +539,32 @@ export const Categories = () => {
                           onClick={() => handleCategoryClick(category)}
                         >
                           <div className="card h-100 text-center p-3 hover-effect">
-                            {category.icon && (
-                              <div className="mb-2">
+                            <div className="mb-2 d-flex justify-content-center align-items-center" style={{ minHeight: "60px" }}>
+                              {category.icon && category.icon.length <= 2 ? (
+                                <span style={{ fontSize: "3rem", lineHeight: 1 }}>
+                                  {category.icon}
+                                </span>
+                              ) : (
                                 <i
-                                  className={`bi bi-${category.icon.replace(
-                                    "-outline",
-                                    ""
-                                  )} fs-1`}
-                                  style={{ color: "#FF6A00" }}
+                                  className={iconClass}
+                                  style={{
+                                    color: "#FF6A00",
+                                    fontSize: "3rem",
+                                    display: "inline-block",
+                                    lineHeight: 1,
+                                    fontFamily: "'bootstrap-icons'",
+                                    fontStyle: "normal",
+                                    fontWeight: "normal"
+                                  }}
+                                  aria-hidden="true"
                                 ></i>
-                              </div>
-                            )}
-                            <h6 className="mb-1 fw-semibold">
-                              {category.titleMn || category.title}
+                              )}
+                            </div>
+                            <h6 className="mb-1 fw-semibold" style={{ minHeight: "2.5rem", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              {category.titleMn || category.title || category.name || "Category"}
                             </h6>
                             <p className="text-muted small mb-0">
-                              {count} {t("items")}
+                              {count} {t("items") || "items"}
                             </p>
                           </div>
                         </button>

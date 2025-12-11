@@ -309,6 +309,75 @@ const translations = {
     // Additional
     immediateStartTooltip: 'Аукцион одоо эхлэнэ',
     scheduledStartTooltip: 'Аукцион тодорхой цагт эхлэнэ',
+
+    // ===== Product Detail Page - eBay Style =====
+    // Vehicle History Report
+    vehicleHistoryReport: 'Тээврийн хэрэгслийн түүх',
+    reportNotAvailable: 'Тайлан байхгүй',
+    reportAvailableForPurchase: 'Худалдан авах боломжтой',
+    trustedPartner: 'Найдвартай түнш',
+    possibleReasonsNotAvailable: 'Тайлан байхгүй шалтгаан:',
+    reasonTooOldNoHistory: 'Тээврийн хэрэгсэл хэтэрхий хуучин тул түүх байхгүй',
+    reasonManufacturedBefore1981: 'Тээврийн хэрэгсэл 1981 оноос өмнө үйлдвэрлэгдсэн',
+    reasonNo17DigitVIN: 'Тээврийн хэрэгсэл 17 оронтой танигчтай биш',
+    reasonNotIntendedForUS: 'Тээврийн хэрэгсэл АНУ-ын зах зээлд зориулагдаагүй (хязгаарлагдмал үйлдвэрлэл зэрэг)',
+    reasonIncorrectVIN: 'Борлуулагч танигчийн дугаарыг буруу оруулсан',
+
+    // Item Specifics
+    itemSpecifics: 'Дэлгэрэнгүй мэдээлэл',
+    aboutThisItem: 'Энэ барааны тухай',
+    sellerNotes: 'Худалдагчийн тэмдэглэл',
+    listed: 'Нийтэлсэн',
+    bids: 'Үнийн санал',
+    coverage: 'Хамрах хүрээ',
+    documentationHandlingFee: 'Баримт бичгийн хураамж',
+    forSaleBy: 'Борлуулагч',
+    dealer: 'Дилер',
+    vehicleTitle: 'Гэрчилгээний төрөл',
+    clean: 'Цэвэр',
+    salvage: 'Эвдрэлтэй',
+    rebuilt: 'Сэргээгдсэн',
+    make: 'Брэнд',
+    model: 'Загвар',
+    vin: 'Танигчийн дугаар (VIN)',
+    guaranteeProvided: 'Баталгаа',
+    transmission: 'Хурдны хайрцаг',
+    automatic: 'Автомат',
+    manual: 'Механик',
+    cvt: 'CVT',
+    fuelType: 'Түлшний төрөл',
+    gasoline: 'Бензин',
+    diesel: 'Дизель',
+    electric: 'Цахилгаан',
+    hybrid: 'Хайбрид',
+    other: 'Бусад',
+
+    // Item Description from Seller
+    itemDescriptionFromSeller: 'Худалдагчийн дэлгэрэнгүй тайлбар',
+    sellerInformation: 'Худалдагчийн мэдээлэл',
+    contactUs: 'Бидэнтэй холбогдох',
+    buyers: 'Худалдан авагчид',
+    sellers: 'Худалдагчид',
+    viewAllAuctions: 'Бүх дуудлага худалдааг үзэх',
+    viewStore: 'Дэлгүүр үзэх',
+    sellerFeedback: 'Худалдагчийн үнэлгээ',
+    positiveReviews: 'Эерэг үнэлгээ',
+    itemsSold: 'Зарагдсан бараа',
+
+    // About This Seller
+    aboutThisSeller: 'Худалдагчийн тухай',
+    joinedDate: 'Нэгдсэн огноо',
+    detailedSellerRatings: 'Дэлгэрэнгүй үнэлгээ',
+
+    // Shipping & Location
+    shipping: 'Хүргэлт',
+    delivery: 'Хүргэх',
+    payments: 'Төлбөр',
+    located: 'Байршил',
+    seeItemDescription: 'Дэлгэрэнгүй мэдээлэл харах',
+    fullPaymentRequired: 'Бүрэн төлбөр шаардлагатай',
+    withinDaysOfClose: 'дууссанаас хойш хоногийн дотор',
+    varies: 'Харилцан',
   },
   EN: {
     // Navigation
@@ -600,6 +669,75 @@ const translations = {
     // Additional
     immediateStartTooltip: 'Auction starts immediately',
     scheduledStartTooltip: 'Auction starts at scheduled time',
+
+    // ===== Product Detail Page - eBay Style =====
+    // Vehicle History Report
+    vehicleHistoryReport: 'Vehicle History Report',
+    reportNotAvailable: 'Report is not available for purchase',
+    reportAvailableForPurchase: 'Report is available for purchase',
+    trustedPartner: 'Trusted partner',
+    possibleReasonsNotAvailable: 'Possible reasons why a report is not available:',
+    reasonTooOldNoHistory: 'The vehicle is too old to have a history report',
+    reasonManufacturedBefore1981: 'The vehicle was manufactured prior to 1981',
+    reasonNo17DigitVIN: "The vehicle didn't have a 17-digit vehicle Identification number",
+    reasonNotIntendedForUS: "The vehicle wasn't intended for the US market (such as limited production exotics)",
+    reasonIncorrectVIN: "The seller didn't enter the vehicle identification number correctly",
+
+    // Item Specifics
+    itemSpecifics: 'Item Specifics',
+    aboutThisItem: 'About This Item',
+    sellerNotes: 'Seller Notes',
+    listed: 'Listed',
+    bids: 'Bids',
+    coverage: 'Coverage Provided',
+    documentationHandlingFee: 'Documentation & Handling Fee',
+    forSaleBy: 'For Sale By',
+    dealer: 'Dealer',
+    vehicleTitle: 'Vehicle Title',
+    clean: 'Clean',
+    salvage: 'Salvage',
+    rebuilt: 'Rebuilt',
+    make: 'Make',
+    model: 'Model',
+    vin: 'VIN (Vehicle Identification Number)',
+    guaranteeProvided: '100% Guarantee',
+    transmission: 'Transmission',
+    automatic: 'Automatic',
+    manual: 'Manual',
+    cvt: 'CVT',
+    fuelType: 'Fuel Type',
+    gasoline: 'Gasoline',
+    diesel: 'Diesel',
+    electric: 'Electric',
+    hybrid: 'Hybrid',
+    other: 'Other',
+
+    // Item Description from Seller
+    itemDescriptionFromSeller: 'Item Description from the Seller',
+    sellerInformation: 'Seller Information',
+    contactUs: 'Contact Us',
+    buyers: 'Buyers',
+    sellers: 'Sellers',
+    viewAllAuctions: 'View All Auctions',
+    viewStore: 'Visit Store',
+    sellerFeedback: 'Seller Feedback',
+    positiveReviews: 'positive',
+    itemsSold: 'items sold',
+
+    // About This Seller
+    aboutThisSeller: 'About This Seller',
+    joinedDate: 'Joined',
+    detailedSellerRatings: 'Detailed Seller Ratings',
+
+    // Shipping & Location
+    shipping: 'Shipping',
+    delivery: 'Delivery',
+    payments: 'Payments',
+    located: 'Located in',
+    seeItemDescription: 'See item description for shipping details',
+    fullPaymentRequired: 'Full payment is required within',
+    withinDaysOfClose: 'days of listing close',
+    varies: 'Varies',
   }
 };
 

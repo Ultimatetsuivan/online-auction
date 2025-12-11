@@ -17,8 +17,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import ProductCard from "../components/ProductCard";
 import theme from "../theme";
 import { api } from "../../src/api";
+import { useTheme } from "../../src/contexts/ThemeContext";
 
 export default function MyListScreen() {
+  const { isDarkMode, themeColors } = useTheme();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -99,11 +101,13 @@ export default function MyListScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar style="dark" />
+      <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
+        <StatusBar style={isDarkMode ? "light" : "dark"} />
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={theme.brand600} />
-          <Text style={styles.loadingText}>Ачаалж байна...</Text>
+          <Text style={[styles.loadingText, { color: themeColors.textSecondary }]}>
+            Ачаалж байна...
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -111,17 +115,19 @@ export default function MyListScreen() {
 
   if (!user) {
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar style="dark" />
+      <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
+        <StatusBar style={isDarkMode ? "light" : "dark"} />
         <ScrollView contentContainerStyle={styles.guestContainer}>
           <View style={styles.guestContent}>
             <View style={styles.iconCircle}>
               <Ionicons name="heart-outline" size={64} color={theme.brand600} />
             </View>
-            <Text style={styles.guestTitle}>Нэвтрэх шаардлагатай</Text>
-            <Text style={styles.guestSubtitle}>
-              Таалагдсан зарууд харахын тулд нэвтэрнэ үү
-            </Text>
+          <Text style={[styles.guestTitle, { color: themeColors.text }]}>
+            Нэвтрэх шаардлагатай
+          </Text>
+          <Text style={[styles.guestSubtitle, { color: themeColors.textSecondary }]}>
+            Таалагдсан зарууд харахын тулд нэвтэрнэ үү
+          </Text>
             <TouchableOpacity
               style={styles.loginButton}
               onPress={() => router.push("/(hidden)/login")}
@@ -135,32 +141,43 @@ export default function MyListScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" />
+    <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
+      <StatusBar style={isDarkMode ? "light" : "dark"} />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { 
+        backgroundColor: themeColors.surface,
+        borderBottomColor: themeColors.border 
+      }]}>
         <View style={styles.headerLeft}>
           <Ionicons name="heart" size={24} color={theme.brand600} />
-          <Text style={styles.headerTitle}>Миний жагсаалт</Text>
+          <Text style={[styles.headerTitle, { color: themeColors.text }]}>
+            Миний жагсаалт
+          </Text>
         </View>
       </View>
 
       {/* Tab Navigation */}
-      <View style={styles.tabContainer}>
+      <View style={[styles.tabContainer, { 
+        backgroundColor: themeColors.surface,
+        borderBottomColor: themeColors.border 
+      }]}>
         <TouchableOpacity
-          style={[styles.tab, selectedTab === "liked" && styles.tabActive]}
+          style={[styles.tab, selectedTab === "liked" && styles.tabActive, {
+            backgroundColor: selectedTab === "liked" ? theme.brand50 : themeColors.inputBg
+          }]}
           onPress={() => setSelectedTab("liked")}
         >
           <Ionicons
             name="heart"
             size={18}
-            color={selectedTab === "liked" ? theme.brand600 : theme.gray500}
+            color={selectedTab === "liked" ? theme.brand600 : themeColors.textSecondary}
           />
           <Text
             style={[
               styles.tabText,
               selectedTab === "liked" && styles.tabTextActive,
+              { color: selectedTab === "liked" ? theme.brand600 : themeColors.textSecondary }
             ]}
           >
             Таалагдсан ({likedProducts.length})
@@ -168,18 +185,21 @@ export default function MyListScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tab, selectedTab === "filters" && styles.tabActive]}
+          style={[styles.tab, selectedTab === "filters" && styles.tabActive, {
+            backgroundColor: selectedTab === "filters" ? theme.brand50 : themeColors.inputBg
+          }]}
           onPress={() => setSelectedTab("filters")}
         >
           <Ionicons
             name="funnel"
             size={18}
-            color={selectedTab === "filters" ? theme.brand600 : theme.gray500}
+            color={selectedTab === "filters" ? theme.brand600 : themeColors.textSecondary}
           />
           <Text
             style={[
               styles.tabText,
               selectedTab === "filters" && styles.tabTextActive,
+              { color: selectedTab === "filters" ? theme.brand600 : themeColors.textSecondary }
             ]}
           >
             Хадгалсан шүүлтүүр
@@ -210,9 +230,11 @@ export default function MyListScreen() {
             </View>
           ) : (
             <View style={styles.emptyContainer}>
-              <Ionicons name="heart-outline" size={64} color={theme.gray300} />
-              <Text style={styles.emptyTitle}>Таалагдсан зар байхгүй</Text>
-              <Text style={styles.emptySubtitle}>
+              <Ionicons name="heart-outline" size={64} color={themeColors.textSecondary} />
+              <Text style={[styles.emptyTitle, { color: themeColors.text }]}>
+                Таалагдсан зар байхгүй
+              </Text>
+              <Text style={[styles.emptySubtitle, { color: themeColors.textSecondary }]}>
                 Зарын зүрх дээр дарж таалагдсан зарууддаа нэмээрэй
               </Text>
               <TouchableOpacity
@@ -225,9 +247,11 @@ export default function MyListScreen() {
           )
         ) : (
           <View style={styles.emptyContainer}>
-            <Ionicons name="funnel-outline" size={64} color={theme.gray300} />
-            <Text style={styles.emptyTitle}>Хадгалсан шүүлтүүр байхгүй</Text>
-            <Text style={styles.emptySubtitle}>
+            <Ionicons name="funnel-outline" size={64} color={themeColors.textSecondary} />
+            <Text style={[styles.emptyTitle, { color: themeColors.text }]}>
+              Хадгалсан шүүлтүүр байхгүй
+            </Text>
+            <Text style={[styles.emptySubtitle, { color: themeColors.textSecondary }]}>
               Хайлтын шүүлтүүрээ хадгалаад дараа дахин ашиглаарай
             </Text>
           </View>
@@ -240,7 +264,6 @@ export default function MyListScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.gray50,
   },
   header: {
     flexDirection: "row",
@@ -248,9 +271,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: theme.white,
     borderBottomWidth: 1,
-    borderBottomColor: theme.gray200,
   },
   headerLeft: {
     flexDirection: "row",
@@ -260,16 +281,13 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: "800",
-    color: theme.gray900,
   },
   tabContainer: {
     flexDirection: "row",
-    backgroundColor: theme.white,
     paddingHorizontal: 16,
     paddingVertical: 12,
     gap: 12,
     borderBottomWidth: 1,
-    borderBottomColor: theme.gray200,
   },
   tab: {
     flex: 1,
@@ -279,7 +297,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 8,
-    backgroundColor: theme.gray100,
     gap: 6,
   },
   tabActive: {
@@ -288,7 +305,6 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 14,
     fontWeight: "600",
-    color: theme.gray500,
   },
   tabTextActive: {
     color: theme.brand600,
@@ -307,7 +323,6 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   loadingText: {
-    color: theme.gray700,
     marginTop: 16,
     fontSize: 16,
   },
@@ -331,12 +346,10 @@ const styles = StyleSheet.create({
   guestTitle: {
     fontSize: 24,
     fontWeight: "800",
-    color: theme.gray900,
     marginBottom: 8,
   },
   guestSubtitle: {
     fontSize: 14,
-    color: theme.gray500,
     textAlign: "center",
     marginBottom: 32,
     lineHeight: 20,
@@ -362,13 +375,11 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: theme.gray700,
     marginTop: 16,
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: theme.gray500,
     textAlign: "center",
     lineHeight: 20,
     marginBottom: 24,

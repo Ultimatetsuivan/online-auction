@@ -23,16 +23,34 @@ export const MyList = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [loadingProducts, setLoadingProducts] = useState({});
+  const [previewProducts, setPreviewProducts] = useState([]);
 
   useEffect(() => {
     loadMyList();
+    // Load preview products for guest users
+    loadPreviewProducts();
   }, []);
+
+  const loadPreviewProducts = async () => {
+    try {
+      const response = await axios.get(buildApiUrl('/api/product/products'), {
+        params: { limit: 12, sort: '-createdAt' }
+      });
+      const products = Array.isArray(response.data)
+        ? response.data
+        : response.data?.data || response.data?.products || [];
+      setPreviewProducts(products.slice(0, 12));
+    } catch (err) {
+      console.error('Error loading preview products:', err);
+    }
+  };
 
   const loadMyList = async () => {
     try {
       const userData = localStorage.getItem("user");
       if (!userData) {
         setLoading(false);
+        // Don't redirect - just show empty state
         return;
       }
 
@@ -207,13 +225,18 @@ export const MyList = () => {
     );
   }
 
+  // Check if user is logged in
+  const userData = localStorage.getItem("user");
+  const isGuest = !loading && !userData;
+
   const stats = [
-    { label: t("likedProducts") || "Liked", value: likedProducts.length },
+    { label: t("watchlist") || "Watchlist", value: isGuest ? previewProducts.length : likedProducts.length },
     { label: t("savedFilters") || "Filters", value: savedFilters.length },
-    { label: t("following") || "Following", value: followedUsers.length },
+    { label: t("followers") || "Followers", value: followedUsers.length },
   ];
 
   const pageBg = isDarkMode ? "bg-dark text-light" : "bg-light";
+  const displayProducts = isGuest ? previewProducts : likedProducts;
 
   return (
     <div className={`my-list-page py-4 ${pageBg}`}>
@@ -231,11 +254,11 @@ export const MyList = () => {
                 }}
               >
                 <i
-                  className="bi bi-heart-fill"
+                  className="bi bi-eye-fill"
                   style={{ color: "#FF6A00", fontSize: "1.1rem" }}
                 ></i>
               </span>
-              <span>{t("myList") || "My List"}</span>
+              <span>{t("myWatchlist") || "My Watchlist"}</span>
             </h2>
           </div>
 
@@ -257,12 +280,12 @@ export const MyList = () => {
           </div>
         </div>
 
-        {/* Content layout: 2 columns on lg+ */}
+        {/* Content layout: single column */}
         <div className="row gy-4">
-          {/* Left column: liked + new products */}
-          <div className="col-12 col-lg-7">
+          {/* Main column: liked + new products */}
+          <div className="col-12">
             {/* Liked Products */}
-            <section className="mb-4">
+            <section className="mb-4" style={{ position: 'relative' }}>
               <div
                 className={`card border-0 shadow-sm rounded-4 ${
                   isDarkMode ? "bg-secondary text-light" : "bg-white"
@@ -270,36 +293,34 @@ export const MyList = () => {
               >
                 <div className="card-header border-0 bg-transparent px-4 pt-3 pb-0">
                   <div className="d-flex justify-content-between align-items-center">
-                    <div>
-                      <h5 className="mb-0 fw-bold d-flex align-items-center">
-                        <i
-                          className="bi bi-heart-fill me-2"
-                          style={{ color: "#ff4b4b" }}
-                        ></i>
-                        {t("likedProducts") || "Liked Products"}
-                      </h5>
-                    </div>
-                    {likedProducts.length > 0 && (
-                      <span className="badge rounded-pill bg-primary-subtle text-primary-emphasis">
-                        {likedProducts.length} {t("items") || "items"}
+                    <h5 className="mb-0 fw-bold d-flex align-items-center">
+                      <i
+                        className="bi bi-eye-fill me-2"
+                        style={{ color: "#FF6A00" }}
+                      ></i>
+                      {t("watchlist") || "Watchlist"}
+                    </h5>
+                    {displayProducts.length > 0 && (
+                      <span className="text-muted small" style={{ fontSize: '0.85rem' }}>
+                        {displayProducts.length} {t("items") || "items"}
                       </span>
                     )}
                   </div>
                 </div>
 
-                <div className="card-body px-4 pb-4 pt-3">
-                  {likedProducts.length === 0 ? (
+                <div className="card-body px-4 pb-4 pt-3" style={isGuest ? { filter: 'blur(4px)', pointerEvents: 'none', opacity: 0.7 } : {}}>
+                  {displayProducts.length === 0 ? (
                     <div className="text-center py-4">
                       <i
-                        className="bi bi-heart mb-2"
+                        className="bi bi-eye mb-2"
                         style={{ fontSize: "2rem", color: "#FF6A00" }}
                       ></i>
                       <p className="mb-1 fw-semibold">
-                        {t("noLikedProducts") || "No liked products yet"}
+                        {t("noWatchlistItems") || "No items in watchlist yet"}
                       </p>
                       <p className="text-muted small mb-2">
-                        {t("noLikedHint") ||
-                          "Tap the heart icon on any product to save it here."}
+                        {t("noWatchlistHint") ||
+                          "Tap the eye icon on any product to add it to your watchlist."}
                       </p>
                       <Link
                         to="/allproduct"
@@ -313,60 +334,66 @@ export const MyList = () => {
                       </Link>
                     </div>
                   ) : (
-                    <div className="row row-cols-2 row-cols-md-3 g-3">
-                      {likedProducts.map((product) => (
-                        <div key={product._id} className="col">
-                          <div className="position-relative h-100">
-                            <MercariProductCard
-                              product={product}
-                              showLikeButton={true}
-                            />
-                            <button
-                              className="btn btn-sm btn-light position-absolute shadow-sm"
-                              style={{
-                                top: "0.4rem",
-                                right: "0.4rem",
-                                borderRadius: "999px",
-                                width: "30px",
-                                height: "30px",
-                                padding: 0,
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                              }}
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                if (
-                                  window.confirm(
-                                    t("confirmRemoveLike") ||
-                                      "Remove this product from liked list?"
-                                  )
-                                ) {
-                                  removeLike(product._id);
-                                  toast.success(
-                                    t("removedFromLiked") ||
-                                      "Removed from liked products"
-                                  );
-                                }
-                              }}
-                              title={
-                                t("removeFromLiked") || "Remove from liked"
-                              }
-                            >
-                              <i className="bi bi-x-lg"></i>
-                            </button>
-                          </div>
+                    <div className="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-5 g-3">
+                      {displayProducts.map((product) => (
+                        <div
+                          key={product._id}
+                          className="col"
+                        >
+                          <MercariProductCard
+                            product={product}
+                            showLikeButton={true}
+                          />
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
               </div>
+
+              {/* Guest Overlay */}
+              {isGuest && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                    backdropFilter: 'blur(2px)',
+                    borderRadius: '1rem',
+                    zIndex: 10
+                  }}
+                >
+                  <div
+                    className={`text-center p-4 rounded-4 shadow-lg ${isDarkMode ? 'bg-dark text-light' : 'bg-white'}`}
+                    style={{ maxWidth: '400px', margin: '0 1rem' }}
+                  >
+                    <i className="bi bi-eye-fill mb-3 d-block" style={{ fontSize: '3rem', color: '#FF6A00' }}></i>
+                    <h4 className="mb-3 fw-bold">{t("myWatchlist") || "My Watchlist"}</h4>
+                    <p className="text-muted mb-4">
+                      {t("loginToViewWatchlist") || "Хайж байгаа барааны жагсаалтаа харахын тулд нэвтэрнэ үү"}
+                    </p>
+                    <div className="d-flex gap-2 justify-content-center">
+                      <Link to="/login" className="btn btn-primary px-4" style={{ backgroundColor: '#FF6A00', borderColor: '#FF6A00' }}>
+                        <i className="bi bi-box-arrow-in-right me-2"></i>
+                        {t("login") || "Нэвтрэх"}
+                      </Link>
+                      <Link to="/register" className="btn btn-outline-secondary px-4">
+                        {t("signup") || "Бүртгүүлэх"}
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              )}
             </section>
 
             {/* New Products */}
-            <section className="mb-4">
+            <section className="mb-4" style={{ position: 'relative' }}>
               <div
                 className={`card border-0 shadow-sm rounded-4 ${
                   isDarkMode ? "bg-secondary text-light" : "bg-white"
@@ -381,7 +408,7 @@ export const MyList = () => {
                     {t("newProducts") || "New Products"}
                   </h5>
                 </div>
-                <div className="card-body px-4 pb-4 pt-3">
+                <div className="card-body px-4 pb-4 pt-3" style={isGuest ? { filter: 'blur(4px)', pointerEvents: 'none', opacity: 0.7 } : {}}>
                   {followedProducts.length === 0 ? (
                     <div className="text-center py-4">
                       <i
@@ -398,12 +425,11 @@ export const MyList = () => {
                       </p>
                     </div>
                   ) : (
-                    <div className="d-flex flex-row flex-nowrap overflow-auto pb-2">
+                    <div className="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-5 g-3">
                       {followedProducts.map((product) => (
                         <div
                           key={product._id}
-                          className="me-3"
-                          style={{ minWidth: "180px" }}
+                          className="col"
                         >
                           <MercariProductCard
                             product={product}
@@ -418,10 +444,10 @@ export const MyList = () => {
             </section>
           </div>
 
-          {/* Right column: saved filters + following */}
-          <div className="col-12 col-lg-5">
+          {/* Second column: saved filters + following */}
+          <div className="col-12">
             {/* Saved Filters */}
-            <section className="mb-4">
+            <section className="mb-4" style={{ position: 'relative' }}>
               <div
                 className={`card border-0 shadow-sm rounded-4 ${
                   isDarkMode ? "bg-secondary text-light" : "bg-white"
@@ -436,7 +462,7 @@ export const MyList = () => {
                     {t("savedFilters") || "Saved Filters"}
                   </h5>
                 </div>
-                <div className="card-body px-4 pb-4 pt-3">
+                <div className="card-body px-4 pb-4 pt-3" style={isGuest ? { filter: 'blur(4px)', pointerEvents: 'none', opacity: 0.7 } : {}}>
                   {savedFilters.length === 0 ? (
                     <div className="text-center py-4">
                       <i
@@ -558,12 +584,11 @@ export const MyList = () => {
                                 </div>
                               </div>
                             ) : products.length > 0 ? (
-                              <div className="d-flex flex-row flex-nowrap overflow-auto pt-1">
-                                {products.slice(0, 8).map((product) => (
+                              <div className="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-5 g-3 pt-1">
+                                {products.slice(0, 10).map((product) => (
                                   <div
                                     key={product._id}
-                                    className="me-3"
-                                    style={{ minWidth: "150px" }}
+                                    className="col"
                                   >
                                     <MercariProductCard
                                       product={product}
@@ -589,7 +614,7 @@ export const MyList = () => {
             </section>
 
             {/* Following */}
-            <section>
+            <section style={{ position: 'relative' }}>
               <div
                 className={`card border-0 shadow-sm rounded-4 ${
                   isDarkMode ? "bg-secondary text-light" : "bg-white"
@@ -601,10 +626,10 @@ export const MyList = () => {
                       className="bi bi-people me-2"
                       style={{ color: "#FF6A00" }}
                     ></i>
-                    {t("following") || "Following"}
+                    {t("followers") || "Followers"}
                   </h5>
                 </div>
-                <div className="card-body px-4 pb-4 pt-3">
+                <div className="card-body px-4 pb-4 pt-3" style={isGuest ? { filter: 'blur(4px)', pointerEvents: 'none', opacity: 0.7 } : {}}>
                   {followedUsers.length === 0 ? (
                     <div className="text-center py-4">
                       <i

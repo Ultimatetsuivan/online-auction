@@ -17,7 +17,10 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import RenderHtml from "react-native-render-html";
 import CountdownTimer from "../components/CountdownTimer";
+import { ProductDetailSkeleton } from "../../src/components/SkeletonLoader";
 import theme from "../theme";
 import { api } from "../../src/api";
 
@@ -69,6 +72,23 @@ export default function ProductDetail() {
   }, [fetchProductDetail]);
 
   const handlePlaceBid = async () => {
+    // Check if user is logged in
+    const userData = await AsyncStorage.getItem("user");
+    if (!userData) {
+      Alert.alert(
+        "Нэвтрэх шаардлагатай",
+        "Санал өгөхийн тулд эхлээд нэвтэрнэ үү",
+        [
+          { text: "Цуцлах", style: "cancel" },
+          {
+            text: "Нэвтрэх",
+            onPress: () => router.push("/(hidden)/login"),
+          },
+        ]
+      );
+      return;
+    }
+
     if (!bidAmount || isNaN(Number(bidAmount))) {
       Alert.alert("Invalid Amount", "Please enter a valid bid amount");
       return;
@@ -122,10 +142,9 @@ export default function ProductDetail() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={theme.brand600} />
-        <Text style={styles.loadingText}>Loading product...</Text>
-      </View>
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <ProductDetailSkeleton />
+      </SafeAreaView>
     );
   }
 
@@ -270,28 +289,161 @@ export default function ProductDetail() {
             </View>
           </View>
 
-          {/* Description */}
+          {/* Description - Rich HTML */}
           <View style={styles.descriptionSection}>
             <Text style={styles.sectionTitle}>Description</Text>
-            <Text style={styles.description}>
-              {product.description || "No description available"}
-            </Text>
+            {product.description ? (
+              <RenderHtml
+                contentWidth={width - 64}
+                source={{ html: product.description }}
+                tagsStyles={{
+                  body: { color: theme.gray700, fontSize: 15, lineHeight: 24 },
+                  p: { marginBottom: 10 },
+                  h1: { color: theme.gray900, fontSize: 24, fontWeight: "700", marginVertical: 10 },
+                  h2: { color: theme.gray900, fontSize: 20, fontWeight: "700", marginVertical: 8 },
+                  h3: { color: theme.gray900, fontSize: 18, fontWeight: "600", marginVertical: 6 },
+                  a: { color: theme.brand600, textDecorationLine: "underline" },
+                  strong: { fontWeight: "700", color: theme.gray900 },
+                  em: { fontStyle: "italic" },
+                }}
+              />
+            ) : (
+              <Text style={styles.description}>No description available</Text>
+            )}
           </View>
 
-          {/* Product Details */}
-          <View style={styles.detailsSection}>
-            <Text style={styles.sectionTitle}>Details</Text>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Category</Text>
-              <Text style={styles.detailValue}>{product.category || "N/A"}</Text>
+          {/* Vehicle History Report */}
+          {product.vin && (
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>
+                <Ionicons name="document-text-outline" size={20} color={theme.gray900} /> Vehicle History Report
+              </Text>
+              {product.vehicleHistoryReport?.available ? (
+                <View style={styles.vehicleReportAvailable}>
+                  <View style={styles.vehicleReportHeader}>
+                    <Ionicons name="shield-checkmark" size={32} color="#10B981" />
+                    <View style={{ marginLeft: 12, flex: 1 }}>
+                      <Text style={styles.vehicleReportTitle}>Report Available</Text>
+                      <Text style={styles.vehicleReportProvider}>
+                        Provider: {product.vehicleHistoryReport.provider}
+                      </Text>
+                    </View>
+                  </View>
+                  {product.vehicleHistoryReport.reportUrl && (
+                    <TouchableOpacity style={styles.vehicleReportButton}>
+                      <Text style={styles.vehicleReportButtonText}>View Full Report</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ) : (
+                <View style={styles.vehicleReportUnavailable}>
+                  <Text style={styles.vehicleReportUnavailableText}>
+                    <Ionicons name="information-circle" size={16} /> Report not available
+                  </Text>
+                  <Text style={styles.vehicleReportReason}>
+                    This may be due to the vehicle's age, origin, or VIN format.
+                  </Text>
+                </View>
+              )}
             </View>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Brand</Text>
-              <Text style={styles.detailValue}>{product.brand || "N/A"}</Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Condition</Text>
-              <Text style={styles.detailValue}>{product.condition || "N/A"}</Text>
+          )}
+
+          {/* Item Specifics Grid */}
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Item Specifics</Text>
+
+            <View style={styles.specificsGrid}>
+              {/* Category */}
+              <View style={styles.specificItem}>
+                <Text style={styles.specificLabel}>Category</Text>
+                <Text style={styles.specificValue}>{product.category?.name || product.category || "N/A"}</Text>
+              </View>
+
+              {/* Vehicle Fields */}
+              {product.year && (
+                <View style={styles.specificItem}>
+                  <Text style={styles.specificLabel}>Year</Text>
+                  <Text style={styles.specificValue}>{product.year}</Text>
+                </View>
+              )}
+              {product.make && (
+                <View style={styles.specificItem}>
+                  <Text style={styles.specificLabel}>Make</Text>
+                  <Text style={styles.specificValue}>{product.make}</Text>
+                </View>
+              )}
+              {product.model && (
+                <View style={styles.specificItem}>
+                  <Text style={styles.specificLabel}>Model</Text>
+                  <Text style={styles.specificValue}>{product.model}</Text>
+                </View>
+              )}
+              {product.mileage && (
+                <View style={styles.specificItem}>
+                  <Text style={styles.specificLabel}>Mileage</Text>
+                  <Text style={styles.specificValue}>{product.mileage.toLocaleString()} km</Text>
+                </View>
+              )}
+              {product.transmission && (
+                <View style={styles.specificItem}>
+                  <Text style={styles.specificLabel}>Transmission</Text>
+                  <Text style={styles.specificValue}>{product.transmission}</Text>
+                </View>
+              )}
+              {product.fuelType && (
+                <View style={styles.specificItem}>
+                  <Text style={styles.specificLabel}>Fuel Type</Text>
+                  <Text style={styles.specificValue}>{product.fuelType}</Text>
+                </View>
+              )}
+              {product.vehicleTitle && (
+                <View style={styles.specificItem}>
+                  <Text style={styles.specificLabel}>Vehicle Title</Text>
+                  <Text style={styles.specificValue}>{product.vehicleTitle}</Text>
+                </View>
+              )}
+              {product.vin && (
+                <View style={[styles.specificItem, { width: "100%" }]}>
+                  <Text style={styles.specificLabel}>VIN</Text>
+                  <Text style={[styles.specificValue, { fontFamily: "monospace" }]}>{product.vin}</Text>
+                </View>
+              )}
+
+              {/* General Fields */}
+              {product.brand && (
+                <View style={styles.specificItem}>
+                  <Text style={styles.specificLabel}>Brand</Text>
+                  <Text style={styles.specificValue}>{product.brand}</Text>
+                </View>
+              )}
+              {product.condition && (
+                <View style={styles.specificItem}>
+                  <Text style={styles.specificLabel}>Condition</Text>
+                  <Text style={styles.specificValue}>{product.condition}</Text>
+                </View>
+              )}
+              {product.color && (
+                <View style={styles.specificItem}>
+                  <Text style={styles.specificLabel}>Color</Text>
+                  <Text style={styles.specificValue}>{product.color}</Text>
+                </View>
+              )}
+              {product.size && (
+                <View style={styles.specificItem}>
+                  <Text style={styles.specificLabel}>Size</Text>
+                  <Text style={styles.specificValue}>{product.size}</Text>
+                </View>
+              )}
+
+              {/* Custom Item Specifics */}
+              {product.itemSpecifics && Object.keys(product.itemSpecifics).length > 0 && (
+                Object.entries(product.itemSpecifics).map(([key, value]: [string, any]) => (
+                  <View key={key} style={styles.specificItem}>
+                    <Text style={styles.specificLabel}>{key}</Text>
+                    <Text style={styles.specificValue}>{value}</Text>
+                  </View>
+                ))
+              )}
             </View>
           </View>
 
@@ -312,6 +464,32 @@ export default function ProductDetail() {
                   </Text>
                 </View>
               ))}
+            </View>
+          )}
+
+          {/* Seller Description */}
+          {product.sellerDescription && (
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>
+                <Ionicons name="document-text" size={20} color={theme.gray900} /> Item Description from Seller
+              </Text>
+              <RenderHtml
+                contentWidth={width - 64}
+                source={{ html: product.sellerDescription }}
+                tagsStyles={{
+                  body: { color: theme.gray700, fontSize: 15, lineHeight: 26 },
+                  p: { marginBottom: 12 },
+                  h1: { color: theme.gray900, fontSize: 22, fontWeight: "700", marginTop: 20, marginBottom: 10 },
+                  h2: { color: theme.gray900, fontSize: 20, fontWeight: "700", marginTop: 16, marginBottom: 8 },
+                  h3: { color: theme.gray900, fontSize: 18, fontWeight: "600", marginTop: 14, marginBottom: 6 },
+                  a: { color: theme.brand600, textDecorationLine: "underline" },
+                  strong: { fontWeight: "700", color: theme.gray900 },
+                  em: { fontStyle: "italic" },
+                  ul: { marginVertical: 10 },
+                  ol: { marginVertical: 10 },
+                  li: { marginVertical: 4 },
+                }}
+              />
             </View>
           )}
 
@@ -703,5 +881,84 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "700",
+  },
+  // New styles for enhanced sections
+  sectionCard: {
+    backgroundColor: theme.white,
+    padding: 16,
+    marginBottom: 12,
+    borderRadius: 12,
+  },
+  // Vehicle History Report
+  vehicleReportAvailable: {
+    marginTop: 12,
+  },
+  vehicleReportHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  vehicleReportTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: theme.gray900,
+  },
+  vehicleReportProvider: {
+    fontSize: 14,
+    color: theme.gray600,
+    marginTop: 4,
+  },
+  vehicleReportButton: {
+    backgroundColor: theme.brand600,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  vehicleReportButtonText: {
+    color: theme.white,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  vehicleReportUnavailable: {
+    backgroundColor: theme.gray100,
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  vehicleReportUnavailableText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: theme.gray700,
+    marginBottom: 6,
+  },
+  vehicleReportReason: {
+    fontSize: 13,
+    color: theme.gray600,
+  },
+  // Item Specifics Grid
+  specificsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginTop: 12,
+    marginHorizontal: -6,
+  },
+  specificItem: {
+    width: "48%",
+    backgroundColor: theme.gray50,
+    padding: 12,
+    borderRadius: 8,
+    margin: 6,
+  },
+  specificLabel: {
+    fontSize: 12,
+    color: theme.gray600,
+    marginBottom: 4,
+    textTransform: "uppercase",
+  },
+  specificValue: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: theme.gray900,
   },
 });

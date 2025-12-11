@@ -2,9 +2,23 @@ const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 
 const userSchema = mongoose.Schema({
+    username:{
+        type:String,
+        unique: true,
+        sparse: true,
+    },
+    surname:{
+        type:String,
+    },
     name:{
         type:String,
         require:[true, "Нэрээ заавал бичээрэй"],
+    },
+    registrationNumber:{
+        type:String,
+        unique: true,
+        sparse: true,
+        match: /^УГ\d{8}$/
     },
     email:{
         type:String,
@@ -59,6 +73,26 @@ const userSchema = mongoose.Schema({
         sparse: true
       },
 
+    // eMongolia integration
+    eMongoliaId: {
+        type: String,
+        unique: true,
+        sparse: true
+    },
+    eMongoliaVerified: {
+        type: Boolean,
+        default: false
+    },
+    eMongoliaData: {
+        registerNumber: String,
+        lastName: String,
+        firstName: String,
+        dateOfBirth: Date,
+        gender: String,
+        nationality: String,
+        verifiedAt: Date
+    },
+
     balance: {
         type: Number,
         default: 0,
@@ -97,6 +131,62 @@ const userSchema = mongoose.Schema({
         type: String
     },
 
+    // ===== Identity Verification (本人確認 - KYC) =====
+    identityVerified: {
+        type: Boolean,
+        default: false
+    },
+    identityVerification: {
+        status: {
+            type: String,
+            enum: ['none', 'pending', 'approved', 'rejected'],
+            default: 'none'
+        },
+        // ID card photos
+        documents: {
+            idCardFront: {
+                url: String,
+                publicId: String
+            },
+            idCardBack: {
+                url: String,
+                publicId: String
+            },
+            selfieWithId: {
+                url: String,
+                publicId: String
+            }
+        },
+        // ID document details (extracted from images)
+        idDetails: {
+            fullName: String,
+            idNumber: String,
+            dateOfBirth: Date,
+            nationality: String,
+            expiryDate: Date
+        },
+        // Verification request details
+        requestedAt: {
+            type: Date
+        },
+        // Admin review
+        reviewedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User"
+        },
+        reviewedAt: {
+            type: Date
+        },
+        reviewNotes: {
+            type: String,
+            trim: true
+        },
+        rejectionReason: {
+            type: String,
+            trim: true
+        }
+    },
+
     resetPasswordToken: {type: String,},
 
 resetPasswordExpires:{type:Date}
@@ -115,5 +205,5 @@ userSchema.pre("save", async function (next) {
     next();
 });
 
-const User = mongoose.model("User", userSchema)
-module.exports = User;
+// Export model, checking if it already exists to avoid OverwriteModelError
+module.exports = mongoose.models.User || mongoose.model("User", userSchema);

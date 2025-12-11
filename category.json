@@ -1,0 +1,91 @@
+[
+    {
+      "mainCategory": "Fashion",
+      "subCategories": ["Ladies", "Men", "Accessories"]
+    },
+    {
+      "mainCategory": "Baby & Kids",
+      "subCategories": ["Baby Clothing", "Kids Clothing", "Toys & Baby Gear"]
+    },
+    {
+      "mainCategory": "Games, Toys & Merchandise",
+      "subCategories": ["Video Games", "Board Games & Puzzles", "Character Goods & Merchandise"]
+    },
+    {
+      "mainCategory": "Hobbies, Musical Instruments & Art",
+      "subCategories": ["Musical Instruments", "Model Kits & Figures", "Art Supplies"]
+    },
+    {
+      "mainCategory": "Tickets",
+      "subCategories": ["Concert Tickets", "Sports Tickets", "Theme Park & Event Tickets"]
+    },
+    {
+      "mainCategory": "Books, Magazines & Comics",
+      "subCategories": ["Books", "Magazines", "Comics & Manga"]
+    },
+    {
+      "mainCategory": "CDs, DVDs & Blu-rays",
+      "subCategories": ["Music CDs", "Movie DVDs & Blu-rays", "Anime & Series Discs"]
+    },
+    {
+      "mainCategory": "Smartphones, Tablets & Computers",
+      "subCategories": ["Smartphones", "Tablets", "Laptops & PCs"]
+    },
+    {
+      "mainCategory": "TVs, Audio & Cameras",
+      "subCategories": ["Televisions", "Audio Equipment", "Cameras & Lenses"]
+    },
+    {
+      "mainCategory": "Home Appliances & Air Conditioning",
+      "subCategories": ["Kitchen Appliances", "Cleaning Appliances", "Air Conditioning & Air Purifiers"]
+    },
+    {
+      "mainCategory": "Sports",
+      "subCategories": ["Training & Fitness", "Team Sports", "Individual Sports & Gear"]
+    },
+    {
+      "mainCategory": "Outdoor, Fishing & Travel Gear",
+      "subCategories": ["Camping Gear", "Fishing Gear", "Travel Accessories"]
+    },
+    {
+      "mainCategory": "Cosmetics & Beauty",
+      "subCategories": ["Skincare", "Makeup", "Haircare & Styling"]
+    },
+    {
+      "mainCategory": "Diet & Health",
+      "subCategories": ["Supplements", "Diet Food", "Training & Health Goods"]
+    },
+    {
+      "mainCategory": "Food, Drinks & Alcohol",
+      "subCategories": ["Snacks & Sweets", "Beverages", "Alcohol"]
+    },
+    {
+      "mainCategory": "Kitchen, Daily Goods & Miscellaneous",
+      "subCategories": ["Kitchen Tools", "Cleaning & Daily Goods", "Storage & Organization"]
+    },
+    {
+      "mainCategory": "Furniture & Interior",
+      "subCategories": ["Living Room Furniture", "Bedroom Furniture", "Interior Decor"]
+    },
+    {
+      "mainCategory": "Pet Supplies",
+      "subCategories": ["Dog Supplies", "Cat Supplies", "Small Animal & Other Pets"]
+    },
+    {
+      "mainCategory": "DIY & Tools",
+      "subCategories": ["Hand Tools", "Power Tools", "Building Materials & Parts"]
+    },
+    {
+      "mainCategory": "Flowers & Gardening",
+      "subCategories": ["Potted Plants", "Gardening Tools", "Seeds & Soil"]
+    },
+    {
+      "mainCategory": "Handmade & Crafts",
+      "subCategories": ["Handmade Accessories", "Sewing & Knitting", "Craft Materials"]
+    },
+    {
+      "mainCategory": "Cars, Motorbikes & Bicycles",
+      "subCategories": ["Cars", "Motorbikes", "Bicycles & Parts"]
+    }
+  ]
+  

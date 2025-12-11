@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "823209945222",
+    "project_id": "auctionhubmn",
+    "storage_bucket": "auctionhubmn.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:823209945222:android:76c56833e0169b3f294907",
+        "android_client_info": {
+          "package_name": "com.buhuu.auction"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "823209945222-l9att4r5qi78k8a5slvq598ncgqf6efl.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.buhuu.auction",
+            "certificate_hash": "59eeb854cbf09bb6db8054f596d3d42a43d2de9e"
+          }
+        },
+        {
+          "client_id": "823209945222-vis5vpog8c1rcub877n3g03od9ldp424.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBK4opwGDG50eMTKIA1JulQ_zh4CKx3V6Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "823209945222-vis5vpog8c1rcub877n3g03od9ldp424.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

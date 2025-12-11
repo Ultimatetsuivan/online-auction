@@ -1,0 +1,482 @@
+% Бүлэг 2
+
+\chapter{Системийн шинжилгээ ба загварчлал} % Бүлгийн нэр
+\label{Chapter2} % Энэ бүлэг рүү ишлэл хийх бол \ref{Chapter1} командыг ашигла 
+
+
+\section{ Хэрэглэгчийн шаардлага }
+\subsection{Системийг ашиглах хэрэглэгчид}
+    \begin{itemize}
+    \item Админ
+    \item Хэрэглэгч
+    \item Зочин
+\end{itemize}
+
+\subsection{Системийн хэрэглэгчид дэлгэрэнгүй}
+\text{Манай систем нь 3 түвшний хэрэглэгчтэй}
+\begin{itemize}
+    \item \textbf{Админ}
+    \newline{Энэ хэрэглэгч нь системийг удирдах, хэрэглэгчдийг удирдах, бараа удирдах зэрэг удирдлагын чанартай хамгийн дээд түвшний эрхтэй хэрэглэгч юм.}
+    \item \textbf{Хэрэглэгч}
+    \newline{Энэхүү хэрэглэгч нь өөрийн худалдаалахыг хүссэн барааг дуудлага худалдаанд байршуулах, бусад хэрэглэгчийн барааг дуудлага худалдаанаас худалдан авах боломжтой системд бүртгэлтэй хэрэглэгч юм.}
+    \item \textbf{Зочин}
+    \newline{Энэхүү хэрэглэгч нь хэдийд ч, хаанаас ч дуудлага худалдаанд байгаа барааг харах танилцах болон системд бүртгүүлэх боломжтой системд бүртгэлгүй хэрэглэгч юм. }
+\end{itemize}
+\newpage
+    \section{Системийн функциональ шаардлага}
+    \subsection{Админы функциональ шаардлага}
+    1. Бараа зохицуулалт
+    \begin{itemize}
+    \item Бараа устгах
+    \item Бараа нэмэх 
+    \item Барааны мэдээлэл засах
+    \item Бараа худалдах
+\end{itemize}
+      2. Хэрэглэгч удирдах
+    \begin{itemize}
+    \item хайлт хийх 
+    \item хэрэглэгчийн бараа үзэх
+    \end{itemize}
+    \newline{3. Худалдаануудын мэдээллийг харах}
+    \newline{4. Хэрэглэгчдийн дансыг цэнэглэх}
+    \newline{5. Системд нэвтрэх}
+    \newline{6. Ангилал удирдах}
+    \begin{itemize}
+    \item Ангилал устгах
+    \item Ангилал нэмэх 
+\end{itemize}
+   \newline{7. Ирсэн хүсэлтүүдийг зохицуулах}
+   \begin{itemize}
+    \item Хүсэлтийг зөвшөөрөх
+    \item Хүсэлтийг татгалзах 
+\end{itemize}
+    \subsection{Хэрэглэгчийн функциональ шаардлага}
+    1. Бараа зохицуулалт
+    \begin{itemize}
+    \item Бараа устгах
+    \item Бараа нэмэх 
+    \item Барааны мэдээлэл засах
+    \item Бараа худалдах
+\end{itemize}
+     \newline{2. Профайл удирдах - Жишээ нь: Нууц үг солих }
+     \newline{3. Системд нэвтрэх}
+     \newline{4. бараа хайх}
+     \begin{itemize}
+    \item Энгийн хайлт хийх
+    \item Шүүлтүүр тавин хайлт хийх
+\end{itemize}
+     \newline{5. Бараа үзэх}
+     \newline{6. Данс цэнэглэх}
+     \newline{7. Худалдан авалтын түүх харах}
+     \newline{8. Үнэ санал болгох}
+     \newline{9.  Худалдан авалт хийх }
+    \subsection{Зочны функциональ шаардлага}
+    1. Идэвхтэй дуудлага худалдаануудыг үзэх
+    \newline{2. бараа хайх}
+     \begin{itemize}
+    \item Энгийн хайлт хийх
+    \item Шүүлтүүр тавин хайлт хийх
+\end{itemize}
+\newline{3.Бүртгэл үүсгэх}
+\newline{4.Нэвтрэх}
+
+\newpage
+ \section{Системийн функциональ бус шаардлага}
+    \subsection{Гүйцэтгэлийн шаардлага}
+    1. Хялбар хурдан хайлт хийх
+    \begin{itemize}
+    \item Хуудас шилжих хугацаа 5 секундээс хэтрэхгүй байх
+\end{itemize}
+    \newline{2. Хэрэглэхэд ойлгомжтой хялбар байх}
+    \begin{itemize}
+    \item Хэрэглэгч хараад ойлгомжтой байхаар хөгжүүлнэ
+    \item Дуудлага худалдаанд үнэ өгөх болон хугацааг харуулах хэсгийг real-time data ашиглана гүйцэтгэх
+\end{itemize}
+    \newline{3. Системийн хариу өгөхөд бага хугацаа зарцуулдаг байх}
+    \begin{itemize}
+    \item 5 секундээс ихгүй байх
+\end{itemize}
+    \newline{4. Сервер нь 24/7 цагийн ажиллагаатай байх}
+    \begin{itemize}
+    \item 24 цагаар худалдан авагч болон худалдаалагчдад үйлчилгээг үзүүлэх
+\end{itemize}
+    \subsection{ Программ хангамжийн шинж чанарууд}
+  
+    \newline{1. Хүртээмжтэй байдал}
+    \begin{itemize}
+    \item Сервер унасан үед нөөц сервер лүү шилжих
+\end{itemize}
+    \newline{2. Аюулгүй байдал}
+    \begin{itemize}
+    \item Нууц үгээ шифрлэлт хийж хадгалах
+ 
+\end{itemize}
+\newpage
+\subsection{Юзкейс диаграм}
+\begin{figure}[htbp]
+	\centering
+	\includegraphics[scale=0.8]{Diagrams/usecase}
+	\caption{Бүртгэлтэй хэрэглэгч юзкейс диаграм}
+	\label{fit:usecase}
+\end{figure}
+\begin{figure}[htbp]
+	\centering
+	\includegraphics[scale=1]{Diagrams/usecase1}
+	\caption{Админ юзкейс диаграм}
+	\label{fit:usecase}
+\end{figure}
+\newpage
+\begin{figure}[htbp]
+	\centering
+	\includegraphics[scale=0.8]{Diagrams/usecase2}
+	\caption{Зочин юзкейс диаграм}
+	\label{fit:usecase}
+\end{figure}
+\newpage
+
+\begin{center}
+	\begin{table}[!htbp]
+		\caption{Бүртгэл үүсгэх}
+		\begin{tabular}{|p{4cm}|p{11cm}|}
+		\hline
+			Нэр: & Бүртгэл үүсгэх \\
+		\hline
+			ID: & 1 \\
+		\hline
+			Товч тайлбар: & Зочин нь серверд шинээр бүртгэл үүсгэнэ. \\
+		\hline
+			Триггер: & Зочин нь бүртгүүлэх шаардлагатай болсон. \\
+		\hline
+			Үндсэн оролцогч: & Зочин \\
+		\hline
+			Хоёрдогч оролцогч: & Байхгүй  \\
+		\hline
+			Өмнөх нөхцөл: &  Сервер ажиллагаатай байх\\
+		\hline
+			Ажлын урсгал: & \begin{enumerate}
+						 	\item Зочин нь бүртгүүлэхийг сонгосноор энэ юз кейс эхлэнэ. 
+						 	\item Веб сервер нь зочинд бүртгүүлэх цонхыг харуулна. 
+						 	\item Зочин нь өөрийн мэдээллийг (өөрийн нэр, имэйл хаяг, нууц үгээ) оруулна. 
+						 	\item Веб сервер нь хэрэглэгчийн оруулсан мэдээллийг шалгана. 
+						 	\item IF (“мэдээлэл үнэн зөв бол”)
+							 	\begin{enumerate}
+							 		\item[5.1] Веб сервер хэрэглэгчийн оруулсан мэдээллийг (өөрийн нэр, имэйл хаяг, нууц үгээ) баазад хадгална.
+							 		\item[5.2] Веб сервер хэрэглэгчийг амжилттай бүртгүүлсэнийг нь харуулна. 
+							 	\end{enumerate}
+						 	\item ELSE
+							 	\begin{enumerate}
+							 		\item[6.1] Веб сервер нь хэрэглэгчийн оруулсан мэдээлэл бүрийг шалгана.  
+							 		\item[6.2] Веб сервер нь алдаатай оруулсан мэдээллийг тодруулж харуулна. 
+							 		\item[6.3] Веб сервер нь мэдээллийг дахин оруулахыг асууна. 
+							 	\end{enumerate}
+						  \end{enumerate}
+\\					  \hline
+				Дараах нөхцөл: &
+				 \begin{enumerate}
+									\item Хэрэглэгч веб серверд бүртгэлтэй болсон байна. 
+									\item Хэрэглэгчийн мэдээлэл баазад хадгалагдсан байна. 
+				\end{enumerate}	   
+\\				   \hline
+				Альтернатив урсгал: &  \begin{enumerate}
+									\item Хэрэглэгч бүртгэлийг цуцалсан.
+									\item Веб сервер дээр алдаа гарсан. 
+										\end{enumerate}
+				\\	\hline
+		\end{tabular}
+	\end{table}
+\end{center}
+
+
+\begin{center}
+	\begin{table}[!htbp]
+		\caption{Бараа зохицуулалт}
+		\begin{tabular}{|p{4cm}|p{11cm}|}
+			\hline
+			Нэр: & Бараа зохицуулалт \\
+			\hline
+			ID: & 2 \\
+			\hline
+			Товч тайлбар: & Хэрэглэгч дуудлага худалдаанд шинээр бараа оруулах  \\
+			\hline
+			Триггер: & Хэрэглэгч бараа зарахыг хүссэн. \\
+			\hline
+			Үндсэн оролцогч: & Хэрэглэгч \\
+			\hline
+			Хоёрдогч оролцогч: & Веб  \\
+			\hline
+			Өмнөх нөхцөл: &  \begin{enumerate}
+								\item Хэрэглэгч өөрийн эрхээрээ нэвтэрсэн байх.
+								\item Веб сервер ажиллагаатай байх.
+							\end{enumerate}
+\\			\hline
+			Ажлын урсгал: & \begin{enumerate}
+								\item Хэрэглэгч бараа нэмэх сонгосноор энэ юз кейс эхлэнэ.
+								\item Веб нь бараа нэмэх хуудсыг хэрэглэгчид харуулна.
+								\item Хэрэглэгч худалдаалах барааны мэдээллийг оруулна.
+                                \item Дуудлага худалдаа эхлэх болон дуусах огноог оруулна.
+                                \item IF( Мэдээлэл үнэн болон бүрэн бөглөсөн бол )
+									\begin{enumerate}
+										\item[4.1] Дуудлага худалдааг эхлүүлнэ
+									\end{enumerate}
+								\item ELSE 
+									\begin{enumerate}
+										\item[5.1]  Хэрэглэгчийн оруулсан мэдээлэл алдаатайг мэдэгдэнэ.
+										\item[5.2] Барааг дахин нэмнэ
+									\end{enumerate}
+							
+							\item Хэрэглэгч-д барааг амжилттай нэмсэн гэсэн мэдэгдэл ирнэ
+								\end{enumerate}
+                                
+\\						\hline
+			Дараах нөхцөл: &  Вебд барааны мэдээлэл байршсан байна. \\
+			\hline
+			Альтернатив урсгал: &  Вебийн өгөгдлийн сангын багтаамж дүүрсэн. \\
+			\hline
+		\end{tabular}
+	\end{table}
+\end{center}
+
+\begin{center}
+	\begin{table}[!htbp]
+		\caption{Үнэ санал болгох}
+		\begin{tabular}{|p{4cm}|p{11cm}|}
+			\hline
+			Нэр: & Үнэ санал болгох \\
+			\hline
+			ID: & 3 \\
+			\hline
+			Товч тайлбар: & Хэрэглэгч өөрийн эрхээр дуудлага худалдаанд байршсан бараанд үнэ санал болгоно.  \\
+			\hline
+			Триггер: & Хэрэглэгч бараа худалдан авахыг хүссэн. \\
+			\hline
+			Үндсэн оролцогч: & Хэрэглэгч \\
+			\hline
+			Хоёрдогч оролцогч: & Байхгүй  \\
+			\hline
+			Өмнөх нөхцөл: &  \begin{enumerate}
+				\item Вебд  өөрийн эрхээр нэвтэрсэн байх.
+				\item Санал болгох гэж буй үнийн дүн өмнөх дүнгээс илүү байх.
+			\end{enumerate}
+			\\			\hline
+			Ажлын урсгал: & \begin{enumerate}
+								\item Хэрэглэгч бараан дээр байрших үнэ санал болгох хэсгийг дарснаар энэхүү юз кейс эхлэнэ.
+								\item Өөрийн санал болгох үнийн дүнгээ оруулна
+								\item IF( Санал болгосон үнэ өмнөх үнийн дүнгээс илүү бол )
+									\begin{enumerate}
+										\item[4.1] Дуудлага худалдааний хамгийн өндөр үнэ болно
+									\end{enumerate}
+								\item ELSE 
+									\begin{enumerate}
+										\item[5.1] Хэрэглэгчийн оруулсан мэдээлэл алдаатайг мэдэгдэнэ.
+										\item[5.2] Хэрэглэгч үнийг дахин санал болгоно.
+									\end{enumerate}
+								\item Хэрэглэгч үнийн дүнг баталгаажуулах хэсгийг сонгоно.
+								\item Үнэ санал болголт амжилттай баталгаажсаныг мэдэгдэнэ
+							\end{enumerate}
+\\						\hline
+			Дараах нөхцөл: & Хамгийн өндөр үнийн дүн солигдсан байна. \\
+			\hline
+			Альтернатив урсгал: & Хэрэглэгч санал болгосон үнээ буцаасан байна. \\
+			\hline
+		\end{tabular}
+	\end{table}
+\end{center}
+
+
+
+\begin{center}
+	\begin{table}[!htbp]
+		\caption{Бараа үзэх}
+		\begin{tabular}{|p{4cm}|p{11cm}|}
+			\hline
+			Нэр: & Бараа үзэх  \\
+			\hline
+			ID: & 4 \\
+			\hline
+			Товч тайлбар: & Зочин дуудлага худалдаанд байршсан бараануудыг харна.  \\
+			\hline
+			Үндсэн оролцогч: & Зочин \\
+			\hline
+			Хоёрдогч оролцогч: & Байхгүй  \\
+			\hline
+			Өмнөх нөхцөл: &  Вебд хандасан байх \\
+			\hline
+			Ажлын урсгал: &  \begin{enumerate}
+								\item Зочин дуудлага худалдааг харах зорилготой хандснаар энэ юзкейс эхэлнэ.
+								\item Дуудлага худалдааны бараануудыг харуулна
+								\item Зочин дуудлага худалдааны барааг сонгоно.
+								\item Дуудлага худалдаа зочины сонгосон барааг харуулна.  
+							\end{enumerate}	 \\
+						\hline
+			Дараах нөхцөл: & Зочин дуудлага худалдааны барааг харсан байна \\
+			\hline 
+			Альтернатив урсгал: & Байхгүй \\
+			\hline
+		\end{tabular}
+	\end{table}
+\end{center}
+
+
+\begin{center}
+	\begin{table}[!htbp]
+		\caption{Хайлт хийх } 
+		\begin{tabular}{|p{4cm}|p{11cm}|}
+			\hline
+			Нэр: & Хайлт хийх  \\
+			\hline
+			ID: & 5 \\
+			\hline
+			Товч тайлбар: & Зочин вебээс өөрийн хүссэн барааг хайна.  \\
+			\hline
+			Үндсэн оролцогч: & Зочин \\
+			\hline
+			Хоёрдогч оролцогч: & Байхгүй  \\
+			\hline
+			Өмнөх нөхцөл: &  Вебд хандасан байх \\
+			\hline
+			Ажлын урсгал: & \begin{enumerate}
+								\item Зочин хайлт хийх хэсгийг сонгосоноор энэхүү юзкейс эхэлнэ
+								\item Веб хайлт хийх төрлүүдийг харуулна харуулна
+								\item Зочин хайлт хийх төрөлөө сонгоно
+								\item Веб зочины сонгосон хайлт хийх хэсгийг харуулна
+								\item Зочин хайх барааны нэрийг оруулна
+								\item IF(Хайлтын утга алдаатай бол)
+									\begin{enumerate}
+										\item[6.1] Веб хайлтын утга алдаатайг зочинд мэдэгдэнэ.
+									\end{enumerate}	
+								\item ELSE IF(Таны хайсан утга илэрцгүй бол )
+									\begin{enumerate}
+										\item[7.1] Веб таны хайсан утга илэрцгүй 
+									\end{enumerate}
+								\item Зочин хайлтанд илэрсэн бараануудыг  харуулна
+							\end{enumerate} 	\\
+						\hline
+			Дараах нөхцөл: & Зочин вебээс хүссэн барааны хайлтаа олсон байна. \\
+			\hline
+			Альтернатив урсгал: & Зочины хайлт илэрцгүй байна.\\
+			\hline
+		\end{tabular}
+	\end{table}
+\end{center}
+
+\begin{center}
+	\begin{table}[!htbp]
+		\caption{Бүртгэлтэй хэрэглэгч удирдах}
+		\begin{tabular}{|p{4cm}|p{11cm}|}
+			\hline
+			Нэр: & Бүртгэлтэй хэрэглэгч удирдах  \\
+			\hline
+			ID: & 6 \\
+			\hline
+			Товч тайлбар: & Админ бүртгэлтэй зочиныг вебээс хасах.  \\
+			\hline
+			Үндсэн оролцогч: & Админ \\
+			\hline
+			Хоёрдогч оролцогч: & Байхгүй  \\
+			\hline
+			Өмнөх нөхцөл: &  Зочин вебд зүй зохисгүй зүйл хийх. \\
+			\hline
+			Ажлын урсгал: & \begin{enumerate}
+								\item Админ бүртгэлтэй зочидын жагсаалтыг сонгосоноор энэ юзкейс эхэлнэ.
+								\item Веб бүртгэлтэй зочидын жагсаалтыг харуулна
+								\item Админ зөрчилтэй зочинг сонгоно
+								\item Веб зөрчилтэй зочины мэдээллийг харуулна
+								\item Админ зөрчилтэй зочинг вебээс хасна
+								\item Веб зөрчилтэй зочин амжилттэй вебээс хасагдсаныг мэдэгдэнэ.
+							\end{enumerate}	\\
+						\hline
+			Дараах нөхцөл: & Зөрчилтэй зочин вебээс хасагдсан байна.(Бүртгэлтэй зочидын сангаас хасагдах ) \\
+			\hline
+			Альтернатив урсгал: & Админ зочинг буцаан сэргээсэн байна. \\
+			\hline
+		\end{tabular}
+	\end{table}
+\end{center}
+\clearpage
+\section{ERD (Entity Relation Diagram)}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.9\textwidth]{Diagrams/erd}
+    \caption{Өгөгдлийн хамаарлын диаграм (ERD)}
+    \label{fig:erd}
+\end{figure}
+\clearpage
+
+\section{Класс диаграм}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.9\textwidth,angle=0]{MUST Thesis (1)/Diagrams/ClassDiagramm.jpg}
+    \caption{Зохиомжийн шатны класс диаграм}
+    \label{fig:class}
+\end{figure}
+\clearpage
+
+\section{Дарааллын диаграм}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.9\textwidth]{Diagrams/login}
+    \caption{Нэвтрэх дарааллын диаграм}
+    \label{fig:login}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.9\textwidth]{Diagrams/baraauzeh}
+    \caption{Дуудлага худалдаа үзэх дарааллын диаграм}
+    \label{fig:comment}
+\end{figure}
+\clearpage
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=1\textwidth,height=0.8\textheight]{Diagrams/Blank diagram}
+    \caption{Үнэ санал болгох дарааллын диаграм}
+    \label{fig:shop}
+\end{figure}
+\clearpage
+\section{Төлөвийн диаграм}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[scale=0.8]{Diagrams/tolow}
+    \caption{Хайлт хийх төлөвийн диаграм}
+    \label{fig:state1}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=1\textwidth,height=0.7\textheight]{Diagrams/tolow1}
+    \caption{Худалдан авалт хийх төлөвийн диаграм}
+    
+    \label{fig:state2}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.9\textwidth,height=0.7\textheight]{Diagrams/tolow2}
+    \caption{Бараа нэмэх төлөвийн диаграм}
+    \label{fig:state3}
+\end{figure}
+\clearpage
+
+\section{Үйл ажиллагааны диаграм}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.3\textwidth]{Diagrams/uilajillagaa}
+    \caption{Бүртгүүлэх үйл ажиллагааны диаграм }
+    \label{fig:activity1}
+\end{figure}
+
+\clearpage
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.7\textwidth]{Diagrams/uilajillagaa2}
+    \caption{бараа нэмэх үйл ажиллагааны диаграм}
+    \label{fig:activity2}
+\end{figure}
+
+%-------------------------------------------------------------------------------
+
+% \section{Бүлгийн дүгнэлт}
+% Хэрэглэгчийн шаардлагаа тодорхойлж тодорхойлсон шаардлага бүрээ нягтлан хянаж функционал болон фунционал бусаар нь ялгасан. Функционал шаардлага дээрээ үндэслэн юз кейс диаграмаа гаргасан ба бүх  юзкейс бүрт тодорхойлолт гаргасан. Мөн тодорхойлолт бичсэн юзкейс диаграм бүртээ үйл ажиллагааны диаграм зурсан үйл ажиллагааг нь илүү нарийн ойлгомжтой болгож өгч байна.
+

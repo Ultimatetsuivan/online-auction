@@ -42,7 +42,11 @@ export default function CategoryIcon({ title, image, icon, onPress, active, styl
         <Image source={image} style={styles.image} />
       ) : (
         <View style={styles.iconContainer}>
-          <Ionicons name={icon as any || "cube-outline"} size={36} color={iconColor} />
+          {icon && icon.length <= 2 ? (
+            <Text style={{ fontSize: 36 }}>{icon}</Text>
+          ) : (
+            <Ionicons name={icon as any || "cube-outline"} size={36} color={iconColor} />
+          )}
         </View>
       )}
       <Text style={[styles.label, { color: textColor }]} numberOfLines={2}>

@@ -132,7 +132,8 @@ export const SearchBar = () => {
     <div className="position-relative">
       <input
         type="text"
-        className="form-control form-control-lg border-primary"
+        className="form-control form-control-lg"
+        style={{ borderColor: '#FF6A00', borderWidth: '2px' }}
         placeholder="Хайх барааны нэр..."
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}

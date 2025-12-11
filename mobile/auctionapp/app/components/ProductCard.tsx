@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, Image, StyleSheet, TouchableOpacity } from "react-native";
 import LikeButton from "./LikeButton";
+import VerificationBadge from "./VerificationBadge";
 import theme from "../theme";
 
 type Product = {
@@ -13,6 +14,11 @@ type Product = {
   bids?: number;       // optional: number of bids
   sold?: boolean;
   available?: boolean;
+  auctionStatus?: string; // 'scheduled', 'active', 'ended'
+  verified?: boolean;
+  verification?: {
+    badgeType?: 'basic' | 'premium' | 'luxury';
+  };
 };
 
 export default function ProductCard({
@@ -26,7 +32,8 @@ export default function ProductCard({
     ? product.localImage
     : { uri: product.image };
 
-  const isSold = product.sold || !product.available;
+  // Only show as sold if explicitly sold OR auction ended without being sold
+  const isSold = product.sold === true;
 
   return (
     <TouchableOpacity
@@ -53,6 +60,17 @@ export default function ProductCard({
       <Text numberOfLines={2} style={styles.title}>
         {product.title}
       </Text>
+
+      {/* Verification Badge */}
+      {product.verified && (
+        <View style={styles.badgeContainer}>
+          <VerificationBadge
+            verified={product.verified}
+            badgeType={product.verification?.badgeType}
+            size="small"
+          />
+        </View>
+      )}
 
       <View style={styles.metaRow}>
         <Text style={styles.price}>₮{typeof product.price === 'number' ? product.price.toLocaleString() : product.price}</Text>
@@ -123,6 +141,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: theme.gray900,
+  },
+  badgeContainer: {
+    marginTop: 6,
   },
   metaRow: {
     marginTop: 6,
