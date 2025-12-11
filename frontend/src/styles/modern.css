@@ -1,0 +1,353 @@
+/* Modern Design System Utilities */
+:root {
+  --spacing-unit: 8px;
+  --transition-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-duration: 200ms;
+}
+
+/* Airbnb/Stripe Card Style */
+.card-modern {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #E5E5E5;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all var(--transition-duration) var(--transition-smooth);
+}
+
+.card-modern:hover {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+/* Dark mode support */
+.theme-dark .card-modern {
+  background: #262626;
+  border-color: #404040;
+}
+
+/* Input fields - clean and minimal */
+.input-modern {
+  border: 1px solid #E5E5E5;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 15px;
+  transition: all var(--transition-duration) var(--transition-smooth);
+  background: white;
+}
+
+.input-modern:focus {
+  outline: none;
+  border-color: #FFA239;
+  box-shadow: 0 0 0 3px rgba(255, 162, 57, 0.1);
+}
+
+.theme-dark .input-modern {
+  background: #262626;
+  border-color: #404040;
+  color: #F5F5F5;
+}
+
+.theme-dark .input-modern:focus {
+  border-color: #FFA239;
+}
+
+/* Button - primary */
+.btn-modern-primary {
+  background: #FFA239;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-weight: 600;
+  font-size: 15px;
+  transition: all var(--transition-duration) var(--transition-smooth);
+  cursor: pointer;
+}
+
+.btn-modern-primary:hover {
+  background: #E68A1F;
+  box-shadow: 0 4px 12px rgba(255, 162, 57, 0.3);
+  transform: translateY(-1px);
+}
+
+.btn-modern-primary:active {
+  transform: translateY(0);
+}
+
+.btn-modern-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Button - secondary */
+.btn-modern-secondary {
+  background: #F5F5F5;
+  color: #171717;
+  border: 1px solid #E5E5E5;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-weight: 600;
+  font-size: 15px;
+  transition: all var(--transition-duration) var(--transition-smooth);
+  cursor: pointer;
+}
+
+.btn-modern-secondary:hover {
+  background: #E5E5E5;
+  transform: translateY(-1px);
+}
+
+.theme-dark .btn-modern-secondary {
+  background: #404040;
+  color: #F5F5F5;
+  border-color: #525252;
+}
+
+.theme-dark .btn-modern-secondary:hover {
+  background: #525252;
+}
+
+/* Button - outline */
+.btn-modern-outline {
+  background: transparent;
+  color: #FFA239;
+  border: 2px solid #FFA239;
+  border-radius: 8px;
+  padding: 11px 23px;
+  font-weight: 600;
+  font-size: 15px;
+  transition: all var(--transition-duration) var(--transition-smooth);
+  cursor: pointer;
+}
+
+.btn-modern-outline:hover {
+  background: rgba(255, 162, 57, 0.1);
+  transform: translateY(-1px);
+}
+
+/* Button - ghost */
+.btn-modern-ghost {
+  background: transparent;
+  color: #404040;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-weight: 600;
+  font-size: 15px;
+  transition: all var(--transition-duration) var(--transition-smooth);
+  cursor: pointer;
+}
+
+.btn-modern-ghost:hover {
+  background: #F5F5F5;
+}
+
+.theme-dark .btn-modern-ghost {
+  color: #F5F5F5;
+}
+
+.theme-dark .btn-modern-ghost:hover {
+  background: #404040;
+}
+
+/* Spacious layouts */
+.container-modern {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 32px;
+}
+
+@media (max-width: 768px) {
+  .container-modern {
+    padding: 0 16px;
+  }
+}
+
+.section-spacing {
+  padding: 80px 0;
+}
+
+@media (max-width: 768px) {
+  .section-spacing {
+    padding: 48px 0;
+  }
+}
+
+/* Modern form label */
+.label-modern {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #404040;
+  margin-bottom: 8px;
+}
+
+.theme-dark .label-modern {
+  color: #E5E5E5;
+}
+
+/* Form group spacing */
+.form-group-modern {
+  margin-bottom: 24px;
+}
+
+/* Helper text */
+.helper-text {
+  font-size: 13px;
+  color: #737373;
+  margin-top: 6px;
+}
+
+.theme-dark .helper-text {
+  color: #A3A3A3;
+}
+
+/* Error text */
+.error-text {
+  font-size: 13px;
+  color: #DC2626;
+  margin-top: 6px;
+}
+
+/* Success text */
+.success-text {
+  font-size: 13px;
+  color: #059669;
+  margin-top: 6px;
+}
+
+/* Badge */
+.badge-modern {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.badge-primary {
+  background: rgba(255, 162, 57, 0.1);
+  color: #CC7100;
+}
+
+.badge-success {
+  background: rgba(5, 150, 105, 0.1);
+  color: #059669;
+}
+
+.badge-danger {
+  background: rgba(220, 38, 38, 0.1);
+  color: #DC2626;
+}
+
+.badge-neutral {
+  background: #F5F5F5;
+  color: #404040;
+}
+
+.theme-dark .badge-neutral {
+  background: #404040;
+  color: #E5E5E5;
+}
+
+/* Divider */
+.divider-modern {
+  height: 1px;
+  background: #E5E5E5;
+  margin: 32px 0;
+}
+
+.theme-dark .divider-modern {
+  background: #404040;
+}
+
+/* Loading spinner */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spinner {
+  border: 2px solid #E5E5E5;
+  border-top-color: #FFA239;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  animation: spin 0.6s linear infinite;
+}
+
+/* Skeleton loader */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    #F5F5F5 0%,
+    #E5E5E5 50%,
+    #F5F5F5 100%
+  );
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite;
+  border-radius: 8px;
+}
+
+.theme-dark .skeleton {
+  background: linear-gradient(
+    90deg,
+    #262626 0%,
+    #404040 50%,
+    #262626 100%
+  );
+  background-size: 1000px 100%;
+}
+
+/* Smooth transitions for page changes */
+.page-enter {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.page-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: all 300ms var(--transition-smooth);
+}
+
+.page-exit {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.page-exit-active {
+  opacity: 0;
+  transform: translateY(-20px);
+  transition: all 300ms var(--transition-smooth);
+}
+
+/* Focus visible for accessibility */
+*:focus-visible {
+  outline: 2px solid #FFA239;
+  outline-offset: 2px;
+}
+
+/* Smooth scroll */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Selection color */
+::selection {
+  background: rgba(255, 162, 57, 0.2);
+  color: #171717;
+}

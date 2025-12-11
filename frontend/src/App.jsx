@@ -9,6 +9,7 @@ import { ToastProvider } from './components/common/Toast';
 import { ThemeProvider } from './context/ThemeContext';
 import { LanguageProvider } from './context/LanguageContext';
 import { LikedProductsProvider } from './context/LikedProductsContext';
+import { DraftProvider } from './context/DraftContext';
 import './styles/themes.css';
 
 
@@ -16,11 +17,12 @@ function App() {
   return (
     <>
      <BrowserRouter>
-      <ThemeProvider>
-        <LanguageProvider>
-          <LikedProductsProvider>
-            <ToastProvider>
-              <ErrorBoundary>
+      <DraftProvider>
+        <ThemeProvider>
+          <LanguageProvider>
+            <LikedProductsProvider>
+              <ToastProvider>
+                <ErrorBoundary>
             <Routes>
        <Route path="/" element={
         <Layout>
@@ -104,11 +106,12 @@ function App() {
            </Layout>} />
 
             </Routes>
-              </ErrorBoundary>
-            </ToastProvider>
-          </LikedProductsProvider>
-        </LanguageProvider>
-      </ThemeProvider>
+                </ErrorBoundary>
+              </ToastProvider>
+            </LikedProductsProvider>
+          </LanguageProvider>
+        </ThemeProvider>
+      </DraftProvider>
      </BrowserRouter>
     </>
   )
