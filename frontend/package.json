@@ -11,6 +11,12 @@
   },
   "dependencies": {
     "@tinymce/tinymce-react": "^6.3.0",
+    "@tiptap/extension-image": "^3.13.0",
+    "@tiptap/extension-link": "^3.13.0",
+    "@tiptap/extension-placeholder": "^3.13.0",
+    "@tiptap/extension-text-align": "^3.13.0",
+    "@tiptap/react": "^3.13.0",
+    "@tiptap/starter-kit": "^3.13.0",
     "axios": "^1.8.4",
     "bootstrap": "^5.3.3",
     "clsx": "^2.1.1",
