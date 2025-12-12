@@ -89,7 +89,7 @@ export const Profile = () => {
   const location = useLocation();
 
   // Draft auto-save hooks
-  const { getDraft, deleteDraft } = useDraft();
+  const { getDraft, deleteDraft, saveToLocalStorage } = useDraft();
   const draftKey = editingProductId ? `editProduct-${editingProductId}` : 'addProduct';
 
   // Auto-save form data (only when in addProduct tab)
@@ -772,6 +772,17 @@ const removeImage = (index) => {
       fetchCategories();
     }
   }, [activeTab]);
+
+  // Manual save draft handler
+  const handleSaveDraft = () => {
+    if (!formData.title && !formData.description) {
+      toast.error('Please enter a title or description to save as draft');
+      return;
+    }
+
+    saveToLocalStorage(draftKey, formData);
+    toast.success('Draft saved successfully! You can continue later.');
+  };
 
  const handleSubmit = async (e) => {
   e.preventDefault();
@@ -1730,22 +1741,37 @@ const removeImage = (index) => {
                       </div>
 
                       <div className="col-12 mt-4">
-                        <button
-                          type="submit"
-                          className="btn btn-primary py-3 w-100"
-                          disabled={uploading}
-                        >
-                          {uploading ? (
-                            <>
-                              <span className="spinner-border spinner-border-sm me-2" role="status"></span>
-                              {t('submitting')}
-                            </>
-                          ) : editingProductId ? (
-                            t('updateProduct')
-                          ) : (
-                            t('submit')
-                          )}
-                        </button>
+                        <div className="d-grid gap-2">
+                          <button
+                            type="submit"
+                            className="btn btn-primary py-3"
+                            disabled={uploading}
+                          >
+                            {uploading ? (
+                              <>
+                                <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                                {t('submitting')}
+                              </>
+                            ) : editingProductId ? (
+                              t('updateProduct')
+                            ) : (
+                              <>
+                                <i className="bi bi-check-circle me-2"></i>
+                                {t('submit')}
+                              </>
+                            )}
+                          </button>
+
+                          <button
+                            type="button"
+                            className="btn btn-outline-secondary py-2"
+                            onClick={handleSaveDraft}
+                            disabled={uploading}
+                          >
+                            <i className="bi bi-save me-2"></i>
+                            Save as Draft
+                          </button>
+                        </div>
                         {editingProductId && (
                           <button
                             type="button"

@@ -295,6 +295,29 @@ export default function AddProductScreen() {
     return true;
   };
 
+  // Manual save draft handler
+  const handleSaveDraft = async () => {
+    if (!formData.title && !formData.description) {
+      Alert.alert('Error', 'Please enter a title or description to save as draft');
+      return;
+    }
+
+    try {
+      await AsyncStorage.setItem(
+        `@auction_draft_${draftKey}`,
+        JSON.stringify({
+          data: formData,
+          _timestamp: Date.now(),
+          _version: '1.0',
+        })
+      );
+      Alert.alert('Success', 'Draft saved successfully! You can continue later.');
+    } catch (error) {
+      console.error('Failed to save draft:', error);
+      Alert.alert('Error', 'Failed to save draft');
+    }
+  };
+
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
@@ -825,7 +848,11 @@ export default function AddProductScreen() {
         )}
 
         {/* Submit Button */}
-        <TouchableOpacity style={[styles.submitButton, uploading && styles.submitButtonDisabled]} onPress={handleSubmit} disabled={uploading}>
+        <TouchableOpacity
+          style={[styles.submitButton, uploading && styles.submitButtonDisabled]}
+          onPress={handleSubmit}
+          disabled={uploading}
+        >
           {uploading ? (
             <>
               <ActivityIndicator size="small" color={theme.white} />
@@ -837,6 +864,21 @@ export default function AddProductScreen() {
               <Text style={styles.submitButtonText}>Бүтээгдэхүүн нэмэх</Text>
             </>
           )}
+        </TouchableOpacity>
+
+        {/* Save Draft Button */}
+        <TouchableOpacity
+          style={[styles.draftButton, {
+            backgroundColor: themeColors.surface,
+            borderColor: themeColors.border
+          }]}
+          onPress={handleSaveDraft}
+          disabled={uploading}
+        >
+          <Ionicons name="save-outline" size={20} color={themeColors.text} />
+          <Text style={[styles.draftButtonText, { color: themeColors.text }]}>
+            Save as Draft
+          </Text>
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />
@@ -1029,5 +1071,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: theme.white,
+  },
+  draftButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginTop: 12,
+    borderWidth: 1.5,
+  },
+  draftButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
   },
 });
