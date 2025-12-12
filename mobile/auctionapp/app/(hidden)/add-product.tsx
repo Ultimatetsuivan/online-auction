@@ -23,6 +23,8 @@ import theme from '../theme';
 import { api } from '../../src/api';
 import { AICategorySuggester } from '../components/AICategorySuggester';
 import { useTheme } from '../../src/contexts/ThemeContext';
+import { useAutosaveMobile, getDraft, deleteDraft } from '../../src/hooks/useAutosaveMobile';
+import { DraftStatusBanner } from '../components/DraftStatusBanner';
 
 const MAX_IMAGE_UPLOADS = 20;
 
@@ -76,6 +78,46 @@ export default function AddProductScreen() {
     color: '',
     condition: '',
   });
+
+  // Draft auto-save
+  const draftKey = 'addProduct';
+  const savingStatus = useAutosaveMobile(draftKey, formData, 2000);
+  const [lastSaved, setLastSaved] = useState<number | undefined>();
+
+  // Load draft on component mount
+  useEffect(() => {
+    const loadDraft = async () => {
+      const draft = await getDraft(draftKey);
+      if (draft && (draft.title || draft.description)) {
+        Alert.alert(
+          'Draft Found',
+          `Found a saved draft. Would you like to restore it?`,
+          [
+            {
+              text: 'Discard',
+              style: 'cancel',
+              onPress: () => deleteDraft(draftKey),
+            },
+            {
+              text: 'Restore',
+              onPress: () => {
+                setFormData({ ...formData, ...draft });
+                Alert.alert('Success', 'Draft restored successfully!');
+              },
+            },
+          ]
+        );
+      }
+    };
+    loadDraft();
+  }, []);
+
+  // Track last saved time
+  useEffect(() => {
+    if (savingStatus === 'saved') {
+      setLastSaved(Date.now());
+    }
+  }, [savingStatus]);
 
   useEffect(() => {
     fetchCategories();
@@ -316,6 +358,9 @@ export default function AddProductScreen() {
         },
       });
 
+      // Clear draft on success
+      await deleteDraft(draftKey);
+
       Alert.alert('Амжилттай', 'Бүтээгдэхүүн амжилттай нэмэгдлээ', [
         {
           text: 'ОК',
@@ -340,10 +385,13 @@ export default function AddProductScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
       <StatusBar style={isDarkMode ? "light" : "dark"} />
 
+      {/* Draft Status Banner */}
+      <DraftStatusBanner status={savingStatus} lastSaved={lastSaved} />
+
       {/* Header */}
-      <View style={[styles.header, { 
+      <View style={[styles.header, {
         backgroundColor: themeColors.surface,
-        borderBottomColor: themeColors.border 
+        borderBottomColor: themeColors.border
       }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="chevron-back" size={24} color={themeColors.text} />
