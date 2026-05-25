@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+﻿import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -48,10 +48,9 @@ export default function MyWinsScreen() {
   const fetchWins = async () => {
     try {
       const response = await api.get("/api/bidding/my-wins");
-      const winsData = response.data?.data || response.data || [];
+      const winsData = response.data?.wins || response.data?.data || response.data || [];
       setWins(winsData);
     } catch (error) {
-      console.error("Error fetching wins:", error);
       setWins([]);
     }
   };
@@ -67,7 +66,7 @@ export default function MyWinsScreen() {
         <StatusBar style="dark" />
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={theme.brand600} />
-          <Text style={styles.loadingText}>Ачаалж байна...</Text>
+          <Text style={styles.loadingText}>Уншиж байна...</Text>
         </View>
       </SafeAreaView>
     );
@@ -89,9 +88,9 @@ export default function MyWinsScreen() {
             <View style={styles.iconCircle}>
               <Ionicons name="trophy-outline" size={64} color={theme.brand600} />
             </View>
-            <Text style={styles.guestTitle}>Нэвтрэх шаардлагатай</Text>
+            <Text style={styles.guestTitle}>Нэвтэрч орно уу</Text>
             <Text style={styles.guestSubtitle}>
-              Хожсон дуудлага худалдаагаа харахын тулд нэвтэрнэ үү
+              Хожсон дуудлагуудаа харахын тулд нэвтэрнэ үү.
             </Text>
             <TouchableOpacity
               style={styles.loginButton}
@@ -109,12 +108,11 @@ export default function MyWinsScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
 
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={theme.gray900} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Миний хожлууд</Text>
+        <Text style={styles.headerTitle}>Mиний хожлууд</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -129,76 +127,101 @@ export default function MyWinsScreen() {
       >
         {wins.length > 0 ? (
           <View style={styles.winsContainer}>
-            {wins.map((win) => (
-              <View key={win._id} style={styles.winItem}>
-                <View style={styles.winBadge}>
-                  <Ionicons name="trophy" size={20} color="#F59E0B" />
-                  <Text style={styles.winBadgeText}>Та хожлоо!</Text>
-                </View>
+            {wins.map((win, index) => {
+              const productId = win.product?._id || win.productId || win._id || `win-${index}`;
+              const productTitle = win.product?.title || win.title || "";
+              const productImage = win.product?.images?.[0]?.url || win.image || null;
+              const productPrice =
+                win.product?.currentBid ??
+                win.product?.price ??
+                win.finalPrice ??
+                win.userMaxBid ??
+                0;
+              const bidsCount = win.product?.bids?.length || win.bids || 0;
+              const isSold =
+                (win.product?.sold ?? win.result === "won") ||
+                (win.auctionStatus || "").toLowerCase() === "ended";
+              const purchaseDate = win.createdAt || win.lastBidAt;
 
-                <TouchableOpacity
-                  style={styles.productSection}
-                  onPress={() => router.push(`/product/${win.product._id}`)}
-                >
-                  <ProductCard
-                    product={{
-                      id: win.product._id,
-                      title: win.product.title,
-                      price: win.product.currentBid || win.product.price,
-                      image: win.product.images?.[0]?.url || null,
-                      sold: win.product.sold,
-                      available: win.product.available,
-                      bids: win.product.bids?.length || 0,
-                    }}
-                    onPress={() => router.push(`/product/${win.product._id}`)}
-                  />
-                </TouchableOpacity>
+              const handleProductPress = () => {
+                if (productId) {
+                  router.push(`/product/${productId}`);
+                }
+              };
 
-                <View style={styles.winInfo}>
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Хожсон үнэ:</Text>
-                    <Text style={styles.infoValue}>₮{win.price.toLocaleString()}</Text>
+              return (
+                <View key={productId} style={styles.winItem}>
+                  <View style={styles.winBadge}>
+                    <Ionicons name="trophy" size={20} color="#F59E0B" />
+                    <Text style={styles.winBadgeText}>Та хожсон байна!</Text>
                   </View>
 
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Огноо:</Text>
-                    <Text style={styles.infoDate}>
-                      {new Date(win.createdAt).toLocaleDateString("mn-MN")}
-                    </Text>
-                  </View>
+                  <TouchableOpacity
+                    style={styles.productSection}
+                    onPress={handleProductPress}
+                  >
+                    <ProductCard
+                      product={{
+                        id: productId,
+                        title: productTitle,
+                        price: productPrice,
+                        image: productImage,
+                        sold: isSold,
+                        available: win.product?.available,
+                        bids: bidsCount,
+                      }}
+                      onPress={handleProductPress}
+                    />
+                  </TouchableOpacity>
 
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Төлөв:</Text>
-                    <View style={styles.statusTag}>
-                      {win.product.sold ? (
-                        <>
-                          <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-                          <Text style={styles.statusSold}>Худалдсан</Text>
-                        </>
-                      ) : (
-                        <>
-                          <Ionicons name="time" size={16} color="#F59E0B" />
-                          <Text style={styles.statusPending}>Хүлээгдэж буй</Text>
-                        </>
-                      )}
+                  <View style={styles.winInfo}>
+                    <View style={styles.infoRow}>
+                      <Text style={styles.infoLabel}>Эцсийн үнэ:</Text>
+                      <Text style={styles.infoValue}>MNT {productPrice.toLocaleString()}</Text>
+                    </View>
+
+                    {purchaseDate && (
+                      <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Огноо:</Text>
+                        <Text style={styles.infoDate}>
+                          {new Date(purchaseDate).toLocaleDateString("mn-MN")}
+                        </Text>
+                      </View>
+                    )}
+
+                    <View style={styles.infoRow}>
+                      <Text style={styles.infoLabel}>Төлөв:</Text>
+                      <View style={styles.statusTag}>
+                        {isSold ? (
+                          <>
+                            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                            <Text style={styles.statusSold}>Баталгаажсан</Text>
+                          </>
+                        ) : (
+                          <>
+                            <Ionicons name="time" size={16} color="#F59E0B" />
+                            <Text style={styles.statusPending}>Хүлээгдэж байна</Text>
+                          </>
+                        )}
+                      </View>
                     </View>
                   </View>
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </View>
         ) : (
           <View style={styles.emptyContainer}>
             <Ionicons name="trophy-outline" size={64} color={theme.gray300} />
-            <Text style={styles.emptyTitle}>Хожлууд байхгүй</Text>
+            <Text style={styles.emptyTitle}>Одоогоор хожсон зүйл байхгүй</Text>
             <Text style={styles.emptySubtitle}>
-              Дуудлага худалдаанд оролцож, хожиж эхлээрэй!
+              Дуудлагад оролцоод хожлоо энд харагдана.
             </Text>
             <TouchableOpacity
               style={styles.browseButton}
               onPress={() => router.push("/(tabs)/")}
             >
-              <Text style={styles.browseButtonText}>Зар үзэх</Text>
+              <Text style={styles.browseButtonText}>Бараа үзэх</Text>
             </TouchableOpacity>
           </View>
         )}

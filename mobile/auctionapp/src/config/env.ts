@@ -10,9 +10,13 @@ const getEnvVar = (key: string, defaultValue?: string): string => {
 };
 
 export const ENV = {
-  // API Configuration - Using ngrok (works from anywhere!)
-  API_BASE_URL: getEnvVar('EXPO_PUBLIC_API_BASE_URL', 'https://adrenally-cotemporaneous-kristi.ngrok-free.dev'),
-  SOCKET_URL: getEnvVar('EXPO_PUBLIC_SOCKET_URL', 'https://adrenally-cotemporaneous-kristi.ngrok-free.dev'),
+  // API Configuration - Local network (phone and PC must be on same WiFi)
+  API_BASE_URL: getEnvVar('EXPO_PUBLIC_API_BASE_URL', 'http://172.29.33.17:5000'),
+  SOCKET_URL: getEnvVar('EXPO_PUBLIC_SOCKET_URL', 'http://172.29.33.17:5000'),
+
+  // ngrok fallback (uncomment if not on same network):
+  // API_BASE_URL: getEnvVar('EXPO_PUBLIC_API_BASE_URL', 'https://adrenally-cotemporaneous-kristi.ngrok-free.dev'),
+  // SOCKET_URL: getEnvVar('EXPO_PUBLIC_SOCKET_URL', 'https://adrenally-cotemporaneous-kristi.ngrok-free.dev'),
   
   // Feature Flags
   ENABLE_ANALYTICS: getEnvVar('EXPO_PUBLIC_ENABLE_ANALYTICS', 'false') === 'true',

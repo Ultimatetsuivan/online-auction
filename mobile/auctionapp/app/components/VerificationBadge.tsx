@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../src/contexts/ThemeContext';
 
 interface VerificationBadgeProps {
   verified: boolean;
@@ -13,17 +14,20 @@ const VerificationBadge: React.FC<VerificationBadgeProps> = ({
   badgeType = 'basic',
   size = 'small'
 }) => {
+  const { isDarkMode } = useTheme();
+
   if (!verified) return null;
 
   const getBadgeColor = () => {
+    // In dark mode, slightly adjust colors for better visibility
     switch (badgeType) {
       case 'luxury':
-        return '#FFD700'; // Gold
+        return isDarkMode ? '#FFC107' : '#FFD700'; // Gold (slightly dimmed in dark)
       case 'premium':
-        return '#C0C0C0'; // Silver
+        return isDarkMode ? '#9E9E9E' : '#C0C0C0'; // Silver (slightly dimmed in dark)
       case 'basic':
       default:
-        return '#4CAF50'; // Green
+        return isDarkMode ? '#66BB6A' : '#4CAF50'; // Green (brighter in dark)
     }
   };
 

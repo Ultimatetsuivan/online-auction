@@ -41,10 +41,10 @@ const otpLimiter = rateLimit({
     // store: new RedisStore({ client: redisClient }), // Uncomment for Redis
 });
 
-// General API rate limiter - Increased for better UX with multiple products
+// General API rate limiter - Increased for better UX with multiple products and admin panel
 const apiLimiter = rateLimit({
     windowMs: 1 * 60 * 1000, // 1 minute
-    max: 500, // 500 requests per minute (increased from 100 to handle multiple product cards with likes)
+    max: 2000, // 2000 requests per minute (increased to handle admin panel's simultaneous requests)
     message: {
         error: 'Хэт олон хүсэлт илгээлээ. Түр хүлээнэ үү',
         retryAfter: '1 minute'

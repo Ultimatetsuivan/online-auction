@@ -1,7 +1,70 @@
 const Deposit = require('../models/Deposit');
 const Product = require('../models/Product');
 const User = require('../models/User');
-const { canPlaceDeposit } = require('../utils/trustScore');
+
+// Check deposit status for a product
+exports.checkDepositStatus = async (req, res) => {
+    try {
+        const { productId } = req.params;
+        const userId = req.user._id;
+
+        const DEPOSIT_THRESHOLD = parseInt(process.env.DEPOSIT_THRESHOLD) || 500000;
+        const DEPOSIT_PERCENTAGE = parseFloat(process.env.DEPOSIT_PERCENTAGE) || 0.1;
+
+        const product = await Product.findById(productId);
+        if (!product) {
+            return res.status(404).json({ error: 'Бараа олдсонгүй' });
+        }
+
+        const depositRequired = product.price >= DEPOSIT_THRESHOLD;
+        const depositAmount = depositRequired ? Math.floor(product.price * DEPOSIT_PERCENTAGE) : 0;
+
+        if (!depositRequired) {
+            return res.json({ depositRequired: false, hasDeposit: true, depositAmount: 0 });
+        }
+
+        const existingDeposit = await Deposit.findOne({
+            user: userId,
+            product: productId,
+            status: 'held'
+        });
+
+        return res.json({
+            depositRequired: true,
+            hasDeposit: !!existingDeposit,
+            depositAmount,
+            deposit: existingDeposit || null
+        });
+
+    } catch (error) {
+        console.error('Check deposit status error:', error);
+        res.status(500).json({ error: 'Алдаа гарлаа', details: error.message });
+    }
+};
+
+// Release all deposits for a product after auction ends
+exports.releaseAuctionDeposits = async (productId, winnerId) => {
+    try {
+        const deposits = await Deposit.find({ product: productId, status: 'held' });
+
+        for (const deposit of deposits) {
+            const isWinner = winnerId && deposit.user.toString() === winnerId.toString();
+            // Return deposit to everyone (winner pays separately via balance)
+            await User.findByIdAndUpdate(deposit.user, {
+                $inc: { balance: deposit.amount }
+            });
+            deposit.status = 'returned';
+            deposit.releasedAt = new Date();
+            deposit.reason = isWinner ? 'Auction won' : 'Auction ended';
+            await deposit.save();
+        }
+
+        return { success: true, released: deposits.length };
+    } catch (error) {
+        console.error('Release auction deposits error:', error);
+        return { success: false, error: error.message };
+    }
+};
 
 // Place deposit on a product
 exports.placeDeposit = async (req, res) => {
@@ -9,18 +72,8 @@ exports.placeDeposit = async (req, res) => {
         const { productId } = req.body;
         const userId = req.user._id;
 
-        // Get user with trust score
+        // Get user
         const user = await User.findById(userId);
-
-        // Check if user can place deposit
-        if (!canPlaceDeposit(user)) {
-            const minScore = parseInt(process.env.MIN_TRUST_SCORE_FOR_DEPOSIT) || 70;
-            return res.status(403).json({
-                error: `Дэнчин байршуулахын тулд таны итгэлцлийн оноо ${minScore}+ байх ёстой`,
-                currentScore: user.trustScore,
-                requiredScore: minScore
-            });
-        }
 
         // Check if product exists and is available
         const product = await Product.findById(productId);
@@ -57,7 +110,15 @@ exports.placeDeposit = async (req, res) => {
             });
         }
 
-        // Calculate deposit amount (10% of current price or starting price)
+        // Only high-value items require a deposit
+        const DEPOSIT_THRESHOLD = parseInt(process.env.DEPOSIT_THRESHOLD) || 500000;
+        if (product.price < DEPOSIT_THRESHOLD) {
+            return res.status(400).json({
+                error: 'Энэ бараа дэнчин шаардахгүй'
+            });
+        }
+
+        // Calculate deposit amount (10% of starting price)
         const depositPercentage = parseFloat(process.env.DEPOSIT_PERCENTAGE) || 0.1;
         const depositAmount = Math.floor(product.price * depositPercentage);
 
@@ -224,3 +285,5 @@ exports.getAllDeposits = async (req, res) => {
 
 module.exports.returnDeposit = exports.returnDeposit;
 module.exports.forfeitDeposit = exports.forfeitDeposit;
+module.exports.checkDepositStatus = exports.checkDepositStatus;
+module.exports.releaseAuctionDeposits = exports.releaseAuctionDeposits;

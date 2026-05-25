@@ -1,5 +1,5 @@
 const express = require("express");
-const {registerUser, loginUser, loginstatus,googleLogin,googleMobileLogin,getGoogleClientId,updateUserPhoto, sendVerificationCodeOnly,forgotPassword, verifyResetToken, resetPassword, addBalanceToUser,verifyEmailCode, loggoutUser, getUser, getUserBalance, allUsers, commisisionBalance, deleteCurrentUser, addTestFunds, eMongoliaAuth} = require("../controllers/userController");
+const {registerUser, loginUser, loginstatus,googleLogin,googleMobileLogin,getGoogleClientId,updateUserPhoto, sendVerificationCodeOnly,forgotPassword, forgotPasswordTemp, changePassword, verifyResetToken, resetPassword, addBalanceToUser,verifyEmailCode, loggoutUser, getUser, getUserBalance, allUsers, commisisionBalance, deleteCurrentUser, addTestFunds, eMongoliaAuth} = require("../controllers/userController");
 const { protect, admin } = require("../middleware/authMiddleware");
 const router = express.Router();
 const { upload } = require("../utils/fileUpload");
@@ -10,11 +10,14 @@ router.get("/loggedin", loginstatus);
 router.get("/loggout", loggoutUser);
 router.get("/allusers", protect, admin, allUsers);
 router.get("/getuser", protect, getUser);
+router.get("/me", protect, getUser); // Standard REST endpoint for current user
 router.get("/userbalance", protect, getUserBalance);
 router.post("/send-code", sendVerificationCodeOnly);
 router.post("/verify-email", verifyEmailCode);
 router.post("/addBalance",protect, admin, addBalanceToUser);
 router.post("/forgot-password", forgotPassword);
+router.post("/forgot-password-temp", forgotPasswordTemp);
+router.post("/change-password", protect, changePassword);
 router.get("/verify-reset-token/:token", verifyResetToken);
 router.post("/reset-password/:token", resetPassword);
 router.post('/google', googleLogin);

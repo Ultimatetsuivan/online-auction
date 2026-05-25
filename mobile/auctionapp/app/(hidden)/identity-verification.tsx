@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../../src/api';
 import IDCardScanner from '../components/IDCardScanner';
 import LivenessTestModal from '../components/LivenessTestModal';
+import MongolianIDCardGuide from '../components/MongolianIDCardGuide';
 
 interface DocumentPhoto {
   type: 'idCardFront' | 'idCardBack' | 'selfieWithId';
@@ -290,7 +291,7 @@ export default function IdentityVerification() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#333" />
           </TouchableOpacity>
-          <Text style={styles.title}>本人確認 (Баталгаажуулалт)</Text>
+          <Text style={styles.title}>Иргэний үнэмлэх баталгаажуулалт</Text>
         </View>
 
         {/* Rejection Alert - Show if verification was rejected */}
@@ -377,8 +378,18 @@ export default function IdentityVerification() {
               </View>
             ) : (
               <View style={styles.emptySlot}>
-                <Ionicons name="camera-outline" size={48} color="#999" />
-                <Text style={styles.emptyText}>Зураг оруулаагүй байна</Text>
+                {doc.type === 'idCardFront' || doc.type === 'idCardBack' ? (
+                  <>
+                    <Text style={styles.guideLabel}>Жишээ:</Text>
+                    <MongolianIDCardGuide side={doc.type === 'idCardFront' ? 'front' : 'back'} />
+                    <Text style={styles.guideTapText}>Дээрх товчийг дарж зураг оруулна уу</Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="camera-outline" size={48} color="#999" />
+                    <Text style={styles.emptyText}>Үнэмлэх барьсан селфи оруулна уу</Text>
+                  </>
+                )}
               </View>
             )}
 
@@ -471,6 +482,7 @@ export default function IdentityVerification() {
             : 'Үнэмлэхний ар тал'
         }
         instruction="Үнэмлэхээ хүрээнд байрлуулна уу"
+        side={documents[currentScanIndex]?.type === 'idCardFront' ? 'front' : 'back'}
       />
     </SafeAreaView>
   );
@@ -657,7 +669,6 @@ const styles = StyleSheet.create({
   },
   emptySlot: {
     width: '100%',
-    height: 200,
     backgroundColor: '#f9f9f9',
     borderRadius: 8,
     borderWidth: 2,
@@ -666,11 +677,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
+    padding: 12,
+    gap: 8,
   },
   emptyText: {
     marginTop: 8,
     fontSize: 14,
     color: '#999',
+    textAlign: 'center',
+  },
+  guideLabel: {
+    alignSelf: 'flex-start',
+    fontSize: 12,
+    color: '#999',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  guideTapText: {
+    fontSize: 12,
+    color: '#999',
+    textAlign: 'center',
+    marginTop: 4,
   },
   actionButtons: {
     flexDirection: 'row',

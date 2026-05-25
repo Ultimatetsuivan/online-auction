@@ -90,7 +90,7 @@ export const MyListSimple = () => {
       <div className="row">
         <div className="col-12">
           <h2 className="mb-4">
-            <i className="bi bi-eye me-2" style={{ color: '#FF6A00' }}></i>
+            <i className="bi bi-eye me-2" style={{ color: 'var(--bn-primary)' }}></i>
             My Watchlist
           </h2>
 
@@ -134,7 +134,7 @@ export const MyListSimple = () => {
               <div className="card" style={{ position: 'relative' }}>
                 <div className="card-header">
                   <h4 className="mb-0">
-                    <i className="bi bi-eye-fill me-2" style={{ color: '#FF6A00' }}></i>
+                    <i className="bi bi-eye-fill me-2" style={{ color: 'var(--bn-primary)' }}></i>
                     Watchlist
                   </h4>
                 </div>
@@ -205,13 +205,13 @@ export const MyListSimple = () => {
                       className={`text-center p-4 rounded shadow-lg ${isDarkMode ? 'bg-dark text-light' : 'bg-white'}`}
                       style={{ maxWidth: '400px', margin: '0 1rem' }}
                     >
-                      <i className="bi bi-eye-fill mb-3 d-block" style={{ fontSize: '3rem', color: '#FF6A00' }}></i>
+                      <i className="bi bi-eye-fill mb-3 d-block" style={{ fontSize: '3rem', color: 'var(--bn-primary)' }}></i>
                       <h4 className="mb-3 fw-bold">{t("myWatchlist") || "My Watchlist"}</h4>
                       <p className="text-muted mb-4">
                         {t("loginToViewWatchlist") || "Хайж байгаа барааны жагсаалтаа харахын тулд нэвтэрнэ үү"}
                       </p>
                       <div className="d-flex gap-2 justify-content-center">
-                        <Link to="/login" className="btn btn-primary px-4" style={{ backgroundColor: '#FF6A00', borderColor: '#FF6A00' }}>
+                        <Link to="/login" className="btn btn-primary px-4" style={{ backgroundColor: 'var(--bn-primary)', borderColor: 'var(--bn-primary)' }}>
                           <i className="bi bi-box-arrow-in-right me-2"></i>
                           {t("login") || "Нэвтрэх"}
                         </Link>
@@ -230,7 +230,7 @@ export const MyListSimple = () => {
               <div className="card">
                 <div className="card-header">
                   <h4 className="mb-0">
-                    <i className="bi bi-bookmark-fill me-2" style={{ color: '#FF6A00' }}></i>
+                    <i className="bi bi-bookmark-fill me-2" style={{ color: 'var(--bn-primary)' }}></i>
                     Saved Filters
                   </h4>
                 </div>
@@ -262,7 +262,7 @@ export const MyListSimple = () => {
                               <div className="card-body">
                                 <div className="d-flex justify-content-between align-items-start mb-2">
                                   <h5 className="card-title mb-0">
-                                    <i className="bi bi-bookmark-fill me-2" style={{ color: '#FF6A00' }}></i>
+                                    <i className="bi bi-bookmark-fill me-2" style={{ color: 'var(--bn-primary)' }}></i>
                                     {filter.name}
                                   </h5>
                                   <button

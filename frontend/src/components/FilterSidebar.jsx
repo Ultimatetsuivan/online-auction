@@ -543,17 +543,17 @@ export const FilterSidebar = ({
 
         {/* Automotive Filters - Only show when showAutomotiveFilters is true */}
         {showAutomotiveFilters && (
-          <div className="filter-section" style={{ borderTop: '3px solid #FF6A00' }}>
+          <div className="filter-section" style={{ borderTop: '3px solid var(--bn-primary)' }}>
             <div
               style={{ ...sectionHeaderStyle, backgroundColor: '#fff5f0' }}
               onClick={() => toggleSection('automotive')}
             >
               <div className="d-flex justify-content-between align-items-center">
-                <span className="fw-bold" style={{ fontSize: '0.9rem', color: '#FF6A00' }}>
+                <span className="fw-bold" style={{ fontSize: '0.9rem', color: 'var(--bn-primary)' }}>
                   <i className="bi bi-car-front me-2"></i>
                   Автомашины шүүлтүүр
                 </span>
-                <i className={`bi bi-chevron-${openSections.automotive ? 'up' : 'down'}`} style={{ color: '#FF6A00' }}></i>
+                <i className={`bi bi-chevron-${openSections.automotive ? 'up' : 'down'}`} style={{ color: 'var(--bn-primary)' }}></i>
               </div>
             </div>
             {openSections.automotive && (

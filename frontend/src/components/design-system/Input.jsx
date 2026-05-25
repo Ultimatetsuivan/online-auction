@@ -1,13 +1,6 @@
 import React from 'react';
 import clsx from 'clsx';
 
-/**
- * Modern Input Component
- *
- * Types: text, number, email, password, textarea
- * States: default, error, success
- * Features: label, helper text, prefix/suffix icons
- */
 export const Input = ({
   type = 'text',
   label,
@@ -23,32 +16,33 @@ export const Input = ({
   rows = 4,
   prefix,
   suffix,
+  variant = 'default',
   ...props
 }) => {
-  const inputBaseClasses = 'w-full border rounded-lg px-4 py-2.5 text-base transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1';
+  const inputBase = 'w-full rounded-bn-md px-4 py-2.5 text-sm font-sans transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 bg-bn-surface text-bn-text placeholder:text-bn-text-tertiary';
 
-  const inputVariantClasses = clsx({
-    'border-neutral-200 focus:border-primary-500 focus:ring-primary-500/20': !error && !success,
-    'border-red-500 focus:border-red-500 focus:ring-red-500/20': error,
-    'border-green-500 focus:border-green-500 focus:ring-green-500/20': success,
-    'bg-neutral-50 cursor-not-allowed opacity-60': disabled,
-    'bg-white': !disabled,
+  const inputVariant = clsx({
+    'border border-bn-border focus:border-bn-primary focus:ring-primary-500/20': !error && !success && variant === 'default',
+    'border-0 bg-bn-bg-secondary focus:ring-primary-500/20': variant === 'search',
+    'border border-red-400 focus:border-red-500 focus:ring-red-500/20': error,
+    'border border-green-400 focus:border-green-500 focus:ring-green-500/20': success,
+    'bg-bn-bg-secondary cursor-not-allowed opacity-60': disabled,
   });
 
   const InputElement = type === 'textarea' ? 'textarea' : 'input';
 
   return (
-    <div className={clsx('form-group-modern', className)}>
+    <div className={clsx('space-y-1.5', className)}>
       {label && (
-        <label className="label-modern">
+        <label className="block text-sm font-medium text-bn-text">
           {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
+          {required && <span className="text-bn-danger ml-1">*</span>}
         </label>
       )}
 
       <div className="relative">
         {prefix && (
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500">
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-bn-text-tertiary">
             {prefix}
           </div>
         )}
@@ -62,8 +56,8 @@ export const Input = ({
           required={required}
           rows={type === 'textarea' ? rows : undefined}
           className={clsx(
-            inputBaseClasses,
-            inputVariantClasses,
+            inputBase,
+            inputVariant,
             prefix && 'pl-10',
             suffix && 'pr-10',
             type === 'textarea' && 'resize-y min-h-[100px]'
@@ -72,40 +66,26 @@ export const Input = ({
         />
 
         {suffix && (
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500">
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 text-bn-text-tertiary">
             {suffix}
           </div>
         )}
       </div>
 
       {error && (
-        <p className="error-text flex items-center gap-1 mt-1.5">
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-            <path
-              fillRule="evenodd"
-              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-              clipRule="evenodd"
-            />
-          </svg>
+        <p className="text-xs text-bn-danger flex items-center gap-1">
+          <i className="bi bi-exclamation-circle" />
           {error}
         </p>
       )}
-
       {success && !error && (
-        <p className="success-text flex items-center gap-1 mt-1.5">
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-            <path
-              fillRule="evenodd"
-              d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-              clipRule="evenodd"
-            />
-          </svg>
+        <p className="text-xs text-bn-success flex items-center gap-1">
+          <i className="bi bi-check-circle" />
           {success}
         </p>
       )}
-
       {helperText && !error && !success && (
-        <p className="helper-text mt-1.5">{helperText}</p>
+        <p className="text-xs text-bn-text-tertiary">{helperText}</p>
       )}
     </div>
   );

@@ -50,16 +50,18 @@ export const DraftProvider = ({ children }) => {
   const saveToLocalStorage = useCallback((draftKey, data) => {
     try {
       setSavingStatus('saving');
-      const updatedDrafts = {
-        ...drafts,
-        [draftKey]: {
-          data,
-          timestamp: Date.now(),
-          version: (drafts[draftKey]?.version || 0) + 1,
-        },
-      };
-      setDrafts(updatedDrafts);
-      localStorage.setItem('auctionDrafts', JSON.stringify(updatedDrafts));
+      setDrafts((prev) => {
+        const updated = {
+          ...prev,
+          [draftKey]: {
+            data,
+            timestamp: Date.now(),
+            version: (prev[draftKey]?.version || 0) + 1,
+          },
+        };
+        localStorage.setItem('auctionDrafts', JSON.stringify(updated));
+        return updated;
+      });
       setSavingStatus('saved');
       setLastSaved(new Date());
 
@@ -70,7 +72,7 @@ export const DraftProvider = ({ children }) => {
       setSavingStatus('error');
       setTimeout(() => setSavingStatus('idle'), 3000);
     }
-  }, [drafts]);
+  }, []);
 
   /**
    * Save draft to backend (optional - for cloud sync)

@@ -11,9 +11,10 @@ type Props = {
   active?: boolean;
   style?: ViewStyle;
   dark?: boolean;
+  count?: number;
 };
 
-export default function CategoryIcon({ title, image, icon, onPress, active, style, dark }: Props) {
+export default function CategoryIcon({ title, image, icon, onPress, active, style, dark, count }: Props) {
   const backgroundColor = active
     ? theme.brand100
     : dark
@@ -38,6 +39,11 @@ export default function CategoryIcon({ title, image, icon, onPress, active, styl
       onPress={onPress}
       activeOpacity={0.85}
     >
+      {count !== undefined && count > 0 && (
+        <View style={[styles.countBadge, { backgroundColor: active ? theme.brand600 : theme.secondary500 }]}>
+          <Text style={styles.countText}>{count}</Text>
+        </View>
+      )}
       {image ? (
         <Image source={image} style={styles.image} />
       ) : (
@@ -71,6 +77,24 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3,
     shadowOffset: { width: 0, height: 1 },
+    position: "relative",
+  },
+  countBadge: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+    zIndex: 1,
+  },
+  countText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "700",
   },
   image: {
     width: 60,

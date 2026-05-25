@@ -4,8 +4,6 @@ const bcrypt = require("bcryptjs");
 const userSchema = mongoose.Schema({
     username:{
         type:String,
-        unique: true,
-        sparse: true,
     },
     surname:{
         type:String,
@@ -18,7 +16,7 @@ const userSchema = mongoose.Schema({
         type:String,
         unique: true,
         sparse: true,
-        match: /^УГ\d{8}$/
+        match: /^[А-ЯӨҮЁа-яөүё]{2}\d{8}$/
     },
     email:{
         type:String,
@@ -35,8 +33,6 @@ const userSchema = mongoose.Schema({
     },
     phone:{
         type: String,
-        unique: true,
-        sparse: true,
         match: /^[0-9]{8}$/
     },
     pendingPhone: {
@@ -61,6 +57,16 @@ const userSchema = mongoose.Schema({
     otpLastAttempt: {
         type: Date
     },
+    tempPassword: {
+        type: String
+    },
+    tempPasswordExpires: {
+        type: Date
+    },
+    requirePasswordChange: {
+        type: Boolean,
+        default: false
+    },
     role:{
         type:String,
         turul: ["admin",  "buyer"],
@@ -68,16 +74,12 @@ const userSchema = mongoose.Schema({
     },
 
     googleId: {
-        type: String,
-        unique: true,
-        sparse: true
+        type: String
       },
 
     // eMongolia integration
     eMongoliaId: {
-        type: String,
-        unique: true,
-        sparse: true
+        type: String
     },
     eMongoliaVerified: {
         type: Boolean,
@@ -204,6 +206,25 @@ userSchema.pre("save", async function (next) {
     this.password = hashedPassword;
     next();
 });
+
+// ===== Database Indexes for Performance =====
+// Index on email for fast login lookups
+userSchema.index({ email: 1 });
+
+// Index on phone for phone authentication (unique + sparse)
+userSchema.index({ phone: 1 }, { unique: true, sparse: true });
+
+// Index on googleId for OAuth lookups (unique + sparse)
+userSchema.index({ googleId: 1 }, { unique: true, sparse: true });
+
+// Index on eMongoliaId for eMongolia authentication (unique + sparse)
+userSchema.index({ eMongoliaId: 1 }, { unique: true, sparse: true });
+
+// Compound index for admin queries (role + trust score sorting)
+userSchema.index({ role: 1, trustScore: -1 });
+
+// Index on username for profile lookups (unique + sparse)
+userSchema.index({ username: 1 }, { unique: true, sparse: true });
 
 // Export model, checking if it already exists to avoid OverwriteModelError
 module.exports = mongoose.models.User || mongoose.model("User", userSchema);

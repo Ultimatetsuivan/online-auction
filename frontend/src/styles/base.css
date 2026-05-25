@@ -1,0 +1,101 @@
+/* ============================================================
+   AuctionHub Base Styles - Global resets & typography
+   ============================================================ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--bn-font-sans);
+  color: var(--bn-text);
+  background-color: var(--bn-bg);
+  line-height: var(--bn-leading-normal);
+  font-size: var(--bn-text-base);
+  transition: background-color var(--bn-duration-slow) var(--bn-ease),
+              color var(--bn-duration-slow) var(--bn-ease);
+}
+
+/* ── Typography Scale ── */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--bn-text);
+  font-weight: var(--bn-font-bold);
+  line-height: var(--bn-leading-tight);
+}
+
+h1 { font-size: var(--bn-text-4xl); }
+h2 { font-size: var(--bn-text-3xl); }
+h3 { font-size: var(--bn-text-2xl); }
+h4 { font-size: var(--bn-text-xl); }
+h5 { font-size: var(--bn-text-lg); }
+h6 { font-size: var(--bn-text-base); }
+
+p {
+  color: var(--bn-text-secondary);
+  line-height: var(--bn-leading-relaxed);
+}
+
+a {
+  color: var(--bn-primary);
+  text-decoration: none;
+  transition: color var(--bn-duration-fast) var(--bn-ease);
+}
+
+a:hover {
+  color: var(--bn-primary-dark);
+}
+
+/* ── Focus Visible ── */
+*:focus-visible {
+  outline: 2px solid var(--bn-primary);
+  outline-offset: 2px;
+}
+
+/* ── Selection ── */
+::selection {
+  background: rgba(255, 122, 26, 0.15);
+  color: var(--bn-text);
+}
+
+/* ── Images ── */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bn-bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--bn-gray-300);
+  border-radius: var(--bn-radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--bn-gray-400);
+}
+
+.theme-dark ::-webkit-scrollbar-thumb {
+  background: var(--bn-gray-600);
+}
+
+.theme-dark ::-webkit-scrollbar-thumb:hover {
+  background: var(--bn-gray-500);
+}

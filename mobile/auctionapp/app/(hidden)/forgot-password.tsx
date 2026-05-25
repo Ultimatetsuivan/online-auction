@@ -10,6 +10,7 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Clipboard,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -17,47 +18,34 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { api } from "../../src/api";
 import theme from "../theme";
+import { useTheme } from "../../src/contexts/ThemeContext";
 
 export default function ForgotPasswordScreen() {
-  const [email, setEmail] = useState("");
+  const { isDarkMode, themeColors } = useTheme();
+  const [identifier, setIdentifier] = useState("");
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [tempPassword, setTempPassword] = useState("");
+  const [showTempPassword, setShowTempPassword] = useState(false);
 
-  const validateEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
-  const handleSubmit = async () => {
-    if (!email.trim()) {
-      Alert.alert("Алдаа", "Имэйл хаягаа оруулна уу");
-      return;
-    }
-
-    if (!validateEmail(email.trim())) {
-      Alert.alert("Алдаа", "Зөв имэйл хаяг оруулна уу");
+  const handleRequestTempPassword = async () => {
+    if (!identifier) {
+      Alert.alert("Алдаа", "Имэйл эсвэл утасны дугаараа оруулна уу");
       return;
     }
 
     setLoading(true);
-    setSuccess(false);
-
     try {
-      const response = await api.post("/api/users/forgot-password", {
-        email: email.trim().toLowerCase(),
+      const response = await api.post("/api/users/forgot-password-temp", {
+        identifier: identifier.trim(),
       });
 
-      if (response.status === 200) {
-        setSuccess(true);
+      if (response.data.success && response.data.tempPassword) {
+        setTempPassword(response.data.tempPassword);
+        setShowTempPassword(true);
         Alert.alert(
           "Амжилттай",
-          "Хэрэв энэ имэйл бүртгэлтэй бол нууц үг сэргээх линк имэйл хаягруу илгээгдсэн болно.",
-          [
-            {
-              text: "OK",
-              onPress: () => router.back(),
-            },
-          ]
+          `Түр нууц үг: ${response.data.tempPassword}\n\nЭнэ нууц үгээр нэвтэрч, шинэ нууц үг үүсгэнэ үү.\n\nХүчинтэй хугацаа: ${response.data.expiresIn}`,
+          [{ text: "OK" }]
         );
       }
     } catch (error: any) {
@@ -65,16 +53,26 @@ export default function ForgotPasswordScreen() {
       const errorMessage =
         error.response?.data?.message ||
         error.message ||
-        "Алдаа гарлаа. Дахин оролдоно уу.";
+        "Түр нууц үг үүсгэхэд алдаа гарлаа";
       Alert.alert("Алдаа", errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleCopyPassword = () => {
+    Clipboard.setString(tempPassword);
+    Alert.alert("Хуулагдлаа", "Түр нууц үг clipboard-д хуулагдлаа");
+  };
+
+  const handleGoToLogin = () => {
+    router.back();
+  };
+
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" />
+    <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
+      <StatusBar style={isDarkMode ? "light" : "dark"} />
+
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardView}
@@ -82,6 +80,7 @@ export default function ForgotPasswordScreen() {
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
           {/* Header */}
           <View style={styles.header}>
@@ -89,87 +88,157 @@ export default function ForgotPasswordScreen() {
               style={styles.backButton}
               onPress={() => router.back()}
             >
-              <Ionicons name="arrow-back" size={24} color={theme.gray900} />
+              <Ionicons name="arrow-back" size={24} color={themeColors.text} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Нууц үг сэргээх</Text>
-            <View style={styles.placeholder} />
           </View>
 
-          {/* Content */}
-          <View style={styles.content}>
-            {/* Icon */}
-            <View style={styles.iconContainer}>
-              <View style={styles.iconCircle}>
-                <Ionicons name="lock-closed" size={48} color={theme.brand600} />
-              </View>
-            </View>
+          {/* Icon */}
+          <View style={[styles.iconContainer, { backgroundColor: theme.brand100 }]}>
+            <Ionicons name="lock-closed-outline" size={48} color={theme.brand600} />
+          </View>
 
-            {/* Title and Description */}
-            <Text style={styles.title}>Нууц үг мартсан уу?</Text>
-            <Text style={styles.description}>
-              Бүртгэлтэй имэйл хаягаа оруулбал, нууц үг сэргээх линк имэйл хаягруу илгээгдэнэ.
-            </Text>
+          {/* Title */}
+          <Text style={[styles.title, { color: themeColors.text }]}>
+            Нууц үг сэргээх
+          </Text>
+          <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>
+            {showTempPassword
+              ? "Түр нууц үгээ хуулж аваад нэвтэрч орно уу"
+              : "Имэйл эсвэл утасны дугаараа оруулна уу. Танд түр нууц үг үүсгэгдэнэ."}
+          </Text>
 
-            {/* Email Input */}
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Имэйл хаяг</Text>
-              <View style={styles.inputWrapper}>
-                <Ionicons
-                  name="mail-outline"
-                  size={20}
-                  color={theme.gray500}
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="example@email.com"
-                  placeholderTextColor={theme.gray400}
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  editable={!loading}
-                />
-              </View>
-            </View>
-
-            {/* Submit Button */}
-            <TouchableOpacity
-              style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-              onPress={handleSubmit}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color={theme.white} />
-              ) : (
-                <>
-                  <Ionicons name="send" size={20} color={theme.white} />
-                  <Text style={styles.submitButtonText}>Илгээх</Text>
-                </>
-              )}
-            </TouchableOpacity>
-
-            {/* Success Message */}
-            {success && (
-              <View style={styles.successContainer}>
-                <Ionicons name="checkmark-circle" size={24} color={theme.success600} />
-                <Text style={styles.successText}>
-                  Имэйл илгээгдлээ. Имэйл хаягаа шалгана уу.
+          {!showTempPassword ? (
+            <>
+              {/* Input Field */}
+              <View style={styles.inputContainer}>
+                <Text style={[styles.label, { color: themeColors.text }]}>
+                  Имэйл / Утас
                 </Text>
+                <View style={[styles.inputWrapper, {
+                  backgroundColor: themeColors.inputBg,
+                  borderColor: themeColors.border
+                }]}>
+                  <Ionicons
+                    name="mail-outline"
+                    size={20}
+                    color={themeColors.textSecondary}
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    style={[styles.input, { color: themeColors.text }]}
+                    placeholder="example@email.com эсвэл 99999999"
+                    placeholderTextColor={themeColors.textSecondary}
+                    value={identifier}
+                    onChangeText={setIdentifier}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                  />
+                </View>
               </View>
-            )}
 
-            {/* Back to Login */}
-            <TouchableOpacity
-              style={styles.backToLogin}
-              onPress={() => router.back()}
-            >
-              <Text style={styles.backToLoginText}>
-                Нэвтрэх хуудас руу буцах
+              {/* Submit Button */}
+              <TouchableOpacity
+                style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+                onPress={handleRequestTempPassword}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color={theme.white} />
+                ) : (
+                  <>
+                    <Ionicons name="key-outline" size={20} color={theme.white} />
+                    <Text style={styles.submitButtonText}>Түр нууц үг авах</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              {/* Temporary Password Display */}
+              <View style={[styles.tempPasswordCard, { backgroundColor: theme.success100 }]}>
+                <View style={styles.tempPasswordHeader}>
+                  <Ionicons name="checkmark-circle" size={24} color={theme.success600} />
+                  <Text style={[styles.tempPasswordTitle, { color: theme.success800 }]}>
+                    Түр нууц үг үүсгэгдлээ
+                  </Text>
+                </View>
+
+                <View style={[styles.tempPasswordBox, { backgroundColor: themeColors.surface }]}>
+                  <Text style={[styles.tempPasswordLabel, { color: themeColors.textSecondary }]}>
+                    Түр нууц үг:
+                  </Text>
+                  <View style={styles.tempPasswordRow}>
+                    <Text style={[styles.tempPasswordValue, { color: themeColors.text }]}>
+                      {tempPassword}
+                    </Text>
+                    <TouchableOpacity onPress={handleCopyPassword}>
+                      <Ionicons name="copy-outline" size={24} color={theme.brand600} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <View style={[styles.infoBox, { backgroundColor: theme.warning100 }]}>
+                  <Ionicons name="time-outline" size={20} color={theme.warning700} />
+                  <Text style={[styles.infoText, { color: theme.warning800 }]}>
+                    Энэ нууц үг 24 цагийн турш хүчинтэй байна
+                  </Text>
+                </View>
+
+                <View style={[styles.instructionsBox, { backgroundColor: themeColors.surface }]}>
+                  <Text style={[styles.instructionsTitle, { color: themeColors.text }]}>
+                    Дараагийн алхамууд:
+                  </Text>
+                  <View style={styles.instructionStep}>
+                    <Text style={[styles.stepNumber, { color: theme.brand600, backgroundColor: theme.brand100 }]}>1</Text>
+                    <Text style={[styles.stepText, { color: themeColors.textSecondary }]}>
+                      Түр нууц үгээ хуулж авна уу
+                    </Text>
+                  </View>
+                  <View style={styles.instructionStep}>
+                    <Text style={[styles.stepNumber, { color: theme.brand600, backgroundColor: theme.brand100 }]}>2</Text>
+                    <Text style={[styles.stepText, { color: themeColors.textSecondary }]}>
+                      Нэвтрэх хуудас руу буцна уу
+                    </Text>
+                  </View>
+                  <View style={styles.instructionStep}>
+                    <Text style={[styles.stepNumber, { color: theme.brand600, backgroundColor: theme.brand100 }]}>3</Text>
+                    <Text style={[styles.stepText, { color: themeColors.textSecondary }]}>
+                      Түр нууц үгээр нэвтэрнэ үү
+                    </Text>
+                  </View>
+                  <View style={styles.instructionStep}>
+                    <Text style={[styles.stepNumber, { color: theme.brand600, backgroundColor: theme.brand100 }]}>4</Text>
+                    <Text style={[styles.stepText, { color: themeColors.textSecondary }]}>
+                      Шинэ нууц үг үүсгэнэ үү
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Go to Login Button */}
+              <TouchableOpacity
+                style={[styles.loginButton, { backgroundColor: theme.brand600 }]}
+                onPress={handleGoToLogin}
+              >
+                <Ionicons name="log-in-outline" size={20} color={theme.white} />
+                <Text style={styles.loginButtonText}>Нэвтрэх хуудас руу очих</Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {/* Back to Login Link */}
+          {!showTempPassword && (
+            <View style={styles.backToLoginContainer}>
+              <Text style={[styles.backToLoginText, { color: themeColors.textSecondary }]}>
+                Нууц үгээ санаж байна уу?{" "}
               </Text>
-            </TouchableOpacity>
-          </View>
+              <TouchableOpacity onPress={handleGoToLogin}>
+                <Text style={[styles.backToLoginLink, { color: theme.brand600 }]}>
+                  Нэвтрэх
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -179,62 +248,45 @@ export default function ForgotPasswordScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.white,
   },
   keyboardView: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
+    paddingHorizontal: 24,
     paddingBottom: 32,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    marginTop: 16,
+    marginBottom: 24,
   },
   backButton: {
     width: 40,
     height: 40,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: theme.gray900,
-  },
-  placeholder: {
-    width: 40,
-  },
-  content: {
-    paddingHorizontal: 24,
-    paddingTop: 32,
-  },
   iconContainer: {
-    alignItems: "center",
-    marginBottom: 32,
-  },
-  iconCircle: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: theme.brand100,
     alignItems: "center",
     justifyContent: "center",
+    alignSelf: "center",
+    marginBottom: 24,
   },
   title: {
     fontSize: 28,
-    fontWeight: "800",
-    color: theme.gray900,
+    fontWeight: "700",
     textAlign: "center",
     marginBottom: 12,
   },
-  description: {
+  subtitle: {
     fontSize: 15,
-    color: theme.gray600,
     textAlign: "center",
     lineHeight: 22,
     marginBottom: 32,
@@ -246,73 +298,142 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: "600",
-    color: theme.gray900,
     marginBottom: 8,
   },
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: theme.gray50,
+    borderWidth: 1,
     borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: theme.gray200,
     paddingHorizontal: 16,
-    height: 56,
   },
   inputIcon: {
     marginRight: 12,
   },
   input: {
     flex: 1,
-    fontSize: 16,
-    color: theme.gray900,
+    height: 52,
+    fontSize: 15,
   },
   submitButton: {
+    backgroundColor: theme.brand600,
+    borderRadius: 12,
+    height: 52,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: theme.brand600,
-    borderRadius: 12,
-    height: 56,
     gap: 8,
-    shadowColor: theme.brand600,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    marginBottom: 24,
   },
   submitButtonDisabled: {
     opacity: 0.6,
   },
   submitButtonText: {
-    fontSize: 16,
-    fontWeight: "700",
     color: theme.white,
+    fontSize: 16,
+    fontWeight: "600",
   },
-  successContainer: {
+  tempPasswordCard: {
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+  },
+  tempPasswordHeader: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: theme.success50,
+    gap: 12,
+    marginBottom: 16,
+  },
+  tempPasswordTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  tempPasswordBox: {
     borderRadius: 12,
     padding: 16,
-    marginTop: 16,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: theme.success200,
+    marginBottom: 16,
   },
-  successText: {
+  tempPasswordLabel: {
+    fontSize: 13,
+    marginBottom: 8,
+  },
+  tempPasswordRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  tempPasswordValue: {
+    fontSize: 24,
+    fontWeight: "700",
+    letterSpacing: 2,
+    fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
+  },
+  infoBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  infoText: {
+    fontSize: 13,
+    flex: 1,
+    fontWeight: "500",
+  },
+  instructionsBox: {
+    borderRadius: 12,
+    padding: 16,
+  },
+  instructionsTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    marginBottom: 12,
+  },
+  instructionStep: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    marginBottom: 10,
+  },
+  stepNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    textAlign: "center",
+    lineHeight: 24,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  stepText: {
     flex: 1,
     fontSize: 14,
-    color: theme.success700,
-    lineHeight: 20,
+    lineHeight: 24,
   },
-  backToLogin: {
-    marginTop: 24,
+  loginButton: {
+    borderRadius: 12,
+    height: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: 24,
+  },
+  loginButtonText: {
+    color: theme.white,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  backToLoginContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
     alignItems: "center",
   },
   backToLoginText: {
     fontSize: 14,
-    color: theme.brand600,
+  },
+  backToLoginLink: {
+    fontSize: 14,
     fontWeight: "600",
   },
 });

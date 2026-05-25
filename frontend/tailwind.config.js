@@ -5,33 +5,55 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Primary brand colors (Orange #FFA239)
+        // Map to CSS variable tokens
+        bn: {
+          primary: 'var(--bn-primary)',
+          'primary-light': 'var(--bn-primary-light)',
+          'primary-dark': 'var(--bn-primary-dark)',
+          success: 'var(--bn-success)',
+          'success-light': 'var(--bn-success-light)',
+          warning: 'var(--bn-warning)',
+          'warning-light': 'var(--bn-warning-light)',
+          danger: 'var(--bn-danger)',
+          'danger-light': 'var(--bn-danger-light)',
+          info: 'var(--bn-info)',
+          'info-light': 'var(--bn-info-light)',
+          bg: 'var(--bn-bg)',
+          'bg-secondary': 'var(--bn-bg-secondary)',
+          surface: 'var(--bn-surface)',
+          'surface-hover': 'var(--bn-surface-hover)',
+          text: 'var(--bn-text)',
+          'text-secondary': 'var(--bn-text-secondary)',
+          'text-tertiary': 'var(--bn-text-tertiary)',
+          border: 'var(--bn-border)',
+          divider: 'var(--bn-divider)',
+        },
+        // Keep primary for existing Tailwind classes
         primary: {
-          50: '#FFF5EB',
-          100: '#FFE5CC',
-          200: '#FFD6AD',
-          300: '#FFC68F',
-          400: '#FFB464',
-          500: '#FFA239', // Main brand color
-          600: '#E68A1F',
-          700: '#CC7100',
-          800: '#995500',
-          900: '#664000',
+          50: '#EEF2FF',
+          100: '#E0E7FF',
+          200: '#C7D2FE',
+          300: '#A5B4FC',
+          400: '#818CF8',
+          500: '#6366F1',
+          600: '#4F46E5',
+          700: '#4338CA',
+          800: '#3730A3',
+          900: '#312E81',
         },
-        // Keep existing brand colors for compatibility
-        brand: {
-          50: '#FFF8F3',
-          100: '#FFE6D6',
-          200: '#FFD4B3',
-          300: '#FFB37A',
-          400: '#FF9447',
-          500: '#FF7F1A',
-          600: '#FF6A00',
-          700: '#E45700',
-          800: '#B84500',
-          900: '#8C3400',
+        // Amber accent — prices, timers, money signals only
+        accent: {
+          50: '#FFFBEB',
+          100: '#FEF3C7',
+          200: '#FDE68A',
+          300: '#FCD34D',
+          400: '#FBBF24',
+          500: '#F59E0B',
+          600: '#D97706',
+          700: '#B45309',
+          800: '#92400E',
+          900: '#78350F',
         },
-        // Neutral grays (Stripe-inspired)
         neutral: {
           50: '#FAFAFA',
           100: '#F5F5F5',
@@ -44,32 +66,37 @@ export default {
           800: '#262626',
           900: '#171717',
         },
-        gray: {
-          50: '#F8FAFC',
-          100: '#F1F5F9',
-          200: '#E2E8F0',
-          300: '#CBD5E1',
-          400: '#94A3B8',
-          500: '#64748B',
-          600: '#475569',
-          700: '#334155',
-          800: '#1E293B',
-          900: '#0F172A',
-        },
+      },
+      fontFamily: {
+        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
       },
       boxShadow: {
-        'soft': '0 2px 8px rgba(0, 0, 0, 0.04)',
-        'soft-md': '0 4px 16px rgba(0, 0, 0, 0.06)',
-        'soft-lg': '0 8px 32px rgba(0, 0, 0, 0.08)',
-        'airbnb': '0 2px 16px rgba(0, 0, 0, 0.12)',
+        'xs': 'var(--bn-shadow-xs)',
+        'card': 'var(--bn-shadow-card)',
+        'card-hover': 'var(--bn-shadow-card-hover)',
+        'soft': 'var(--bn-shadow-sm)',
+        'soft-md': 'var(--bn-shadow-md)',
+        'soft-lg': 'var(--bn-shadow-lg)',
+        'airbnb': 'var(--bn-shadow-lg)',
       },
       borderRadius: {
-        'xl': '1rem',
-        '2xl': '1.5rem',
+        'bn-sm': 'var(--bn-radius-sm)',
+        'bn-md': 'var(--bn-radius-md)',
+        'bn-lg': 'var(--bn-radius-lg)',
+        'bn-xl': 'var(--bn-radius-xl)',
+        'bn-2xl': 'var(--bn-radius-2xl)',
+      },
+      maxWidth: {
+        'bn': 'var(--bn-max-width)',
       },
       spacing: {
         '18': '4.5rem',
         '88': '22rem',
+        'header': 'var(--bn-header-height)',
+      },
+      transitionTimingFunction: {
+        'bn': 'var(--bn-ease)',
+        'bn-bounce': 'var(--bn-ease-bounce)',
       },
       animation: {
         'fade-in': 'fadeIn 0.3s ease-in-out',
@@ -94,4 +121,3 @@ export default {
   },
   plugins: [],
 }
-

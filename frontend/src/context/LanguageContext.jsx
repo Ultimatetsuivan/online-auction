@@ -34,7 +34,7 @@ const translations = {
     recommendedProducts: 'Санал болгосон бараа',
     viewAll: 'Бүгдийг харах',
     placeBid: 'Санал тавих',
-    currentBid: 'Одоогийн санал:',
+    currentBid: 'Одоо зарагдаж байгаа үнэ:',
     timeLeft: 'Өдөр:',
     items: 'ширхэг',
 
@@ -43,7 +43,6 @@ const translations = {
     hours: 'цаг',
     minutes: 'минут',
     seconds: 'секунд',
-    auctionEnded: 'Зарагдсан',
     daysShort: 'ө',
     hoursShort: 'ц',
     minutesShort: 'м',
@@ -64,8 +63,7 @@ const translations = {
     
     // Search
     searchPlaceholder: 'Хайж буй бараагаа зөвхөн эндээс',
-      searchButtonLabel: 'Search',
-      searchButtonLabel: 'Хайх',
+    searchButtonLabel: 'Хайх',
     browseCategories: 'Бүх ангилал үзэх',
     browseBrands: 'Бүх брэнд үзэх',
     recentlySearched: 'Сүүлийн хайлтууд',
@@ -98,7 +96,6 @@ const translations = {
     // Filters
     filter: 'Шүүлтүүр',
     category: 'Ангилал',
-    allCategories: 'Бүх ангилал',
     brand: 'Брэнд',
     allBrands: 'Бүх брэнд',
     priceRange: 'Үнийн хязгаар',
@@ -106,7 +103,6 @@ const translations = {
     maxPrice: 'Хамгийн их',
     condition: 'Байдал',
     all: 'Бүгд',
-    new: 'Шинэ',
     likeNew: 'Шинэ дүйтэй',
     used: 'Хэрэглэсэн',
     refurbished: 'Сэргээгдсэн',
@@ -123,7 +119,6 @@ const translations = {
     clearFilters: 'Бүх шүүлтүүр цэвэрлэх',
     color: 'Өнгө',
     size: 'Хэмжээ',
-    seller: 'Борлуулагч',
     verifiedSeller: 'Баталгаажсан',
     allSellers: 'Бүх борлуулагч',
     discount: 'Хөнгөлөлт',
@@ -175,7 +170,6 @@ const translations = {
     price: 'Үнэ',
     seller: 'Худалдагч',
     date: 'Огноо',
-    loading: 'Уншиж байна...',
     noTransactions: 'Гүйлгээний түүх хоосон байна',
     yourTransactions: 'Таны хийсэн гүйлгээ энд харагдана',
     unknownProduct: 'Тодорхойгүй бараа',
@@ -208,7 +202,6 @@ const translations = {
     details: 'Дэлгэрэнгүй',
     sell: 'Зарах',
     edit: 'Засах',
-    delete: 'Устгах',
     noProductsYet: 'Одоогоор бараа байхгүй байна',
     noSearchResults: 'гэсэн үр дүн олдсонгүй',
     confirmSell: 'Та энэ барааг',
@@ -234,12 +227,9 @@ const translations = {
     night: 'Шөнө',
     automotiveInfo: 'Автомашины мэдээлэл',
     manufacturer: 'Үйлдвэрлэгч',
-    model: 'Загвар',
     year: 'Жил',
     mileage: 'Гүйлт',
     engineSize: 'Хөдөлгүүрийн багтаамж',
-    fuelType: 'Түлшний төрөл',
-    transmission: 'Хурдны хайрцаг',
     additionalInfo: 'Нэмэлт мэдээлэл',
     dragOrSelect: 'Зураг чирж оруулах эсвэл сонгох',
     selectImages: 'Зураг сонгох',
@@ -378,6 +368,12 @@ const translations = {
     fullPaymentRequired: 'Бүрэн төлбөр шаардлагатай',
     withinDaysOfClose: 'дууссанаас хойш хоногийн дотор',
     varies: 'Харилцан',
+        //footer
+    quickLinks:"Шуурхай холбоос",
+    allProducts:"Бүх бараанууд",
+    help:"Тусламж",
+    contact:"Холбоо барих",
+    terms:"Үйлчилгээний нөхцөл"
   },
   EN: {
     // Navigation
@@ -410,7 +406,6 @@ const translations = {
     hours: 'hours',
     minutes: 'minutes',
     seconds: 'seconds',
-    auctionEnded: 'Auction Ended',
     daysShort: 'd',
     hoursShort: 'h',
     minutesShort: 'm',
@@ -459,7 +454,6 @@ const translations = {
     // Filters
     filter: 'Filter',
     category: 'Category',
-    allCategories: 'All Categories',
     brand: 'Brand',
     allBrands: 'All Brands',
     priceRange: 'Price Range',
@@ -467,7 +461,6 @@ const translations = {
     maxPrice: 'Max',
     condition: 'Condition',
     all: 'All',
-    new: 'New',
     likeNew: 'Like New',
     used: 'Used',
     refurbished: 'Refurbished',
@@ -484,7 +477,6 @@ const translations = {
     clearFilters: 'Clear All Filters',
     color: 'Color',
     size: 'Size',
-    seller: 'Seller',
     verifiedSeller: 'Verified Seller',
     allSellers: 'All Sellers',
     discount: 'Discount',
@@ -536,7 +528,6 @@ const translations = {
     price: 'Price',
     seller: 'Seller',
     date: 'Date',
-    loading: 'Loading...',
     noTransactions: 'No transaction history',
     yourTransactions: 'Your transactions will appear here',
     unknownProduct: 'Unknown Product',
@@ -569,7 +560,6 @@ const translations = {
     details: 'Details',
     sell: 'Sell',
     edit: 'Edit',
-    delete: 'Delete',
     noProductsYet: 'No products yet',
     noSearchResults: 'No results found for',
     confirmSell: 'Are you sure you want to sell this item for',
@@ -595,12 +585,9 @@ const translations = {
     night: 'Night',
     automotiveInfo: 'Automotive Information',
     manufacturer: 'Manufacturer',
-    model: 'Model',
     year: 'Year',
     mileage: 'Mileage',
     engineSize: 'Engine Size',
-    fuelType: 'Fuel Type',
-    transmission: 'Transmission',
     additionalInfo: 'Additional Information',
     dragOrSelect: 'Drag & drop or select images',
     selectImages: 'Select Images',
@@ -738,27 +725,19 @@ const translations = {
     fullPaymentRequired: 'Full payment is required within',
     withinDaysOfClose: 'days of listing close',
     varies: 'Varies',
+    //footer
+    quickLinks:"Quick Links"
   }
 };
 
 export const LanguageProvider = ({ children }) => {
-  const [language, setLanguage] = useState(() => {
-    // Load language from localStorage
-    const savedLanguage = localStorage.getItem('language');
-    return savedLanguage || 'MN';
-  });
+  const language = 'MN';
 
-  useEffect(() => {
-    // Save language to localStorage
-    localStorage.setItem('language', language);
-  }, [language]);
-
-  const toggleLanguage = () => {
-    setLanguage(prev => prev === 'MN' ? 'EN' : 'MN');
-  };
+  const setLanguage = () => {};
+  const toggleLanguage = () => {};
 
   const t = (key) => {
-    return translations[language]?.[key] || key;
+    return translations['MN']?.[key] || key;
   };
 
   const value = {

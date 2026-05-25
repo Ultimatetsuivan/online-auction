@@ -15,6 +15,7 @@ export const ImageUploader = ({
   onChange,
   maxImages = 10,
   maxSize = 5 * 1024 * 1024, // 5MB
+  thumbnailSize = 120,
   label,
   required = false,
   error,
@@ -22,6 +23,16 @@ export const ImageUploader = ({
   className = '',
 }) => {
   const [validationError, setValidationError] = useState('');
+
+  const buildPreview = (image) => {
+    if (!image) return null;
+    if (image.preview) return image.preview;
+    if (image.url) return image.url;
+    if (image.path) return image.path;
+    if (image.secure_url) return image.secure_url;
+    if (image.file) return URL.createObjectURL(image.file);
+    return null;
+  };
 
   const onDrop = useCallback(
     (acceptedFiles, rejectedFiles) => {
@@ -58,22 +69,22 @@ export const ImageUploader = ({
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: {
-      'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp'],
-    },
     maxSize,
     multiple: true,
   });
 
-  const removeImage = (id) => {
-    const filtered = images.filter((img) => img.id !== id);
+  const removeImage = (idOrIndex) => {
+    const filtered = images.filter((img, idx) => (img.id ?? idx) !== idOrIndex);
     onChange(filtered);
   };
 
   const currentError = error || validationError;
+  const rootProps = getRootProps();
+  const inputProps = getInputProps();
 
   return (
     <div className={clsx('form-group-modern', className)}>
+      <input {...inputProps} style={{ display: 'none' }} />
       {label && (
         <label className="label-modern">
           {label}
@@ -81,47 +92,47 @@ export const ImageUploader = ({
         </label>
       )}
 
-      {/* Dropzone */}
-      <div
-        {...getRootProps()}
-        className={clsx(
-          'border-2 border-dashed rounded-lg transition-all duration-200 cursor-pointer',
-          isDragActive
-            ? 'border-primary-500 bg-primary-50'
-            : currentError
-            ? 'border-red-500 bg-red-50'
-            : 'border-neutral-300 bg-neutral-50 hover:border-primary-400 hover:bg-primary-50',
-          'p-8 text-center'
-        )}
-      >
-        <input {...getInputProps()} />
-
-        <motion.div
-          animate={isDragActive ? { scale: 1.05 } : { scale: 1 }}
-          transition={{ duration: 0.2 }}
-        >
-          <FiUpload
-            className={clsx(
-              'mx-auto mb-3',
-              isDragActive ? 'text-primary-500' : 'text-neutral-400'
-            )}
-            size={48}
-          />
-
-          {isDragActive ? (
-            <p className="text-primary-600 font-medium">Drop images here...</p>
-          ) : (
-            <>
-              <p className="text-neutral-700 font-medium mb-1">
-                Drag & drop images here, or click to select
-              </p>
-              <p className="text-sm text-neutral-500">
-                {maxImages} images max, up to {maxSize / 1024 / 1024}MB each
-              </p>
-            </>
+      {/* Dropzone (only when empty) */}
+      {images.length === 0 && (
+        <div
+          {...rootProps}
+          className={clsx(
+            'border-2 border-dashed rounded-lg transition-all duration-200 cursor-pointer',
+            isDragActive
+              ? 'border-primary-500 bg-primary-50'
+              : currentError
+              ? 'border-red-500 bg-red-50'
+              : 'border-neutral-300 bg-neutral-50 hover:border-primary-400 hover:bg-primary-50',
+            'p-8 text-center'
           )}
-        </motion.div>
-      </div>
+        >
+          <motion.div
+            animate={isDragActive ? { scale: 1.05 } : { scale: 1 }}
+            transition={{ duration: 0.2 }}
+          >
+            <FiUpload
+              className={clsx(
+                'mx-auto mb-3',
+                isDragActive ? 'text-primary-500' : 'text-neutral-400'
+              )}
+              size={48}
+            />
+
+            {isDragActive ? (
+              <p className="text-primary-600 font-medium">Зургуудыг энд оруулна уу...</p>
+            ) : (
+              <>
+                <p className="text-neutral-700 font-medium mb-1">
+                  Зурагыг чирж оруулах, эсвэл дарж сонгоно уу
+                </p>
+                <p className="text-sm text-neutral-500">
+                  Хамгийн ихдээ {maxImages} зураг, тус бүр {maxSize / 1024 / 1024}МБ
+                </p>
+              </>
+            )}
+          </motion.div>
+        </div>
+      )}
 
       {/* Error Message */}
       {currentError && (
@@ -136,76 +147,90 @@ export const ImageUploader = ({
         <p className="helper-text mt-1.5">{helperText}</p>
       )}
 
-      {/* Image Preview Grid */}
-      <AnimatePresence>
-        {images.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 mt-4"
-          >
-            {images.map((image, index) => (
-              <motion.div
-                key={image.id}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ delay: index * 0.05 }}
-                className="relative group aspect-square rounded-lg overflow-hidden border-2 border-neutral-200 bg-neutral-100"
-              >
-                {/* Image */}
-                <img
-                  src={image.preview || image.url}
-                  alt={`Upload ${index + 1}`}
-                  className="w-full h-full object-cover"
-                />
+      {/* Image Preview Grid + Hero */}
+      {images.length > 0 && (
+        <div className="mt-4">
+          <div className="w-100 mb-3 rounded border border-neutral-200 overflow-hidden" style={{ minHeight: 260 }}>
+            <div className="position-relative w-100" style={{ paddingBottom: '56.25%' }}>
+              <img
+                src={buildPreview(images[0])}
+                alt="Cover"
+                className="position-absolute top-0 start-0 w-100 h-100"
+                style={{ objectFit: 'cover' }}
+              />
+              <div className="position-absolute top-2 end-2 d-flex gap-2">
+                <span className="badge bg-primary">Нүүр зураг</span>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-light"
+                  onClick={() => removeImage(images[0].id ?? 0)}
+                >
+                  <FiX />
+                </button>
+              </div>
+            </div>
+          </div>
 
-                {/* Overlay on Hover */}
-                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-200 flex items-center justify-center">
+          <div className="d-flex flex-wrap gap-3">
+            {images.slice(1).map((image, idx) => {
+              const src = buildPreview(image);
+              const key = image.id ?? idx + 1;
+              return (
+                <motion.div
+                  key={key}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="position-relative rounded border border-neutral-200 bg-neutral-100 overflow-hidden"
+                  style={{ width: thumbnailSize, height: thumbnailSize }}
+                >
+                  {src ? (
+                    <img
+                      src={src}
+                      alt={`Upload ${idx + 2}`}
+                      className="w-100 h-100"
+                      style={{ objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <div className="w-100 h-100 d-flex align-items-center justify-content-center text-muted">
+                      <FiImage size={32} />
+                    </div>
+                  )}
                   <button
                     type="button"
+                    className="btn btn-sm btn-light position-absolute top-50 start-50 translate-middle"
                     onClick={(e) => {
                       e.stopPropagation();
-                      removeImage(image.id);
+                      removeImage(image.id ?? idx + 1);
                     }}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-red-500 text-white p-2 rounded-full hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                    style={{ opacity: 0.9 }}
                   >
-                    <FiX size={20} />
+                    <FiX />
                   </button>
-                </div>
+                </motion.div>
+              );
+            })}
 
-                {/* First Image Badge */}
-                {index === 0 && (
-                  <div className="absolute top-2 left-2 bg-primary-500 text-white text-xs font-semibold px-2 py-1 rounded-md">
-                    Cover
-                  </div>
-                )}
-              </motion.div>
-            ))}
-
-            {/* Add More Button */}
             {images.length < maxImages && (
               <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
+                initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: images.length * 0.05 }}
-                {...getRootProps()}
-                className="aspect-square rounded-lg border-2 border-dashed border-neutral-300 bg-neutral-50 hover:border-primary-400 hover:bg-primary-50 transition-all duration-200 cursor-pointer flex flex-col items-center justify-center gap-2"
+                className="d-flex flex-column align-items-center justify-content-center border border-dashed border-secondary rounded"
+                style={{ width: thumbnailSize, height: thumbnailSize, cursor: 'pointer', background: '#f8fafc' }}
+                {...rootProps}
               >
-                <FiImage className="text-neutral-400" size={32} />
-                <span className="text-xs text-neutral-600 font-medium">Add More</span>
+                <FiImage className="text-secondary mb-1" size={28} />
+                <span className="text-xs text-secondary text-center">Нэмэх</span>
               </motion.div>
             )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
 
-      {/* Image Count */}
-      {images.length > 0 && (
-        <p className="text-sm text-neutral-600 mt-3">
-          {images.length} of {maxImages} images uploaded
-        </p>
+          <p className="text-sm text-neutral-600 mt-3 mb-0">
+            {maxImages}-аас {images.length} зураг оруулсан
+          </p>
+          <p className="text-sm text-neutral-500 mt-1">
+            Эхний зураг нүүр зураг болно.
+          </p>
+        </div>
       )}
     </div>
   );

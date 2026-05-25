@@ -1,40 +1,40 @@
 // app/theme.ts
 const theme = {
-  // Brand colors - Orange palette (#FFA239)
-  brand50: "#FFF5EB",
-  brand100: "#FFE5CC",
-  brand200: "#FFD6AD",
-  brand300: "#FFC68F",
-  brand400: "#FFB464",
-  brand500: "#FFA239",
-  brand600: "#FFA239",
-  brand700: "#E68A1F",
-  brand800: "#CC7100",
-  brand900: "#995500",
+  // Brand colors - Indigo palette (#4F46E5)
+  brand50: "#EEF2FF",
+  brand100: "#E0E7FF",
+  brand200: "#C7D2FE",
+  brand300: "#A5B4FC",
+  brand400: "#818CF8",
+  brand500: "#6366F1",
+  brand600: "#4F46E5",
+  brand700: "#4338CA",
+  brand800: "#3730A3",
+  brand900: "#312E81",
 
-  // Secondary colors - Blue palette (#8CE4FF)
-  secondary50: "#E6F9FF",
-  secondary100: "#CCF3FF",
-  secondary200: "#B3EDFF",
-  secondary300: "#9AE7FF",
-  secondary400: "#8CE4FF",
-  secondary500: "#8CE4FF",
-  secondary600: "#66D4F7",
-  secondary700: "#40C4EE",
-  secondary800: "#1AB4E6",
-  secondary900: "#00A4DD",
+  // Accent colors - Amber palette (#F59E0B) — used for prices & timers only
+  secondary50: "#FFFBEB",
+  secondary100: "#FEF3C7",
+  secondary200: "#FDE68A",
+  secondary300: "#FCD34D",
+  secondary400: "#FBBF24",
+  secondary500: "#F59E0B",
+  secondary600: "#D97706",
+  secondary700: "#B45309",
+  secondary800: "#92400E",
+  secondary900: "#78350F",
 
-  // Warning colors - Yellow palette (#FEEE91)
-  warning50: "#FFFEF5",
-  warning100: "#FFFDE0",
-  warning200: "#FFFBCC",
-  warning300: "#FFF9B8",
-  warning400: "#FFF3A4",
-  warning500: "#FEEE91",
-  warning600: "#FEEE91",
-  warning700: "#F5E370",
-  warning800: "#ECD74F",
-  warning900: "#E3CB2E",
+  // Warning colors - Amber (reuse accent scale)
+  warning50: "#FFFBEB",
+  warning100: "#FEF3C7",
+  warning200: "#FDE68A",
+  warning300: "#FCD34D",
+  warning400: "#FBBF24",
+  warning500: "#F59E0B",
+  warning600: "#D97706",
+  warning700: "#B45309",
+  warning800: "#92400E",
+  warning900: "#78350F",
 
   // Danger colors - Red palette (#FF5656)
   danger50: "#FFEBEB",
@@ -93,25 +93,25 @@ const theme = {
 export default theme;
 
 const marketplaceTheme = {
-  brand: "#FFA239",
-  background: "#FFFFFF",
-  text: "#0F172A",
-  accent: "#8CE4FF",
-  warning: "#FEEE91",
-  danger: "#FF5656",
-  surface: "#F8FAFC",
-  border: "#E2E8F0",
+  brand: "#4F46E5",
+  background: "#F9FAFB",
+  text: "#111827",
+  accent: "#F59E0B",
+  warning: "#F59E0B",
+  danger: "#EF4444",
+  surface: "#FFFFFF",
+  border: "#E5E7EB",
 };
 
 const carTheme = {
-  brand: "#8CE4FF",
-  background: "#FFFFFF",
-  text: "#0F172A",
-  accent: "#FFA239",
-  warning: "#FEEE91",
-  danger: "#FF5656",
-  surface: "#F8FAFC",
-  border: "#E2E8F0",
+  brand: "#4F46E5",
+  background: "#F9FAFB",
+  text: "#111827",
+  accent: "#F59E0B",
+  warning: "#F59E0B",
+  danger: "#EF4444",
+  surface: "#FFFFFF",
+  border: "#E5E7EB",
 };
 
 export const themes = {

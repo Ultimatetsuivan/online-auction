@@ -1,12 +1,10 @@
-import "bootstrap/dist/css/bootstrap.min.css";
-import "../../index.css";
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import axios from "axios";
 import { buildApiUrl } from "../../config/api";
 import { useLanguage } from "../../context/LanguageContext";
 import { useTheme } from "../../context/ThemeContext";
-import { MercariProductCard } from "../../components/MercariProductCard";
+import { ProductCard, Container, Badge, Button } from "../../components/design-system";
 
 export const Categories = () => {
   const navigate = useNavigate();
@@ -21,6 +19,7 @@ export const Categories = () => {
   const [products, setProducts] = useState([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState(null);
   const [showProducts, setShowProducts] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -45,7 +44,6 @@ export const Categories = () => {
 
         if (categoryId) {
           if (viewProducts) {
-            // leaf → go to /allproduct with filters (same as before)
             navigate(`/allproduct?category=${categoryId}`, { replace: true });
             return;
           }
@@ -53,7 +51,6 @@ export const Categories = () => {
           setShowProducts(false);
           loadCategoryHierarchy(cats, categoryId);
         } else {
-          // root level – only parent categories (same as home quick links)
           const parentCategories = cats.filter((c) => {
             if (!c.parent) return true;
             if (
@@ -104,13 +101,10 @@ export const Categories = () => {
       path.unshift(current);
       if (!current.parent) break;
 
-      // Get parent ID - handle both populated and non-populated cases
       let parentId;
       if (typeof current.parent === "object" && current.parent !== null) {
-        // Parent is populated - get the _id field
         parentId = current.parent._id?.toString();
       } else if (current.parent) {
-        // Parent is just an ID string
         parentId = current.parent.toString();
       }
 
@@ -124,13 +118,10 @@ export const Categories = () => {
     const children = allCategories.filter((c) => {
       if (!c.parent) return false;
 
-      // Get parent ID - handle both populated and non-populated cases
       let parentId;
       if (typeof c.parent === "object" && c.parent !== null) {
-        // Parent is populated - get the _id field
         parentId = c.parent._id?.toString();
       } else if (c.parent) {
-        // Parent is just an ID string
         parentId = c.parent.toString();
       }
 
@@ -146,13 +137,10 @@ export const Categories = () => {
     const children = categories.filter((c) => {
       if (!c.parent) return false;
 
-      // Get parent ID - handle both populated and non-populated cases
       let parentId;
       if (typeof c.parent === "object" && c.parent !== null) {
-        // Parent is populated - get the _id field
         parentId = c.parent._id?.toString();
       } else if (c.parent) {
-        // Parent is just an ID string
         parentId = c.parent.toString();
       }
 
@@ -166,7 +154,6 @@ export const Categories = () => {
       setShowProducts(false);
       navigate(`/categories?categoryid=${category._id}`);
     } else {
-      // leaf → go to allproduct (same behavior as before)
       navigate(`/allproduct?category=${category._id}`);
     }
   };
@@ -195,7 +182,6 @@ export const Categories = () => {
     }
   };
 
-  // Helper function to get all subcategory IDs recursively
   const getAllSubcategoryIds = (categoryId) => {
     const subcats = categories.filter((c) => {
       if (!c.parent) return false;
@@ -215,7 +201,6 @@ export const Categories = () => {
     return allIds;
   };
 
-  // Get product count including subcategories
   const getProductCountWithSubcategories = (categoryId) => {
     const categoryIds = getAllSubcategoryIds(categoryId);
     return products.filter((p) => {
@@ -227,14 +212,11 @@ export const Categories = () => {
     }).length;
   };
 
-  // Get icon for category based on name or icon field
   const getCategoryIcon = (category) => {
-    // If icon is emoji (1-2 chars), return null to display as text instead
     if (category?.icon && category.icon.length <= 2) {
-      return null; // Will be handled separately as emoji text
+      return null;
     }
 
-    // Map Ionicons names to Bootstrap Icons names
     const iconMap = {
       "cube-outline": "box",
       "cube": "box",
@@ -252,65 +234,46 @@ export const Categories = () => {
       "bicycle-outline": "bicycle",
     };
 
-    // If icon field exists and has a mapping, use it
     if (category?.icon && iconMap[category.icon]) {
       return iconMap[category.icon];
     }
 
-    // Otherwise map based on category name
     const title = (category?.titleMn || category?.title || category?.name || "").toLowerCase();
 
-    if (title.includes("гэр ахуй") || title.includes("home") || title.includes("household")) {
-      return "house-heart";
-    }
-    if (title.includes("хувцас") || title.includes("загвар") || title.includes("clothing") || title.includes("fashion")) {
-      return "bag";
-    }
-    if (title.includes("электроникс") || title.includes("it") || title.includes("electronics")) {
-      return "laptop";
-    }
-    if (title.includes("хүүхэд") || title.includes("нялх") || title.includes("children") || title.includes("baby")) {
-      return "heart";
-    }
-    if (title.includes("тээвэр") || title.includes("машин") || title.includes("vehicle") || title.includes("car")) {
-      return "car-front";
-    }
-    if (title.includes("гоо") || title.includes("сайхан") || title.includes("beauty")) {
-      return "heart-fill";
-    }
-    if (title.includes("тэжээвэр") || title.includes("амьтан") || title.includes("pet")) {
-      return "heart";
-    }
-    if (title.includes("хобби") || title.includes("зугаа") || title.includes("hobby") || title.includes("entertainment")) {
-      return "controller";
-    }
-    if (title.includes("ажил") || title.includes("үйлчилгээ") || title.includes("job") || title.includes("service")) {
-      return "briefcase";
-    }
-    if (title.includes("үл хөдлөх") || title.includes("хөрөнгө") || title.includes("real estate") || title.includes("property")) {
-      return "building";
-    }
-    if (title.includes("үйлдвэрлэл") || title.includes("бизнес") || title.includes("manufacturing") || title.includes("business")) {
-      return "shop";
-    }
+    if (title.includes("гэр ахуй") || title.includes("home") || title.includes("household")) return "house-heart";
+    if (title.includes("хувцас") || title.includes("загвар") || title.includes("clothing") || title.includes("fashion")) return "bag";
+    if (title.includes("электроникс") || title.includes("it") || title.includes("electronics")) return "laptop";
+    if (title.includes("хүүхэд") || title.includes("нялх") || title.includes("children") || title.includes("baby")) return "heart";
+    if (title.includes("тээвэр") || title.includes("машин") || title.includes("vehicle") || title.includes("car")) return "car-front";
+    if (title.includes("гоо") || title.includes("сайхан") || title.includes("beauty")) return "heart-fill";
+    if (title.includes("тэжээвэр") || title.includes("амьтан") || title.includes("pet")) return "heart";
+    if (title.includes("хобби") || title.includes("зугаа") || title.includes("hobby") || title.includes("entertainment")) return "controller";
+    if (title.includes("ажил") || title.includes("үйлчилгээ") || title.includes("job") || title.includes("service")) return "briefcase";
+    if (title.includes("үл хөдлөх") || title.includes("хөрөнгө") || title.includes("real estate") || title.includes("property")) return "building";
+    if (title.includes("үйлдвэрлэл") || title.includes("бизнес") || title.includes("manufacturing") || title.includes("business")) return "shop";
 
-    return "folder"; // default icon
+    return "folder";
+  };
+
+  const formatPrice = (v) => `₮${Number(v || 0).toLocaleString()}`;
+  const formatTimeLeft = (deadline) => {
+    if (!deadline) return "Хугацаагүй";
+    const diff = new Date(deadline) - new Date();
+    if (diff <= 0) return "Дууссан";
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    if (days > 0) return `${days}ө ${hours % 24}ц үлдсэн`;
+    if (hours > 0) return `${hours}ц ${minutes % 60}м үлдсэн`;
+    return `${minutes}м үлдсэн`;
   };
 
   if (loading) {
     return (
-      <div className="d-flex justify-content-center align-items-center" style={{ height: "70vh" }}>
+      <div className="flex items-center justify-center min-h-[70vh]">
         <div className="text-center">
-          <div
-            className="spinner-grow"
-            role="status"
-            style={{ width: "3rem", height: "3rem", color: "#FF6A00" }}
-          >
-            <span className="visually-hidden">
-              {t("loading") || "Loading..."}
-            </span>
-          </div>
-          <p className="mt-3 fs-5 text-muted">{t("loading")}</p>
+          <div className="bn-spinner w-10 h-10 mx-auto"></div>
+          <p className="mt-3 text-bn-text-secondary">{t("loading")}</p>
         </div>
       </div>
     );
@@ -321,268 +284,207 @@ export const Categories = () => {
     : null;
 
   return (
-    <div
-      className="home-page"
-      style={{
-        background: isDarkMode
-          ? "linear-gradient(180deg, rgba(20, 20, 20, 1) 0%, rgba(30, 30, 30, 1) 100%)"
-          : "linear-gradient(180deg, rgba(255, 250, 245, 1) 0%, rgba(255, 255, 255, 1) 50%, rgba(250, 245, 240, 1) 100%)",
-        minHeight: "100vh",
-      }}
-    >
-      {/* Hero banner – smaller, but same feeling as home */}
-      <section
-        className="category-hero py-4"
-        style={{
-          backgroundColor: "#ff4b4b",
-          color: "white",
-        }}
-      >
-        <div className="container text-center">
-          <h2 className="fw-bold mb-1">
-            <i className="bi bi-folder-fill me-2"></i>
-            {t("categories") || "Categories"}
+    <div className="bg-bn-bg min-h-screen">
+      {/* Hero Banner */}
+      <section className="bg-gradient-to-br from-bn-primary to-primary-600 text-white py-8">
+        <Container className="text-center">
+          <h2 className="text-2xl font-bold mb-4">
+            <i className="bi bi-folder-fill mr-2"></i>
+            {t("categories") || "Ангилалууд"}
           </h2>
-          <p className="mb-0">
-            {language === "MN"
-              ? "Бүх ангиллыг нэг газраас шүүн хараарай"
-              : "Browse and discover items by category."}
+
+          {/* Search Bar */}
+          <div className="max-w-lg mx-auto">
+            <div className="flex">
+              <input
+                type="text"
+                className="flex-1 px-5 py-3 bg-white text-bn-text rounded-l-full border-0 focus:outline-none focus:ring-2 focus:ring-white/30"
+                placeholder="Ангилал хайх..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <button
+                className="px-6 py-3 bg-white text-bn-primary font-bold rounded-r-full hover:bg-gray-50 transition-colors"
+                type="button"
+                onClick={() => {
+                  if (searchQuery.trim()) {
+                    navigate(`/allproduct?search=${encodeURIComponent(searchQuery)}`);
+                  }
+                }}
+              >
+                <i className="bi bi-search"></i>
+              </button>
+            </div>
+          </div>
+
+          <p className="mt-4 text-white/80">
+            Бүх ангиллыг нэг газраас шүүн хараарай
           </p>
-        </div>
+        </Container>
       </section>
 
-      <section
-        className="py-4"
-        style={{
-          backgroundColor: isDarkMode ? "rgba(40,40,40,0.6)" : "rgba(255,255,255,0.9)",
-          borderBottom: "1px solid rgba(0,0,0,0.05)",
-        }}
-      >
-        <div className="container">
+      {/* Breadcrumb & Category Header */}
+      <section className="bg-bn-surface border-b border-bn-border py-4">
+        <Container>
           {/* Breadcrumb */}
           {(breadcrumb.length > 0 || selectedCategoryId) && (
-            <nav aria-label="breadcrumb" className="mb-3">
-              <ol className="breadcrumb mb-0">
-                <li className="breadcrumb-item">
-                  <button
-                    type="button"
-                    className="btn btn-link p-0 border-0"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setShowProducts(false);
-                      setSelectedCategoryId(null);
-                      handleBreadcrumbClick(-1);
-                    }}
-                    style={{ color: "#FF6A00", textDecoration: "none" }}
-                  >
-                    <i className="bi bi-house-door"></i>{" "}
-                    {t("allCategories") || "All Categories"}
-                  </button>
-                </li>
-                {breadcrumb.map((cat, index) => (
-                  <li
-                    key={cat._id}
-                    className={`breadcrumb-item ${
-                      index === breadcrumb.length - 1 && !selectedCategoryId
-                        ? "active"
-                        : ""
-                    }`}
-                  >
-                    {index === breadcrumb.length - 1 && !selectedCategoryId ? (
-                      <>
-                        {cat.icon && cat.icon.length <= 2 ? (
-                          <span className="me-1" style={{ fontSize: "1.2rem" }}>{cat.icon}</span>
-                        ) : (
-                          <i className={`bi bi-${getCategoryIcon(cat)} me-1`}></i>
-                        )}
-                        {cat.titleMn || cat.title}
-                      </>
-                    ) : (
-                      <button
-                        type="button"
-                        className="btn btn-link p-0 border-0"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setShowProducts(false);
-                          handleBreadcrumbClick(index);
-                        }}
-                        style={{ color: "#FF6A00", textDecoration: "none" }}
-                      >
-                        {cat.icon && cat.icon.length <= 2 ? (
-                          <span className="me-1" style={{ fontSize: "1.2rem" }}>{cat.icon}</span>
-                        ) : (
-                          <i className={`bi bi-${getCategoryIcon(cat)} me-1`}></i>
-                        )}
-                        {cat.titleMn || cat.title}
-                      </button>
-                    )}
-                  </li>
-                ))}
-                {selectedCategory && (
-                  <li className="breadcrumb-item active">
-                    {selectedCategory.icon && selectedCategory.icon.length <= 2 ? (
-                      <span className="me-1" style={{ fontSize: "1.2rem" }}>{selectedCategory.icon}</span>
-                    ) : (
-                      <i className={`bi bi-${getCategoryIcon(selectedCategory)} me-1`}></i>
-                    )}
+            <nav className="flex items-center gap-2 text-sm mb-3 flex-wrap">
+              <button
+                className="text-bn-primary hover:text-bn-primary-dark bg-transparent border-0 font-medium"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setShowProducts(false);
+                  setSelectedCategoryId(null);
+                  handleBreadcrumbClick(-1);
+                }}
+              >
+                <i className="bi bi-house-door mr-1"></i>
+                {t("allCategories") || "Бүх ангилалууд"}
+              </button>
+              {breadcrumb.map((cat, index) => (
+                <React.Fragment key={cat._id}>
+                  <span className="text-bn-text-secondary">/</span>
+                  {index === breadcrumb.length - 1 && !selectedCategoryId ? (
+                    <span className="text-bn-text font-medium">
+                      {cat.icon && cat.icon.length <= 2 && <span className="mr-1">{cat.icon}</span>}
+                      {!cat.icon || cat.icon.length > 2 ? <i className={`bi bi-${getCategoryIcon(cat)} mr-1`}></i> : null}
+                      {cat.titleMn || cat.title}
+                    </span>
+                  ) : (
+                    <button
+                      className="text-bn-primary hover:text-bn-primary-dark bg-transparent border-0 font-medium"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setShowProducts(false);
+                        handleBreadcrumbClick(index);
+                      }}
+                    >
+                      {cat.icon && cat.icon.length <= 2 && <span className="mr-1">{cat.icon}</span>}
+                      {!cat.icon || cat.icon.length > 2 ? <i className={`bi bi-${getCategoryIcon(cat)} mr-1`}></i> : null}
+                      {cat.titleMn || cat.title}
+                    </button>
+                  )}
+                </React.Fragment>
+              ))}
+              {selectedCategory && (
+                <>
+                  <span className="text-bn-text-secondary">/</span>
+                  <span className="text-bn-text font-medium">
+                    {selectedCategory.icon && selectedCategory.icon.length <= 2 && <span className="mr-1">{selectedCategory.icon}</span>}
+                    {!selectedCategory.icon || selectedCategory.icon.length > 2 ? <i className={`bi bi-${getCategoryIcon(selectedCategory)} mr-1`}></i> : null}
                     {selectedCategory.titleMn || selectedCategory.title}
-                  </li>
-                )}
-              </ol>
+                  </span>
+                </>
+              )}
             </nav>
           )}
 
-          {/* Header row: category title + View products btn (same orange style) */}
+          {/* Category Title + View Products */}
           {selectedCategory && (
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <div>
-                <h3
-                  className="mb-1 fw-bold d-flex align-items-center"
-                  style={{
-                    color: isDarkMode ? "var(--color-text)" : "#ff6a00",
-                  }}
-                >
-                  {selectedCategory.icon && selectedCategory.icon.length <= 2 ? (
-                    <span className="me-2" style={{ fontSize: "1.8rem" }}>{selectedCategory.icon}</span>
-                  ) : (
-                    <i className={`bi bi-${getCategoryIcon(selectedCategory)} me-2`} style={{ fontSize: "1.5rem" }}></i>
-                  )}
-                  {selectedCategory.titleMn || selectedCategory.title}
-                </h3>
-              </div>
-              <button
-                className="btn btn-sm text-white"
-                style={{ backgroundColor: "#FF6A00", borderColor: "#FF6A00" }}
-                onClick={() => handleViewProducts(selectedCategory)}
-              >
-                <i className="bi bi-grid-3x3-gap me-1"></i>
-                {t("viewProducts") || "View products"}
-              </button>
+            <div className="flex justify-between items-center">
+              <h3 className="text-xl font-bold text-bn-text flex items-center">
+                {selectedCategory.icon && selectedCategory.icon.length <= 2 ? (
+                  <span className="mr-2 text-2xl">{selectedCategory.icon}</span>
+                ) : (
+                  <i className={`bi bi-${getCategoryIcon(selectedCategory)} mr-2 text-bn-primary text-xl`}></i>
+                )}
+                {selectedCategory.titleMn || selectedCategory.title}
+              </h3>
+              <Button size="sm" onClick={() => handleViewProducts(selectedCategory)}>
+                <i className="bi bi-grid-3x3-gap mr-1"></i>
+                {t("viewProducts") || "Бараа харах"}
+              </Button>
             </div>
           )}
-        </div>
+        </Container>
       </section>
 
-      {/* Main content – same "section + container + grid" rhythm as Home */}
-      <section className="py-5">
-        <div className="container">
-          {/* If showProducts is ever enabled, use Mercari-style product grid */}
-          {showProducts ? (
-            <>
-              <div className="d-flex justify-content-between align-items-center mb-4">
-                <h4 className="mb-0">
-                  {selectedCategory?.titleMn || selectedCategory?.title}
-                </h4>
-                <button
-                  className="btn btn-sm btn-outline-secondary"
-                  onClick={() => setShowProducts(false)}
-                >
-                  <i className="bi bi-arrow-left me-1"></i>
-                  {t("backToCategories") || "Back to categories"}
-                </button>
+      {/* Main Content */}
+      <Container className="py-8">
+        {showProducts ? (
+          <>
+            <div className="flex justify-between items-center mb-6">
+              <h4 className="text-lg font-bold text-bn-text">
+                {selectedCategory?.titleMn || selectedCategory?.title}
+              </h4>
+              <Button size="sm" variant="outline" onClick={() => setShowProducts(false)}>
+                <i className="bi bi-arrow-left mr-1"></i>
+                {t("backToCategories") || "Ангилалруу буцах"}
+              </Button>
+            </div>
+            {getFilteredProducts().length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {getFilteredProducts().map((product) => (
+                  <ProductCard
+                    key={product._id}
+                    product={product}
+                    formatPrice={formatPrice}
+                    formatTimeLeft={formatTimeLeft}
+                  />
+                ))}
               </div>
-              {getFilteredProducts().length > 0 ? (
-                <div className="mercari-product-grid">
-                  {getFilteredProducts().map((product) => (
-                    <MercariProductCard
-                      key={product._id}
-                      product={product}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="alert alert-info text-center">
-                  {t("noProductsInCategory") ||
-                    "No products found in this category"}
-                </div>
-              )}
-            </>
-          ) : (
-            <>
-              <div className="d-flex justify-content-between align-items-center mb-4">
-                <h2 className="section-title mb-0">
-                  <i
-                    className="bi bi-grid-3x3-gap"
-                    style={{ color: "#FF6A00" }}
-                  ></i>
-                  <span className="ms-2">
-                    {t("categories") || "Categories"}
-                  </span>
-                </h2>
-                <Link
-                  to="/allproduct"
-                  className="view-all-link"
-                  style={{ color: "#FF6A00", fontWeight: "bold" }}
-                >
-                  {t("viewAll")} <i className="bi bi-arrow-right"></i>
-                </Link>
+            ) : (
+              <div className="text-center py-16 text-bn-text-secondary bg-bn-bg-secondary rounded-bn-lg">
+                {t("noProductsInCategory") || "Энэ ангилалд бараа олдсонгүй"}
               </div>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-bn-text flex items-center">
+                <i className="bi bi-grid-3x3-gap text-bn-primary mr-2"></i>
+                {t("categories") || "Ангилалууд"}
+              </h2>
+              <Link
+                to="/allproduct"
+                className="text-sm font-semibold text-bn-primary hover:text-bn-primary-dark no-underline"
+              >
+                {t("viewAll")} <i className="bi bi-arrow-right"></i>
+              </Link>
+            </div>
 
-              {/* Category GRID – same style as Home.CategoryCard */}
-              <div className="row">
-                {currentLevel.length > 0 ? (
-                  currentLevel.map((category) => {
-                    // count products in this category AND all subcategories
-                    const count = getProductCountWithSubcategories(category._id);
+            {/* Category Grid */}
+            {currentLevel.length > 0 ? (
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+                {currentLevel.map((category) => {
+                  const count = getProductCountWithSubcategories(category._id);
+                  const iconName = getCategoryIcon(category);
 
-                    const iconName = getCategoryIcon(category);
-                    const iconClass = `bi bi-${iconName}`;
-
-                    return (
-                      <div
-                        key={category._id}
-                        className="col-lg-2 col-md-3 col-sm-4 col-6 mb-3"
-                      >
-                        <button
-                          type="button"
-                          className="text-decoration-none w-100 border-0 bg-transparent"
-                          onClick={() => handleCategoryClick(category)}
-                        >
-                          <div className="card h-100 text-center p-3 hover-effect">
-                            <div className="mb-2 d-flex justify-content-center align-items-center" style={{ minHeight: "60px" }}>
-                              {category.icon && category.icon.length <= 2 ? (
-                                <span style={{ fontSize: "3rem", lineHeight: 1 }}>
-                                  {category.icon}
-                                </span>
-                              ) : (
-                                <i
-                                  className={iconClass}
-                                  style={{
-                                    color: "#FF6A00",
-                                    fontSize: "3rem",
-                                    display: "inline-block",
-                                    lineHeight: 1,
-                                    fontFamily: "'bootstrap-icons'",
-                                    fontStyle: "normal",
-                                    fontWeight: "normal"
-                                  }}
-                                  aria-hidden="true"
-                                ></i>
-                              )}
-                            </div>
-                            <h6 className="mb-1 fw-semibold" style={{ minHeight: "2.5rem", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              {category.titleMn || category.title || category.name || "Category"}
-                            </h6>
-                            <p className="text-muted small mb-0">
-                              {count} {t("items") || "items"}
-                            </p>
-                          </div>
-                        </button>
+                  return (
+                    <button
+                      key={category._id}
+                      type="button"
+                      className="bg-bn-surface border border-bn-border rounded-bn-xl p-4 text-center hover:shadow-card hover:border-bn-primary hover:-translate-y-0.5 transition-all group"
+                      onClick={() => handleCategoryClick(category)}
+                    >
+                      <div className="flex items-center justify-center h-14 mb-2">
+                        {category.icon && category.icon.length <= 2 ? (
+                          <span className="text-4xl">{category.icon}</span>
+                        ) : (
+                          <i
+                            className={`bi bi-${iconName} text-bn-primary text-4xl group-hover:scale-110 transition-transform`}
+                          ></i>
+                        )}
                       </div>
-                    );
-                  })
-                ) : (
-                  <div className="col-12">
-                    <div className="alert alert-info text-center">
-                      {t("noCategoriesFound") || "No categories found"}
-                    </div>
-                  </div>
-                )}
+                      <h6 className="text-sm font-semibold text-bn-text mb-1 min-h-[2.5rem] flex items-center justify-center leading-tight">
+                        {category.titleMn || category.title || category.name || "Ангилал"}
+                      </h6>
+                      <p className="text-bn-text-secondary text-xs">
+                        {count} {t("items") || "бараа"}
+                      </p>
+                    </button>
+                  );
+                })}
               </div>
-            </>
-          )}
-        </div>
-      </section>
+            ) : (
+              <div className="text-center py-16 text-bn-text-secondary bg-bn-bg-secondary rounded-bn-lg">
+                {t("noCategoriesFound") || "Ангилал олдсонгүй"}
+              </div>
+            )}
+          </>
+        )}
+      </Container>
     </div>
   );
 };

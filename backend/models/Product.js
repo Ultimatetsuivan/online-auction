@@ -12,8 +12,7 @@ const productSchema = mongoose.Schema({
         trim: true
     },
     slug: {
-        type: String,
-        unique: true
+        type: String
     },
     description: {
         type: String,
@@ -70,9 +69,15 @@ const productSchema = mongoose.Schema({
         type: Number,
         default: null
     },
+    sellType: {
+        type: String,
+        enum: ['auction', 'fixed'],
+        default: 'auction',
+        required: true
+    },
     minIncrement: {
         type: Number,
-        default: 1
+        default: 5000
     },
     bidThreshold: {
         type: Number,
@@ -184,19 +189,19 @@ const productSchema = mongoose.Schema({
     // Auction start time (UTC)
     auctionStart: {
         type: Date,
-        required: true,
+        required: false,
         default: Date.now
     },
-    // Auction duration in days
+    // Auction duration in days (only for auction type products)
     auctionDuration: {
         type: Number,
-        required: true,
-        default: 7 // Default 7 days
+        required: false,
+        default: null
     },
     // Auction end time (calculated: auctionStart + duration)
     bidDeadline: {
         type: Date,
-        required: true
+        required: false
     },
     // Auction status: "scheduled", "active", or "ended"
     auctionStatus: {
@@ -273,6 +278,10 @@ const productSchema = mongoose.Schema({
         type: Boolean,
         default: false
     },
+    soldAt: {
+        type: Date,
+        default: null
+    },
     soldTo: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
@@ -281,7 +290,17 @@ const productSchema = mongoose.Schema({
     available: {
         type: Boolean,
         default: true
-    }
+    },
+    // View tracking
+    views: {
+        type: Number,
+        default: 0
+    },
+    // Unique viewers (to prevent counting same user multiple times)
+    uniqueViewers: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User"
+    }]
 }, { 
     timestamps: true,
     toJSON: { virtuals: true },
@@ -291,11 +310,6 @@ function arrayLimit(val) {
     return val.length <= 3;
 }
 
-productSchema.index({ 
-    title: 'text', 
-    description: 'text',
-    category: 'text'
-});
 
 // Pre-save hook: Handle status transitions and availability
 productSchema.pre('save', function(next) {
@@ -335,6 +349,7 @@ productSchema.pre('save', function(next) {
     if (this.bidThreshold && this.currentBid >= this.bidThreshold) {
         this.sold = true;
         this.soldTo = this.highestBidder;
+        this.soldAt = new Date();
         this.available = false;
         this.auctionStatus = 'ended';
     }
@@ -416,5 +431,28 @@ productSchema.statics.updateExpiredAuctions = async function() {
         return 0;
     }
 };
+
+// ===== Database Indexes for Performance =====
+// Compound index for home page queries (available + sold + status + date sorting)
+productSchema.index({ available: 1, sold: 1, auctionStatus: 1, createdAt: -1 });
+
+// Compound index for category browsing
+productSchema.index({ category: 1, auctionStatus: 1, available: 1 });
+
+// Compound index for user's auction management (my auctions)
+productSchema.index({ user: 1, auctionStatus: 1 });
+
+// Index for finding auctions user is bidding on
+productSchema.index({ highestBidder: 1, auctionStatus: 1 });
+
+// Index for auction scheduler to find auctions to activate/end
+productSchema.index({ auctionStatus: 1, auctionStart: 1 });
+productSchema.index({ auctionStatus: 1, bidDeadline: 1 });
+
+// Text index for search functionality (title + description)
+productSchema.index({ title: 'text', description: 'text' });
+
+// Index on slug for product detail pages (unique)
+productSchema.index({ slug: 1 }, { unique: true });
 
 module.exports = mongoose.models.Product || mongoose.model("Product", productSchema);

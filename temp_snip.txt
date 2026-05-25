@@ -1,0 +1,31 @@
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  {t('about')}
+                </Link>
+              </li>
+
+              {user ? (
+                <>
+                  <li className="mb-2">
+                    <button
+                      onClick={() => { setIsMenuOpen(false); navigate('/profile?tab=addProduct'); }}
+                      className="btn w-100 text-white mb-2"
+                      style={{ backgroundColor: '#FF3B30', borderColor: '#FF3B30' }}
+                    >
+                      {language === 'MN' ? 'Зар оруулах' : 'Sell'}
+                    </button>
+                  </li>
+                  <li className="mb-2">
+                    <Link
+                      to="/?tab=mylist"
+                      className="text-decoration-none d-block p-2 rounded hover-bg"
+                      style={{ color: '#334155' }}
+                      onClick={(e) => {
+                        setIsMenuOpen(false);
+                        e.stopPropagation();
+                      }}
+                    >
+                      👁️ {t('myWatchlist') || 'My Watchlist'}
+                    </Link>
+                  </li>
+                  <li className="mb-2">

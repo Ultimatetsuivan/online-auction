@@ -7,11 +7,22 @@ const crypto = require('crypto');
 /**
  * Verify QPay webhook signature
  * This prevents unauthorized webhook calls
+ * SECURITY: Always fail closed - reject if secret not configured
  */
 function verifyQPaySignature(payload, signature) {
     if (!process.env.QPAY_WEBHOOK_SECRET) {
-        console.warn('QPAY_WEBHOOK_SECRET not set, skipping signature verification');
-        return true; // Allow in development
+        // QPay sandbox does not send signatures — allow in non-production
+        if (process.env.NODE_ENV !== 'production') {
+            console.warn('QPAY_WEBHOOK_SECRET not set — skipping signature check (sandbox mode)');
+            return true;
+        }
+        console.error('QPAY_WEBHOOK_SECRET not configured in production — rejecting webhook');
+        return false;
+    }
+
+    if (!signature) {
+        console.error('Webhook signature missing');
+        return false;
     }
 
     const hash = crypto
@@ -19,7 +30,9 @@ function verifyQPaySignature(payload, signature) {
         .update(JSON.stringify(payload))
         .digest('hex');
 
-    return hash === signature;
+    const isValid = hash === signature;
+    if (!isValid) console.error('Invalid webhook signature');
+    return isValid;
 }
 
 /**
@@ -192,10 +205,14 @@ exports.verifyPayment = async (req, res) => {
         // Call QPay API to check payment status
         const axios = require('axios');
 
-        const authResponse = await axios.post(`${process.env.QPAY_BASE_URL}/v2/auth/token`, {
-            username: process.env.QPAY_USERNAME,
-            password: process.env.QPAY_PASSWORD
-        });
+        const authString = Buffer.from(
+            `${process.env.QPAY_USERNAME}:${process.env.QPAY_PASSWORD}`
+        ).toString('base64');
+        const authResponse = await axios.post(
+            `${process.env.QPAY_BASE_URL}/v2/auth/token`,
+            {},
+            { headers: { Authorization: `Basic ${authString}` } }
+        );
 
         const token = authResponse.data.access_token;
 

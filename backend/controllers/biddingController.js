@@ -9,6 +9,9 @@ const { sendPushNotification, notifyProductLikers } = require("../utils/pushNoti
 const { createNotification } = require("./notificationController");
 const { updateTrustScore } = require("../utils/trustScore");
 const { getIO } = require("../utils/socket");
+const biddingService = require("../services/biddingService");
+const notificationService = require("../services/notificationService");
+const logger = require("../utils/logger");
 
 
 const getBiddingHistory = asyncHandler(async (req, res) => {
@@ -22,242 +25,100 @@ const getBiddingHistory = asyncHandler(async (req, res) => {
 
   res.status(200).json({ history: biddingHistory });
 });
+/**
+ * Place a bid on a product
+ * NOW WITH TRANSACTION SAFETY - NO MORE RACE CONDITIONS!
+ */
 const placeBid = asyncHandler(async (req, res) => {
   const { productId, price } = req.body;
   const userId = req.user.id;
 
-  if (!productId || !price) {
-      return res.status(400).json({ message: "Бүх талбарыг бөглөнө үү" });
-  }
-
-  const product = await Product.findById(productId).populate('user');
-  if (!product || product.sold) {
-      return res.status(400).json({ message: "Энэ бараанд үнэ санал болгох боломжгүй" });
-  }
-
-  // Prevent sellers from bidding on their own products
-  const sellerId = product.user?._id || product.user;
-  if (sellerId && sellerId.toString() === userId.toString()) {
-      return res.status(403).json({ message: "Худалдагч өөрийн бараанд санал өгөх боломжгүй" });
-  }
-
   try {
-      // Store previous highest bidder before any changes
-      const previousHighestBid = await BiddingProduct.findOne({ product: productId })
-          .sort({ price: -1 });
-      const previousHighestBidder = previousHighestBid?.user;
+      // Use bidding service with transaction safety
+      const result = await biddingService.placeBid(productId, userId, price);
 
-      if (product.bidThreshold && price >= product.bidThreshold) {
-          product.sold = true;
-          product.soldTo = userId;
-          product.currentBid = price;
-          await product.save();
-
-          const biddingProduct = await BiddingProduct.create({
-              user: userId,
-              product: productId,
-              price: price
-          });
-
-          // Populate user for socket emission
-          await biddingProduct.populate('user');
-
-          // Emit real-time socket events for bid threshold reached
-          try {
-              const io = getIO();
-              io.emit('bidUpdate', product);
-              io.emit('newBid', {
-                  _id: biddingProduct._id,
-                  user: biddingProduct.user,
-                  product: productId,
-                  price: biddingProduct.price,
-                  createdAt: biddingProduct.createdAt
-              });
-              console.log(`✓ Socket events emitted for bid threshold sale: ${price}₮ on product ${productId}`);
-          } catch (socketError) {
-              console.error('Socket emission error:', socketError.message);
-          }
-
-          const buyer = await User.findById(userId);
-          const seller = await User.findById(product.user);
-
-          // Update trust scores
-          await updateTrustScore(userId, 'completed');
-
-          // Send emails
-          await sendEmail({
-              email: buyer.email,
-              subject: "Баяр хүргэе! Та дуудлага худалдаанд яллаа!",
-              html: `Та энэхүү барааг "${product.title}"-г ${price} төгрөгөөр худалдан авлаа.`
-          });
-
-          await sendEmail({
-              email: seller.email,
-              subject: "Бараа амжилттай зарагдлаа",
-              html: `Таны "${product.title}" бараа ${price} төгрөгөөр ${buyer.email}-email тэй ${buyer.name} хэрэглэгчид зарагдлаа.`
-          });
-
-          // Send push notifications
-          await sendPushNotification(userId, {
-              title: "Баяр хүргэе!",
-              body: `Та "${product.title}"-г ${price.toLocaleString()}₮-өөр худалдан авлаа`,
-              type: "won_auction",
-              productId: productId,
-              actionUrl: `/products/${productId}`
-          });
-
-          await sendPushNotification(product.user, {
-              title: "Бараа зарагдлаа",
-              body: `"${product.title}" ${price.toLocaleString()}₮-өөр зарагдлаа`,
-              type: "sold",
-              productId: productId,
-              actionUrl: `/products/${productId}`
-          });
-
-          // Create in-app notifications
-          await createNotification(userId, {
-              type: "won_auction",
-              productId: productId,
-              title: "Баяр хүргэе!",
-              message: `Та "${product.title}"-г ${price.toLocaleString()}₮-өөр худалдан авлаа`,
-              actionUrl: `/products/${productId}`
-          });
-
-          await createNotification(product.user, {
-              type: "sold",
-              productId: productId,
-              title: "Бараа зарагдлаа",
-              message: `"${product.title}" ${price.toLocaleString()}₮-өөр зарагдлаа`,
-              actionUrl: `/products/${productId}`
-          });
-
-          // Notify users who liked this product
-          await notifyProductLikers(productId, {
-              title: "Таалагдсан бараа зарагдлаа",
-              body: `"${product.title}" зарагдлаа`,
-              type: "like_update",
-              productId: productId,
-              actionUrl: `/products/${productId}`
-          });
-
-          return res.status(200).json({
-              message: "Бараа амжилттай зарагдлаа!",
-              sold: true,
-              buyerId: userId,
-              product: product,
-              biddingProduct: biddingProduct
-          });
-      }
-
-      // Check if this user has bid before (for validation only)
-      const existingUserBid = await BiddingProduct.findOne({
-          user: userId,
-          product: productId
-      }).sort({ price: -1 }); // Get their highest bid
-
-      if (existingUserBid && price <= existingUserBid.price) {
-          return res.status(400).json({
-              message: "Та өмнөх үнийн дүнгээс өндөр үнийн дүн байршуулна уу"
-          });
-      }
-
-      const highestBid = await BiddingProduct.findOne({ product: productId })
-          .sort({ price: -1 });
-
-      if (highestBid && price <= highestBid.price) {
-          return res.status(400).json({
-              message: "Та өмнөх үнийн дүнгээс өндөр үнийн дүн байршуулна уу"
-          });
-      }
-
-      // Always create a NEW bid record (not update existing one)
-      // This ensures all bid history is preserved
-
-      const biddingProduct = await BiddingProduct.create({
-          user: userId,
-          product: productId,
-          price,
-      });
-
-      product.currentBid = price;
-      product.highestBidder = userId;
-      await product.save();
-
-      // Populate the user field for the new bid before sending via socket
-      await biddingProduct.populate('user');
+      const { bid, product, previousHighestBidder } = result;
 
       // Emit real-time socket events
       try {
           const io = getIO();
-
-          // Emit bid update (for price changes)
           io.emit('bidUpdate', product);
-
-          // Emit new bid (for bid history)
           io.emit('newBid', {
-              _id: biddingProduct._id,
-              user: biddingProduct.user,
+              _id: bid._id,
+              user: bid.user,
               product: productId,
-              price: biddingProduct.price,
-              createdAt: biddingProduct.createdAt
+              price: bid.price,
+              createdAt: bid.createdAt
           });
-
-          console.log(`✓ Socket events emitted for new bid: ${price}₮ on product ${productId}`);
+          logger.info('Socket events emitted for new bid', {
+              productId,
+              price,
+              userId
+          });
       } catch (socketError) {
-          console.error('Socket emission error:', socketError.message);
+          logger.warn('Socket emission failed', { error: socketError.message });
           // Don't fail the bid if socket fails
       }
 
-      // Notify previous highest bidder that they've been outbid
+      // Notify previous highest bidder (if exists and different from current bidder)
       if (previousHighestBidder && previousHighestBidder.toString() !== userId.toString()) {
-          await sendPushNotification(previousHighestBidder, {
-              title: "Таны үнийн санал давлаа",
-              body: `"${product.title}" дээр илүү өндөр үнэ санал ирлээ`,
-              type: "outbid",
-              productId: productId,
-              actionUrl: `/products/${productId}`,
-              image: product.images?.[0]?.url
-          });
-
-          await createNotification(previousHighestBidder, {
-              type: "outbid",
-              productId: productId,
-              title: "Таны үнийн санал давлаа",
-              message: `"${product.title}" дээр илүү өндөр үнэ санал ирлээ`,
-              actionUrl: `/products/${productId}`
-          });
+          await notificationService.notifyOutbid(
+              previousHighestBidder,
+              product,
+              price
+          );
       }
 
       // Notify product owner of new bid
-      if (product.user.toString() !== userId.toString()) {
-          await sendPushNotification(product.user, {
-              title: "Шинэ үнийн санал",
-              body: `"${product.title}" дээр ${price.toLocaleString()}₮ үнэ санал ирлээ`,
-              type: "new_bid",
+      const sellerId = product.user?._id || product.user;
+      logger.info('Notifying seller of new bid', {
+          sellerId: sellerId?.toString(),
+          bidderId: userId.toString(),
+          productId,
+          price
+      });
+
+      if (sellerId && sellerId.toString() !== userId.toString()) {
+          const notifyResult = await notificationService.notify(sellerId, {
+              type: 'new_bid',
+              title: 'Шинэ үнийн санал',
+              message: `"${product.title}" дээр ${price.toLocaleString()}₮ үнэ санал ирлээ`,
               productId: productId,
               actionUrl: `/products/${productId}`
           });
 
-          await createNotification(product.user, {
-              type: "new_bid",
-              productId: productId,
-              title: "Шинэ үнийн санал",
-              message: `"${product.title}" дээр ${price.toLocaleString()}₮ үнэ санал ирлээ`,
-              actionUrl: `/products/${productId}`
+          logger.info('Seller notification result', {
+              success: notifyResult.success,
+              sellerId: sellerId.toString()
+          });
+      } else {
+          logger.warn('Skipped seller notification', {
+              reason: sellerId ? 'seller is bidder' : 'no sellerId',
+              sellerId: sellerId?.toString(),
+              bidderId: userId.toString()
           });
       }
 
+      // Return success response
       res.status(200).json({
-          biddingProduct,
+          success: true,
+          biddingProduct: bid,
           product,
-          reserveMet: !product.reservePrice || product.currentBid >= product.reservePrice 
+          reserveMet: !product.reservePrice || product.currentBid >= product.reservePrice
       });
 
   } catch (error) {
-      console.error('Bidding error:', error);
-      res.status(500).json({ 
-          message: "Үнийн санал өгөхөд алдаа гарлаа" 
-      });
+      // Handle deposit requirement specially (need to pass extra fields)
+      if (error.requiresDeposit) {
+          return res.status(403).json({
+              success: false,
+              requiresDeposit: true,
+              depositAmount: error.depositAmount,
+              error: error.message
+          });
+      }
+      // Let error middleware handle all other errors
+      throw error;
   }
 });
 const checkUserBidStatus = asyncHandler(async (req, res) => {
@@ -517,10 +378,11 @@ const sellProduct = asyncHandler(async (req, res) => {
       Product.updateOne(
         { _id: productId },
         { 
-          $set: { 
+          $set: {
             sold: true,
             soldTo: userId,
-            currentBid: price 
+            soldAt: new Date(),
+            currentBid: price
           }
         }
       ),

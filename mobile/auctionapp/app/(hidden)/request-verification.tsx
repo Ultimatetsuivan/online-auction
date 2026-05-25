@@ -12,6 +12,7 @@ import {
 import { router, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../src/contexts/ThemeContext';
 import api from '../../src/api';
 
 interface VerificationPhoto {
@@ -45,6 +46,7 @@ const PHOTO_TYPE_LABELS: Record<string, string> = {
 
 export default function RequestVerification() {
   const { productId, category } = useLocalSearchParams();
+  const { themeColors } = useTheme();
   const [requiredPhotos, setRequiredPhotos] = useState<string[]>([]);
   const [photos, setPhotos] = useState<VerificationPhoto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -199,9 +201,9 @@ export default function RequestVerification() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4CAF50" />
-        <Text style={styles.loadingText}>Ачааллаж байна...</Text>
+      <View style={[styles.loadingContainer, { backgroundColor: themeColors.background }]}>
+        <ActivityIndicator size="large" color={themeColors.brand600} />
+        <Text style={[styles.loadingText, { color: themeColors.text.secondary }]}>Ачааллаж байна...</Text>
       </View>
     );
   }
@@ -210,54 +212,54 @@ export default function RequestVerification() {
   const uploadedCount = photos.filter(p => p.uploaded).length;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: themeColors.background }]}>
       <ScrollView style={styles.scrollView}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: themeColors.surface, borderBottomColor: themeColors.border }]}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#333" />
+            <Ionicons name="arrow-back" size={24} color={themeColors.text.primary} />
           </TouchableOpacity>
-          <Text style={styles.title}>Баталгаажуулалт хүсэх</Text>
+          <Text style={[styles.title, { color: themeColors.text.primary }]}>Баталгаажуулалт хүсэх</Text>
         </View>
 
         {/* Info Card */}
-        <View style={styles.infoCard}>
+        <View style={[styles.infoCard, { backgroundColor: themeColors.surface }]}>
           <View style={styles.infoRow}>
-            <Ionicons name="pricetag-outline" size={20} color="#4CAF50" />
-            <Text style={styles.infoText}>Төлбөр: ₮{fee.toLocaleString()}</Text>
+            <Ionicons name="pricetag-outline" size={20} color={themeColors.brand600} />
+            <Text style={[styles.infoText, { color: themeColors.text.primary }]}>Төлбөр: ₮{fee.toLocaleString()}</Text>
           </View>
           <View style={styles.infoRow}>
-            <Ionicons name="time-outline" size={20} color="#4CAF50" />
-            <Text style={styles.infoText}>Шинжилгээ: 48 цаг</Text>
+            <Ionicons name="time-outline" size={20} color={themeColors.brand600} />
+            <Text style={[styles.infoText, { color: themeColors.text.primary }]}>Шинжилгээ: 48 цаг</Text>
           </View>
           <View style={styles.infoRow}>
-            <Ionicons name="shield-checkmark-outline" size={20} color="#4CAF50" />
-            <Text style={styles.infoText}>Баталгаажсан бэлгэ авна</Text>
+            <Ionicons name="shield-checkmark-outline" size={20} color={themeColors.brand600} />
+            <Text style={[styles.infoText, { color: themeColors.text.primary }]}>Баталгаажсан бэлгэ авна</Text>
           </View>
         </View>
 
         {/* Progress */}
-        <View style={styles.progressCard}>
-          <Text style={styles.progressText}>
+        <View style={[styles.progressCard, { backgroundColor: themeColors.surface }]}>
+          <Text style={[styles.progressText, { color: themeColors.text.secondary }]}>
             {uploadedCount} / {photos.length} зураг оруулсан
           </Text>
-          <View style={styles.progressBar}>
+          <View style={[styles.progressBar, { backgroundColor: themeColors.border }]}>
             <View
               style={[
                 styles.progressFill,
-                { width: `${(uploadedCount / photos.length) * 100}%` }
+                { width: `${(uploadedCount / photos.length) * 100}%`, backgroundColor: themeColors.brand600 }
               ]}
             />
           </View>
         </View>
 
         {/* Photo Requirements */}
-        <Text style={styles.sectionTitle}>Шаардлагатай зургууд</Text>
+        <Text style={[styles.sectionTitle, { color: themeColors.text.primary }]}>Шаардлагатай зургууд</Text>
         <View style={styles.photosGrid}>
           {photos.map((photo, index) => (
             <TouchableOpacity
               key={index}
-              style={styles.photoSlot}
+              style={[styles.photoSlot, { backgroundColor: themeColors.surface }]}
               onPress={() => pickImage(index)}
               disabled={uploading}
             >
@@ -266,7 +268,7 @@ export default function RequestVerification() {
                   <Image source={{ uri: photo.uri }} style={styles.photoImage} />
                   {photo.uploaded ? (
                     <View style={styles.uploadedBadge}>
-                      <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
+                      <Ionicons name="checkmark-circle" size={24} color={themeColors.brand600} />
                     </View>
                   ) : (
                     <View style={styles.uploadingBadge}>
@@ -275,25 +277,26 @@ export default function RequestVerification() {
                   )}
                 </View>
               ) : (
-                <View style={styles.emptySlot}>
-                  <Ionicons name="camera-outline" size={32} color="#999" />
+                <View style={[styles.emptySlot, { backgroundColor: themeColors.background, borderColor: themeColors.border }]}>
+                  <Ionicons name="camera-outline" size={32} color={themeColors.text.tertiary} />
                 </View>
               )}
-              <Text style={styles.photoLabel}>
+              <Text style={[styles.photoLabel, { color: themeColors.text.primary }]}>
                 {PHOTO_TYPE_LABELS[photo.type] || photo.type}
               </Text>
-              <Text style={styles.requiredBadge}>Заавал *</Text>
+              <Text style={[styles.requiredBadge, { color: themeColors.error }]}>Заавал *</Text>
             </TouchableOpacity>
           ))}
         </View>
       </ScrollView>
 
       {/* Submit Button */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { backgroundColor: themeColors.surface, borderTopColor: themeColors.border }]}>
         <TouchableOpacity
           style={[
             styles.submitButton,
-            (!allPhotosUploaded || submitting) && styles.submitButtonDisabled
+            { backgroundColor: themeColors.brand600 },
+            (!allPhotosUploaded || submitting) && { backgroundColor: themeColors.text.tertiary }
           ]}
           onPress={submitVerification}
           disabled={!allPhotosUploaded || submitting}
@@ -317,18 +320,15 @@ export default function RequestVerification() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#666',
   },
   scrollView: {
     flex: 1,
@@ -337,9 +337,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
   },
   backButton: {
     marginRight: 16,
@@ -347,10 +345,8 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#333',
   },
   infoCard: {
-    backgroundColor: '#fff',
     margin: 16,
     padding: 16,
     borderRadius: 12,
@@ -363,11 +359,9 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 14,
-    color: '#333',
     fontWeight: '500',
   },
   progressCard: {
-    backgroundColor: '#fff',
     marginHorizontal: 16,
     marginBottom: 16,
     padding: 16,
@@ -375,24 +369,20 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 14,
-    color: '#666',
     marginBottom: 8,
     fontWeight: '600',
   },
   progressBar: {
     height: 8,
-    backgroundColor: '#eee',
     borderRadius: 4,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#4CAF50',
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#333',
     marginHorizontal: 16,
     marginBottom: 12,
   },
@@ -405,7 +395,6 @@ const styles = StyleSheet.create({
   photoSlot: {
     width: '47%',
     aspectRatio: 1,
-    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 8,
     alignItems: 'center',
@@ -443,41 +432,31 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f9f9f9',
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: '#eee',
     borderStyle: 'dashed',
   },
   photoLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#333',
     marginTop: 8,
     textAlign: 'center',
   },
   requiredBadge: {
     fontSize: 10,
-    color: '#f44336',
     fontWeight: '700',
   },
   footer: {
     padding: 16,
-    backgroundColor: '#fff',
     borderTopWidth: 1,
-    borderTopColor: '#eee',
   },
   submitButton: {
     flexDirection: 'row',
-    backgroundColor: '#4CAF50',
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-  },
-  submitButtonDisabled: {
-    backgroundColor: '#ccc',
   },
   submitButtonText: {
     color: '#fff',

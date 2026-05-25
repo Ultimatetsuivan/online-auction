@@ -50,7 +50,7 @@ export const Chatbot = () => {
           <div 
             className="chat-header p-3 d-flex justify-content-between align-items-center"
             style={{
-              backgroundColor: isDarkMode ? '#222' : '#FF6A00',
+              backgroundColor: isDarkMode ? '#222' : 'var(--bn-primary)',
               color: 'white',
               borderBottom: `1px solid ${isDarkMode ? '#444' : 'rgba(255,255,255,0.2)'}`
             }}
@@ -136,7 +136,7 @@ export const Chatbot = () => {
               />
               <button
                 className="btn text-white"
-                style={{ backgroundColor: '#FF6A00', borderColor: '#FF6A00' }}
+                style={{ backgroundColor: 'var(--bn-primary)', borderColor: 'var(--bn-primary)' }}
               >
                 <i className="bi bi-send-fill"></i>
               </button>
@@ -152,7 +152,7 @@ export const Chatbot = () => {
         style={{
           width: '60px',
           height: '60px',
-          backgroundColor: '#FF6A00',
+          backgroundColor: 'var(--bn-primary)',
           color: 'white',
           display: 'flex',
           alignItems: 'center',
@@ -166,11 +166,11 @@ export const Chatbot = () => {
         }}
         onMouseEnter={(e) => {
           e.currentTarget.style.transform = 'scale(1.1)';
-          e.currentTarget.style.backgroundColor = '#E68A1F';
+          e.currentTarget.style.backgroundColor = '#4338CA';
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.transform = 'scale(1)';
-          e.currentTarget.style.backgroundColor = '#FF6A00';
+          e.currentTarget.style.backgroundColor = 'var(--bn-primary)';
         }}
       >
         {isOpen ? (

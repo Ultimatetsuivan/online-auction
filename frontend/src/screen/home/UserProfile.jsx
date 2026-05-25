@@ -148,7 +148,7 @@ const UserProfile = () => {
     return (
       <div className="container my-5">
         <div className="text-center">
-          <div className="spinner-border" role="status" style={{ color: '#FF6A00' }}>
+          <div className="spinner-border" role="status" style={{ color: 'var(--bn-primary)' }}>
             <span className="visually-hidden">Loading...</span>
           </div>
         </div>

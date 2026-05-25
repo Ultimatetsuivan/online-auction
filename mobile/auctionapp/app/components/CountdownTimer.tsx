@@ -45,10 +45,11 @@ export default function CountdownTimer({ deadline, onEnd }: CountdownTimerProps)
   if (!timeLeft) {
     return (
       <View style={styles.container}>
-        <Text style={styles.endedText}>Auction Ended</Text>
+        <Text style={styles.endedText}>Дуудлага дууссан</Text>
       </View>
     );
   }
+  
 
   const { days, hours, minutes, seconds } = timeLeft;
   const isUrgent = days === 0 && hours < 24;
@@ -60,14 +61,14 @@ export default function CountdownTimer({ deadline, onEnd }: CountdownTimerProps)
           <Text style={[styles.number, isUrgent && styles.urgentText]}>
             {days.toString().padStart(2, "0")}
           </Text>
-          <Text style={styles.label}>d</Text>
+          <Text style={styles.label}>Ө</Text>
         </View>
       )}
       <View style={styles.timeUnit}>
         <Text style={[styles.number, isUrgent && styles.urgentText]}>
           {hours.toString().padStart(2, "0")}
         </Text>
-        <Text style={styles.label}>h</Text>
+        <Text style={styles.label}>Ц</Text>
       </View>
       <View style={styles.separator}>
         <Text style={styles.separatorText}>:</Text>
@@ -76,7 +77,7 @@ export default function CountdownTimer({ deadline, onEnd }: CountdownTimerProps)
         <Text style={[styles.number, isUrgent && styles.urgentText]}>
           {minutes.toString().padStart(2, "0")}
         </Text>
-        <Text style={styles.label}>m</Text>
+        <Text style={styles.label}>М</Text>
       </View>
       <View style={styles.separator}>
         <Text style={styles.separatorText}>:</Text>
@@ -85,7 +86,7 @@ export default function CountdownTimer({ deadline, onEnd }: CountdownTimerProps)
         <Text style={[styles.number, isUrgent && styles.urgentText]}>
           {seconds.toString().padStart(2, "0")}
         </Text>
-        <Text style={styles.label}>s</Text>
+        <Text style={styles.label}>С</Text>
       </View>
     </View>
   );
@@ -109,7 +110,7 @@ const styles = StyleSheet.create({
   number: {
     fontSize: 16,
     fontWeight: "700",
-    color: theme.gray900,
+    color: theme.gray700,
     fontVariant: ["tabular-nums"],
   },
   urgentText: {

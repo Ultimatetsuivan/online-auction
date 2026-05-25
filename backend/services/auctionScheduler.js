@@ -11,6 +11,8 @@
 const cron = require('node-cron');
 const mongoose = require('mongoose');
 const Product = require('../models/product');
+const Deposit = require('../models/Deposit');
+const User = require('../models/User');
 
 // Flag to track if scheduler is running
 let isSchedulerRunning = false;
@@ -52,8 +54,25 @@ const startAuctionScheduler = () => {
             // Mark expired auctions as ended
             const expiredCount = await Product.updateExpiredAuctions();
 
-            if (activatedCount > 0 || expiredCount > 0) {
-                console.log(`[Auction Scheduler] Summary: ${activatedCount} activated, ${expiredCount} expired`);
+            // Release held deposits for ended auctions
+            const endedDeposits = await Deposit.find({ status: 'held' })
+                .populate('product', 'auctionStatus soldTo');
+            let releasedCount = 0;
+            for (const deposit of endedDeposits) {
+                if (deposit.product?.auctionStatus === 'ended') {
+                    await User.findByIdAndUpdate(deposit.user, { $inc: { balance: deposit.amount } });
+                    const isWinner = deposit.product.soldTo &&
+                        deposit.product.soldTo.toString() === deposit.user.toString();
+                    deposit.status = 'returned';
+                    deposit.releasedAt = new Date();
+                    deposit.reason = isWinner ? 'Auction won' : 'Auction ended';
+                    await deposit.save();
+                    releasedCount++;
+                }
+            }
+
+            if (activatedCount > 0 || expiredCount > 0 || releasedCount > 0) {
+                console.log(`[Auction Scheduler] Summary: ${activatedCount} activated, ${expiredCount} expired, ${releasedCount} deposits released`);
             }
 
         } catch (error) {

@@ -1,48 +1,52 @@
 /* Theme Variables */
 :root {
   /* Light Theme (Default) */
-  --color-primary: #FFA239;
-  --color-primary-light: #FFB464;
-  --color-primary-dark: #E68A1F;
-  --color-secondary: #8CE4FF;
-  --color-secondary-dark: #66D4F7;
-  --color-warning: #FEEE91;
-  --color-warning-dark: #F5E370;
-  --color-danger: #FF5656;
-  --color-danger-dark: #F73838;
-  --color-background: #FFFFFF;
-  --color-surface: #F8FAFC;
-  --color-text: #0F172A;
-  --color-text-secondary: #64748B;
-  --color-border: #E2E8F0;
-  --color-hover: #FFF5EB;
+  --color-primary: #4F46E5;
+  --color-primary-light: #818CF8;
+  --color-primary-dark: #4338CA;
+  --color-accent: #F59E0B;
+  --color-accent-light: #FCD34D;
+  --color-secondary: #6366F1;
+  --color-secondary-dark: #4F46E5;
+  --color-warning: #F59E0B;
+  --color-warning-dark: #D97706;
+  --color-danger: #EF4444;
+  --color-danger-dark: #DC2626;
+  --color-background: #F9FAFB;
+  --color-surface: #FFFFFF;
+  --color-text: #111827;
+  --color-text-secondary: #6B7280;
+  --color-border: #E5E7EB;
+  --color-hover: #EEF2FF;
   --color-card-bg: #FFFFFF;
   --color-input-bg: #FFFFFF;
-  --color-input-border: #E2E8F0;
-  --color-input-text: #0F172A;
+  --color-input-border: #E5E7EB;
+  --color-input-text: #111827;
 }
 
 /* Dark Theme */
 .theme-dark {
-  --color-primary: #FFA239;
-  --color-primary-light: #FFB464;
-  --color-primary-dark: #E68A1F;
-  --color-secondary: #8CE4FF;
-  --color-secondary-dark: #66D4F7;
-  --color-warning: #FEEE91;
-  --color-warning-dark: #F5E370;
-  --color-danger: #FF5656;
-  --color-danger-dark: #F73838;
-  --color-background: #0F172A;
-  --color-surface: #1E293B;
-  --color-text: #F1F5F9;
-  --color-text-secondary: #CBD5E1;
-  --color-border: #334155;
-  --color-hover: #334155;
-  --color-card-bg: #1E293B;
-  --color-input-bg: #2D3748;
-  --color-input-border: #4A5568;
-  --color-input-text: #F1F5F9;
+  --color-primary: #818CF8;
+  --color-primary-light: #A5B4FC;
+  --color-primary-dark: #6366F1;
+  --color-accent: #FBBF24;
+  --color-accent-light: #FCD34D;
+  --color-secondary: #818CF8;
+  --color-secondary-dark: #6366F1;
+  --color-warning: #FBBF24;
+  --color-warning-dark: #F59E0B;
+  --color-danger: #F87171;
+  --color-danger-dark: #EF4444;
+  --color-background: #111827;
+  --color-surface: #1F2937;
+  --color-text: #F9FAFB;
+  --color-text-secondary: #9CA3AF;
+  --color-border: #374151;
+  --color-hover: #1E2A3A;
+  --color-card-bg: #1F2937;
+  --color-input-bg: #1F2937;
+  --color-input-border: #374151;
+  --color-input-text: #F9FAFB;
 }
 
 /* Apply theme colors to body and common elements */
@@ -111,7 +115,7 @@ body {
   background-color: var(--color-input-bg);
   border-color: var(--color-primary);
   color: var(--color-text);
-  box-shadow: 0 0 0 0.25rem rgba(0, 140, 255, 0.25);
+  box-shadow: 0 0 0 0.25rem rgba(79, 70, 229, 0.25);
 }
 
 .theme-dark .form-control::placeholder {
@@ -188,7 +192,7 @@ body {
 }
 
 .theme-dark .alert-info {
-  background-color: rgba(0, 140, 255, 0.1);
+  background-color: rgba(255, 162, 57, 0.1);
   border-color: var(--color-primary);
   color: var(--color-primary);
 }
@@ -333,7 +337,7 @@ body {
 
 .theme-dark .product-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 140, 255, 0.2);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
 .theme-dark .category-chip {
@@ -507,7 +511,4 @@ body {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
 }
 
-/* Smooth transitions */
-* {
-  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
-}
+/* Smooth transitions are handled per-element via Tailwind/design system */

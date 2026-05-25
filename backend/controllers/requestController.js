@@ -1,115 +1,58 @@
 const asyncHandler = require("express-async-handler");
 const Request = require("../models/request");
+const User = require("../models/User");
 const axios = require('axios');
-const crypto = require('crypto');
 
+// Cache QPay access token to avoid re-authenticating on every request
+let _cachedToken = null;
+let _tokenExpiresAt = null;
 
 const getQPayToken = async () => {
-  try {
-    const authString = Buffer.from(
-      `${process.env.QPAY_USERNAME}:${process.env.QPAY_PASSWORD}`
-    ).toString('base64');
-
-    const response = await axios.post(
-      `${process.env.QPAY_BASE_URL}/v2/auth/token`,
-      {},
-      {
-        headers: {
-          'Authorization': `Basic ${authString}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        timeout: 10000 
-      }
-    );
-
-    const accessToken = response.data.access_token;
-    
-    if (!accessToken) {
-      throw new Error('No access token received from QPay');
-    }
-
-    return accessToken;
-    
-  } catch (error) {
-    console.error('Full QPay error:', {
-      message: error.message,
-      code: error.code,
-      response: {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        headers: error.response?.headers
-      },
-      config: {
-        url: error.config?.url,
-        method: error.config?.method,
-        headers: error.config?.headers
-      }
-    });
-    
-    throw new Error(`QPay token failed: ${error.response?.data?.message || error.message}`);
+  if (_cachedToken && _tokenExpiresAt && Date.now() < _tokenExpiresAt - 60_000) {
+    return _cachedToken;
   }
+
+  const authString = Buffer.from(
+    `${process.env.QPAY_USERNAME}:${process.env.QPAY_PASSWORD}`
+  ).toString('base64');
+
+  const response = await axios.post(
+    `${process.env.QPAY_BASE_URL}/v2/auth/token`,
+    {},
+    {
+      headers: {
+        'Authorization': `Basic ${authString}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 10000
+    }
+  );
+
+  const { access_token, expires_in } = response.data;
+  if (!access_token) throw new Error('QPay токен хүлээж авсангүй');
+
+  _cachedToken = access_token;
+  // QPay returns expires_in as a Unix timestamp (seconds), not a duration
+  _tokenExpiresAt = expires_in > 1_000_000_000
+    ? expires_in * 1000
+    : Date.now() + (expires_in || 3600) * 1000;
+  return _cachedToken;
 };
-const createQPayInvoice = async (requestData, user) => {
-  const token = await getQPayToken()
+
+const createQPayInvoice = async (requestId, amount) => {
+  const token = await getQPayToken();
 
   const invoiceData = {
-    invoice_code: "TEST1_INVOICE", 
-    sender_invoice_no: `REQ_${Date.now()}`,
-    sender_branch_code: "branch", 
-
+    invoice_code: process.env.QPAY_INVOICE_CODE,
+    sender_invoice_no: `BN_${requestId}`,
     invoice_receiver_code: "terminal",
-    invoice_receiver_data: {
-      register: "АЮ95121225",
-      name: "ОЮУНДАРЬ",
-      email: "oyundari.b@qpay.mn",
-      phone: "80906039"
-    },
-    invoice_description: "Duudlaga hudaldaa",
-    amount: requestData.amount, 
+    invoice_description: "BidNomad дансны цэнэглэлт",
+    amount: amount,
     lines: [
       {
-        tax_product_code: null,
-        line_description: "Invoice description",
+        line_description: "Дансны цэнэглэлт",
         line_quantity: "1.00",
-        line_unit_price: "250.00",
-        note: ""
-      },
-      {
-        tax_product_code: null,
-        line_description: "Invoice description",
-        line_quantity: "1.00", 
-        line_unit_price: "350.00",
-        note: ""
-      }
-    ],
-    transactions: [
-      {
-        description: "Payment part 1",
-        amount: "250.00",
-        accounts: [
-          {
-            account_bank_code: "390000",
-            account_number: "8010191022",
-            account_name: "Sereeter",
-            account_currency: "MNT",
-            is_default: true 
-          }
-        ]
-      },
-      {
-        description: "Payment part 2",
-        amount: "350.00",
-        accounts: [
-          {
-            account_bank_code: "050000",
-            account_number: "5041323449",
-            account_name: "ganzul",
-            account_currency: "MNT",
-            is_default: false 
-          }
-        ]
+        line_unit_price: amount.toFixed(2)
       }
     ]
   };
@@ -127,82 +70,141 @@ const createQPayInvoice = async (requestData, user) => {
       }
     );
     return response.data;
-   
   } catch (error) {
-    console.error('QPay Error Details:', {
-      requestData: invoiceData,
-      error: error.response?.data || error.message
-    });
-    throw new Error('Payment failed: ' + (error.response?.data?.message || 'Check transaction data'));
+    // Token may be stale — clear cache and let retry happen at controller level
+    _cachedToken = null;
+    _tokenExpiresAt = null;
+    const msg = error.response?.data?.message || error.message;
+    console.error('QPay invoice creation error:', error.response?.data || error.message);
+    throw new Error('QPay нэхэмжлэл үүсгэхэд алдаа: ' + msg);
   }
 };
-const getRequests = asyncHandler(async (req, res) => {
-  const requests = await Request.find()
-    .populate('user', 'name email') 
-    .sort({ createdAt: -1 });
 
-  res.status(200).json(requests);
-});
+// Check payment status directly from QPay (used for polling)
+const checkQPayStatus = async (invoiceId) => {
+  try {
+    const token = await getQPayToken();
+    const { data } = await axios.get(
+      `${process.env.QPAY_BASE_URL}/v2/payment/check`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { object_type: 'INVOICE', object_id: invoiceId },
+        timeout: 8000
+      }
+    );
+    // QPay returns { count: N, paid_amount: X, ... } — count > 0 means paid
+    return data?.count > 0;
+  } catch (err) {
+    console.error('QPay status check error:', err.message);
+    return false;
+  }
+};
 
+// POST /api/request — create QPay invoice and return QR data to client
 const addRequest = asyncHandler(async (req, res) => {
-  const userId = req.user.id;
-  const { amount } = req.body;
+  const amount = Number(req.body.amount);
 
   if (!amount || amount < 5000) {
     res.status(400);
-    throw new Error('Amount must be at least 5000');
+    throw new Error('Доод дүн 5,000₮ байна');
   }
 
   const newRequest = await Request.create({
-    user: userId,
+    user: req.user.id,
     amount,
     status: 'pending'
   });
 
   try {
-    const invoice = await createQPayInvoice(newRequest, req.user);
-    
+    const invoice = await createQPayInvoice(newRequest._id.toString(), amount);
+
     newRequest.payment = {
       invoiceId: invoice.invoice_id,
       qrText: invoice.qr_text,
       qrImage: invoice.qr_image,
-      urls: invoice.urls,
+      urls: invoice.urls || [],
       status: 'pending'
     };
-    
     await newRequest.save();
-    
+
     res.status(201).json({
-      request: newRequest,
-      payment: invoice
+      _id: newRequest._id,
+      amount: newRequest.amount,
+      status: newRequest.status,
+      payment: {
+        invoiceId: invoice.invoice_id,
+        qrText: invoice.qr_text,
+        qrImage: invoice.qr_image,
+        urls: invoice.urls || []
+      }
     });
   } catch (error) {
     await Request.findByIdAndDelete(newRequest._id);
-    res.status(500);
+    res.status(502);
     throw new Error(error.message);
   }
 });
 
+// GET /api/request/:id — poll payment status; credits balance if now paid
+const getRequest = asyncHandler(async (req, res) => {
+  const request = await Request.findOne({ _id: req.params.id, user: req.user.id });
 
+  if (!request) {
+    res.status(404);
+    throw new Error('Хүсэлт олдсонгүй');
+  }
+
+  // If still pending, ask QPay for current status
+  if (request.payment?.invoiceId && request.status === 'pending') {
+    const paid = await checkQPayStatus(request.payment.invoiceId);
+    if (paid) {
+      await User.findByIdAndUpdate(request.user, {
+        $inc: { balance: request.amount }
+      });
+      request.status = 'completed';
+      request.payment.status = 'paid';
+      await request.save();
+    }
+  }
+
+  res.json({
+    _id: request._id,
+    amount: request.amount,
+    status: request.status,
+    paymentStatus: request.payment?.status || 'pending',
+    createdAt: request.createdAt
+  });
+});
+
+// GET /api/request/my — current user's top-up history
+const getMyRequests = asyncHandler(async (req, res) => {
+  const requests = await Request.find({ user: req.user.id })
+    .sort({ createdAt: -1 })
+    .limit(30)
+    .select('amount status payment.status createdAt');
+
+  res.json(requests);
+});
+
+// GET /api/request — admin: all requests
+const getRequests = asyncHandler(async (req, res) => {
+  const requests = await Request.find()
+    .populate('user', 'name email')
+    .sort({ createdAt: -1 });
+  res.status(200).json(requests);
+});
+
+// DELETE /api/request/:id
 const deleteRequest = asyncHandler(async (req, res) => {
-  const requestId = req.params.id;
-
-  const deletedRequest = await Request.findByIdAndDelete(requestId)
+  const deletedRequest = await Request.findByIdAndDelete(req.params.id)
     .populate('user', 'name email');
 
   if (!deletedRequest) {
     res.status(404);
-    throw new Error("Request not found");
+    throw new Error('Хүсэлт олдсонгүй');
   }
 
-  res.status(200).json({ 
-    message: "Request deleted successfully", 
-    deletedRequest 
-  });
+  res.status(200).json({ message: 'Устгагдлаа', deletedRequest });
 });
 
-module.exports = { 
-  getRequests,
-  addRequest,
-  deleteRequest,
-};
+module.exports = { getRequests, getMyRequests, addRequest, getRequest, deleteRequest };

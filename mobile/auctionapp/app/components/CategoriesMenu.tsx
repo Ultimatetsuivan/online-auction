@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import type { Category } from "../../lib/categories";
 import theme from "../theme";
+import { useTheme } from "../../src/contexts/ThemeContext";
 
 type Props = {
   data: Category[];
@@ -22,6 +23,7 @@ type Props = {
 
 export default function CategoriesMenu({ data, onSelectCategory }: Props) {
   const router = useRouter();
+  const { isDarkMode, themeColors } = useTheme();
   const [open, setOpen] = useState<Category | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -58,7 +60,8 @@ export default function CategoriesMenu({ data, onSelectCategory }: Props) {
           <View
             style={[
               styles.iconWrap,
-              active && { backgroundColor: theme.brand100, borderColor: theme.brand600, borderWidth: 1 },
+              { backgroundColor: active ? theme.brand100 : (isDarkMode ? themeColors.surface : "#F2F4F7") },
+              active && { borderColor: theme.brand600, borderWidth: 1 },
             ]}
           >
             {item.icon && item.icon.length <= 2 ? (
@@ -67,11 +70,11 @@ export default function CategoriesMenu({ data, onSelectCategory }: Props) {
               <Ionicons
                 name={(item.icon || "grid") as any}
                 size={26}
-                color={active ? theme.brand600 : theme.gray700}
+                color={active ? theme.brand600 : themeColors.textSecondary}
               />
             )}
           </View>
-          <Text style={styles.name} numberOfLines={2}>
+          <Text style={[styles.name, { color: themeColors.text }]} numberOfLines={2}>
             {item.name}
           </Text>
         </TouchableOpacity>
@@ -104,11 +107,11 @@ export default function CategoriesMenu({ data, onSelectCategory }: Props) {
         onRequestClose={() => setOpen(null)}
       >
         <Pressable style={styles.backdrop} onPress={() => setOpen(null)} />
-        <View style={styles.sheet}>
-          <View style={styles.sheetHeader}>
-            <Text style={styles.sheetTitle}>{open?.name}</Text>
+        <View style={[styles.sheet, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
+          <View style={[styles.sheetHeader, { borderColor: themeColors.border }]}>
+            <Text style={[styles.sheetTitle, { color: themeColors.text }]}>{open?.name}</Text>
             <TouchableOpacity onPress={() => setOpen(null)}>
-              <Ionicons name="close" size={22} color={theme.gray700} />
+              <Ionicons name="close" size={22} color={themeColors.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -116,21 +119,21 @@ export default function CategoriesMenu({ data, onSelectCategory }: Props) {
             <Pressable
               key={sc.id}
               android_ripple={{ color: theme.brand100 }}
-              style={styles.row}
+              style={[styles.row, { borderBottomColor: themeColors.border }]}
               onPress={() => {
                 setOpen(null);
                 setSelectedId(sc.id);
                 router.push(`/category/${sc.id}`);
               }}
             >
-              <Text style={styles.rowText}>{sc.name}</Text>
-              <Ionicons name="chevron-forward" size={18} color={theme.gray500} />
+              <Text style={[styles.rowText, { color: themeColors.text }]}>{sc.name}</Text>
+              <Ionicons name="chevron-forward" size={18} color={themeColors.textSecondary} />
             </Pressable>
           ))}
 
           {!open?.children?.length && (
             <View style={{ padding: 16 }}>
-              <Text style={{ color: theme.gray500 }}>No subcategories</Text>
+              <Text style={{ color: themeColors.textSecondary }}>No subcategories</Text>
             </View>
           )}
         </View>
@@ -145,12 +148,11 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: "#F2F4F7",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 6,
   },
-  name: { fontSize: 12, textAlign: "center", color: "#111", fontWeight: "600" },
+  name: { fontSize: 12, textAlign: "center", fontWeight: "600" },
 
   backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.35)" },
   sheet: {
@@ -158,7 +160,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "#fff",
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     paddingBottom: 16,
@@ -169,7 +170,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 16,
     borderBottomWidth: 1,
-    borderColor: "#eee",
   },
   sheetTitle: { fontSize: 16, fontWeight: "800" },
   row: {
@@ -178,6 +178,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: Platform.OS === "android" ? 10 : 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  rowText: { fontSize: 15, color: "#111" },
+  rowText: { fontSize: 15 },
 });

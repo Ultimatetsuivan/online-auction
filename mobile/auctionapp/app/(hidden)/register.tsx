@@ -24,6 +24,7 @@ export default function RegisterScreen() {
   const [surname, setSurname] = useState("");
   const [name, setName] = useState("");
   const [registrationNumber, setRegistrationNumber] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -197,15 +198,22 @@ export default function RegisterScreen() {
   };
 
   const handleCompleteRegistration = async () => {
-    if (!surname || !name || !registrationNumber || !password || !confirmPassword) {
+    if (!surname || !name || !registrationNumber || !phoneNumber || !password || !confirmPassword) {
       Alert.alert("Алдаа", "Бүх мэдээллээ бөглөнө үү");
       return;
     }
 
-    // Validate registration number format (УГ + 8 digits)
-    const regNumberRegex = /^УГ\d{8}$/;
+    // Validate registration number format (2 Cyrillic letters + 8 digits)
+    const regNumberRegex = /^[А-ЯӨҮЁа-яөүё]{2}\d{8}$/;
     if (!regNumberRegex.test(registrationNumber)) {
-      Alert.alert("Алдаа", "Регистрийн дугаар буруу байна. Жишээ: УГ99999999");
+      Alert.alert("Алдаа", "Регистрийн дугаар буруу байна. Жишээ: УГ99999999, УК99999999, ОЛ99999999");
+      return;
+    }
+
+    // Validate phone number format (8 digits)
+    const phoneRegex = /^\d{8}$/;
+    if (!phoneRegex.test(phoneNumber)) {
+      Alert.alert("Алдаа", "Утасны дугаар буруу байна. 8 оронтой тоо оруулна уу");
       return;
     }
 
@@ -222,29 +230,25 @@ export default function RegisterScreen() {
     setIsVerifying(true);
     try {
       // Register user
-      console.log("Starting registration...");
       const registerResponse = await api.post("/api/users/register", {
         surname: surname.trim(),
         name: name.trim(),
         registrationNumber: registrationNumber.trim(),
+        phone: phoneNumber.trim(),
         email: email.trim(),
         password,
         eulaAccepted: true,
         eulaAcceptedAt: new Date().toISOString(),
       });
-      console.log("Registration successful:", registerResponse.data);
 
       // Auto-login after successful registration
-      console.log("Starting auto-login...");
       const loginResponse = await api.post("/api/users/login", {
         email: email.trim(),
         password,
       });
-      console.log("Login successful:", loginResponse.data);
 
       // Save token
       if (loginResponse.data?.token) {
-        console.log("Saving token...");
         await AsyncStorage.setItem('authToken', loginResponse.data.token);
         await AsyncStorage.setItem('user', JSON.stringify(loginResponse.data));
 
@@ -252,13 +256,16 @@ export default function RegisterScreen() {
         setRegistrationComplete(true);
         setStep(5);
 
-        // Clear registration data after a delay so user sees success screen
+        // Clear registration data and navigate to app after showing success
         setTimeout(async () => {
           await AsyncStorage.removeItem('registrationEmail');
           await AsyncStorage.removeItem('registrationCode');
           await AsyncStorage.removeItem('eulaAccepted');
           await AsyncStorage.removeItem('currentRegistrationStep');
-        }, 100);
+
+          // Navigate to main app
+          router.replace("/(tabs)");
+        }, 2000); // Wait 2 seconds to show success message
       } else {
         console.error("No token in login response");
         Alert.alert("Алдаа", "Нэвтрэх токен олдсонгүй");
@@ -512,16 +519,13 @@ export default function RegisterScreen() {
                     />
                     <TextInput
                       style={styles.input}
-                      placeholder="УГ99999999"
+                      placeholder="УГ99999999, УК99999999, ОЛ99999999"
                       placeholderTextColor={theme.gray400}
                       value={registrationNumber}
                       onChangeText={(text) => {
-                        // Auto-format: convert to uppercase and ensure УГ prefix
+                        // Auto-format: convert to uppercase only
                         let formatted = text.toUpperCase();
-                        if (!formatted.startsWith('УГ') && formatted.length > 0) {
-                          formatted = 'УГ' + formatted.replace(/[^0-9]/g, '');
-                        }
-                        // Limit to УГ + 8 digits
+                        // Limit to 2 letters + 8 digits (10 characters total)
                         if (formatted.length > 10) {
                           formatted = formatted.substring(0, 10);
                         }
@@ -540,14 +544,32 @@ export default function RegisterScreen() {
                 </View>
 
                 <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Утасны дугаар</Text>
+                  <TextInput
+                    style={[styles.inputWrapper, { paddingLeft: 12, paddingRight: 12, height: 52 }]}
+                    placeholder="99999999"
+                    placeholderTextColor={theme.gray400}
+                    value={phoneNumber}
+                    onChangeText={(text) => {
+                      // Only allow digits
+                      const formatted = text.replace(/[^0-9]/g, '');
+                      // Limit to 8 digits
+                      setPhoneNumber(formatted.substring(0, 8));
+                    }}
+                    editable={true}
+                    keyboardType="number-pad"
+                    maxLength={8}
+                    autoComplete="off"
+                    textContentType="none"
+                    importantForAutofill="no"
+                    autoCorrect={false}
+                    spellCheck={false}
+                  />
+                </View>
+
+                <View style={styles.inputContainer}>
                   <Text style={styles.label}>Нууц үг</Text>
                   <View style={styles.inputWrapper}>
-                    <Ionicons
-                      name="lock-closed-outline"
-                      size={20}
-                      color={theme.gray500}
-                      style={styles.inputIcon}
-                    />
                     <TextInput
                       style={[styles.input, styles.passwordInput]}
                       placeholder="••••••••"
@@ -556,6 +578,9 @@ export default function RegisterScreen() {
                       onChangeText={setPassword}
                       secureTextEntry={!showPassword}
                       autoCapitalize="none"
+                      autoComplete="off"
+                      textContentType="none"
+                      importantForAutofill="no"
                     />
                     <TouchableOpacity
                       onPress={() => setShowPassword(!showPassword)}
@@ -573,12 +598,6 @@ export default function RegisterScreen() {
                 <View style={styles.inputContainer}>
                   <Text style={styles.label}>Нууц үг давтах</Text>
                   <View style={styles.inputWrapper}>
-                    <Ionicons
-                      name="lock-closed-outline"
-                      size={20}
-                      color={theme.gray500}
-                      style={styles.inputIcon}
-                    />
                     <TextInput
                       style={[styles.input, styles.passwordInput]}
                       placeholder="••••••••"
@@ -587,6 +606,9 @@ export default function RegisterScreen() {
                       onChangeText={setConfirmPassword}
                       secureTextEntry={!showConfirmPassword}
                       autoCapitalize="none"
+                      autoComplete="off"
+                      textContentType="none"
+                      importantForAutofill="no"
                     />
                     <TouchableOpacity
                       onPress={() => setShowConfirmPassword(!showConfirmPassword)}
@@ -627,15 +649,15 @@ export default function RegisterScreen() {
                     Амжилттай бүртгэгдлээ!
                   </Text>
                   <Text style={styles.successMessage}>
-                    Таны бүртгэл амжилттай баталгаажлаа. Одоо апп-аа ашиглаж эхэлж болно.
+                    Таны бүртгэл амжилттай баталгаажлаа. Та одоо нэвтэрсэн байна.
                   </Text>
 
-                  <TouchableOpacity
-                    style={styles.button}
-                    onPress={() => router.replace("/(tabs)")}
-                  >
-                    <Text style={styles.buttonText}>Зарлалцах</Text>
-                  </TouchableOpacity>
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={theme.brand600} />
+                    <Text style={[styles.loadingText, { color: theme.gray600 }]}>
+                      Апп руу шилжиж байна...
+                    </Text>
+                  </View>
                 </View>
               </>
             ) : null}
@@ -849,6 +871,15 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginBottom: 32,
     paddingHorizontal: 20,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  loadingText: {
+    fontSize: 14,
+    marginTop: 12,
+    textAlign: 'center',
   },
   eulaContainer: {
     backgroundColor: theme.gray50,

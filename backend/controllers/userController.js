@@ -3,7 +3,7 @@ const User = require("../models/User")
 const LegalDocument = require("../models/LegalDocument");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
-const {sendCode, sendResetEmail} = require("../utils/mail");
+const {sendCode, sendResetEmail, sendTempPasswordEmail} = require("../utils/mail");
 const pendingVerifications = new Map();
 const crypto = require('crypto');
 const { OAuth2Client } = require('google-auth-library');
@@ -109,22 +109,25 @@ const sendVerificationCodeOnly = asyncHandler(async (req, res) => {
 
     // Normalize email to lowercase and trim
     const normalizedEmail = email.toLowerCase().trim();
-    const normalizedPhone = phone ? phone.trim() : null;
+    // Ensure phone is either a valid string or null (not empty string)
+    const normalizedPhone = phone && phone.trim() ? phone.trim() : null;
     const normalizedRegistrationNumber = registrationNumber ? registrationNumber.trim() : null;
 
     // Check if email already exists
     const existingEmail = await User.findOne({ email: normalizedEmail });
     if (existingEmail) {
+      console.log(`[Registration] Duplicate email attempt: ${normalizedEmail}`);
       res.status(409);
-      throw new Error("Энэ имэйл хаяг аль хэдийн бүртгэлтэй байна");
+      throw new Error(`Имэйл хаяг (${normalizedEmail}) аль хэдийн бүртгэлтэй байна. Өөр имэйл ашиглана уу.`);
     }
 
     // Check if registration number already exists
     if (normalizedRegistrationNumber) {
       const existingRegNumber = await User.findOne({ registrationNumber: normalizedRegistrationNumber });
       if (existingRegNumber) {
+        console.log(`[Registration] Duplicate registration number attempt: ${normalizedRegistrationNumber}`);
         res.status(409);
-        throw new Error("Энэ регистрийн дугаар аль хэдийн бүртгэлтэй байна");
+        throw new Error(`Регистрийн дугаар (${normalizedRegistrationNumber}) аль хэдийн бүртгэлтэй байна. Өөр регистрийн дугаар ашиглана уу.`);
       }
 
       // Validate registration number format
@@ -138,8 +141,9 @@ const sendVerificationCodeOnly = asyncHandler(async (req, res) => {
     if (normalizedPhone) {
       const existingPhone = await User.findOne({ phone: normalizedPhone });
       if (existingPhone) {
+        console.log(`[Registration] Duplicate phone attempt: ${normalizedPhone}`);
         res.status(409);
-        throw new Error("Энэ утасны дугаар аль хэдийн бүртгэлтэй байна");
+        throw new Error(`Утасны дугаар (${normalizedPhone}) аль хэдийн бүртгэлтэй байна. Өөр утасны дугаар ашиглана уу.`);
       }
 
       // Validate phone format
@@ -223,7 +227,26 @@ const loginUser = asyncHandler(async (req, res) => {
       throw new Error("Хэрэглэгч олдсонгүй мэдээлэлээ шалгана уу");
     }
 
-    const passwordIsCorrect = await bcrypt.compare(password, user.password);
+    let passwordIsCorrect = await bcrypt.compare(password, user.password);
+    let usingTempPassword = false;
+
+    // If regular password fails, check temporary password
+    if (!passwordIsCorrect && user.tempPassword) {
+      const tempPasswordIsCorrect = await bcrypt.compare(password, user.tempPassword);
+
+      if (tempPasswordIsCorrect) {
+        // Check if temporary password is expired
+        if (user.tempPasswordExpires && user.tempPasswordExpires < new Date()) {
+          console.log(`[Login] Temporary password expired for user: ${user.email}`);
+          res.status(401);
+          throw new Error("Түр нууц үгний хүчинтэй хугацаа дууссан байна");
+        }
+
+        passwordIsCorrect = true;
+        usingTempPassword = true;
+        console.log(`[Login] Login with temporary password: ${user.email}`);
+      }
+    }
 
     if (!passwordIsCorrect) {
       console.log(`[Login] Password incorrect for user: ${user.email}`);
@@ -232,7 +255,6 @@ const loginUser = asyncHandler(async (req, res) => {
     }
 
     console.log(`[Login] Successful login: ${user.email}`);
-
 
     const token = generateToken(user._id);
 
@@ -253,7 +275,8 @@ const loginUser = asyncHandler(async (req, res) => {
       photo,
       role,
       token,
-      balance: user.balance
+      balance: user.balance,
+      requirePasswordChange: user.requirePasswordChange || usingTempPassword
     });
   });
 const loginstatus = asyncHandler(async (req, res)=> {
@@ -788,6 +811,127 @@ const eMongoliaAuth = asyncHandler(async (req, res) => {
   });
 });
 
+// Forgot Password - Generate temporary password (no email link required)
+const forgotPasswordTemp = asyncHandler(async (req, res) => {
+  const { identifier } = req.body; // Can be email or phone
+
+  if (!identifier) {
+    res.status(400);
+    throw new Error("Email эсвэл утасны дугаараа оруулна уу");
+  }
+
+  const normalizedInput = identifier.trim();
+  const isPhoneNumber = /^[0-9]{8}$/.test(normalizedInput);
+
+  let user;
+  if (isPhoneNumber) {
+    user = await User.findOne({ phone: normalizedInput });
+  } else {
+    user = await User.findOne({ email: normalizedInput.toLowerCase() });
+  }
+
+  if (!user) {
+    res.status(404);
+    throw new Error("Хэрэглэгч олдсонгүй");
+  }
+
+  // Generate random 8-character temporary password
+  const tempPassword = Math.random().toString(36).slice(-8).toUpperCase();
+
+  // Hash temporary password
+  const salt = await bcrypt.genSalt(10);
+  const hashedTempPassword = await bcrypt.hash(tempPassword, salt);
+
+  // Set temporary password with 24 hour expiration
+  user.tempPassword = hashedTempPassword;
+  user.tempPasswordExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+  user.requirePasswordChange = true;
+
+  await user.save();
+
+  console.log(`[ForgotPassword] Generated temporary password for user: ${user.email}`);
+  console.log(`[ForgotPassword] Temp password (for testing): ${tempPassword}`);
+
+  // Send temporary password via email if user has email
+  if (user.email) {
+    try {
+      await sendTempPasswordEmail(user.email, tempPassword);
+      console.log(`[ForgotPassword] Temp password email sent to: ${user.email}`);
+    } catch (error) {
+      console.error(`[ForgotPassword] Error sending email:`, error);
+      // Continue anyway - user can still use the password from response
+    }
+  }
+
+  // In production environment, only return success message without password
+  // For development/testing, include the password in response
+  const isDevelopment = process.env.NODE_ENV !== 'production';
+
+  res.status(200).json({
+    success: true,
+    message: user.email
+      ? "Түр нууц үг имэйл хаягруу илгээгдлээ"
+      : "Түр нууц үг үүсгэгдлээ",
+    tempPassword: isDevelopment ? tempPassword : undefined, // Only show in development
+    expiresIn: "24 цаг",
+    emailSent: !!user.email,
+  });
+});
+
+// Change Password
+const changePassword = asyncHandler(async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  const userId = req.user._id;
+
+  if (!currentPassword || !newPassword) {
+    res.status(400);
+    throw new Error("Одоогийн болон шинэ нууц үгээ оруулна уу");
+  }
+
+  if (newPassword.length < 6) {
+    res.status(400);
+    throw new Error("Шинэ нууц үг хамгийн багадаа 6 тэмдэгттэй байх ёстой");
+  }
+
+  const user = await User.findById(userId);
+
+  if (!user) {
+    res.status(404);
+    throw new Error("Хэрэглэгч олдсонгүй");
+  }
+
+  // Check if current password is correct (could be regular or temp password)
+  let currentPasswordIsCorrect = await bcrypt.compare(currentPassword, user.password);
+
+  if (!currentPasswordIsCorrect && user.tempPassword) {
+    currentPasswordIsCorrect = await bcrypt.compare(currentPassword, user.tempPassword);
+  }
+
+  if (!currentPasswordIsCorrect) {
+    res.status(401);
+    throw new Error("Одоогийн нууц үг буруу байна");
+  }
+
+  // Hash new password
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+  // Update password and clear temporary password
+  user.password = hashedPassword;
+  user.tempPassword = undefined;
+  user.tempPasswordExpires = undefined;
+  user.requirePasswordChange = false;
+
+  await user.save();
+
+  console.log(`[ChangePassword] Password changed successfully for user: ${user.email}`);
+
+  res.status(200).json({
+    success: true,
+    message: "Нууц үг амжилттай солигдлоо"
+  });
+});
+
 module.exports = {registerUser,
     loginUser,
     loginstatus,
@@ -799,6 +943,8 @@ module.exports = {registerUser,
     sendVerificationCodeOnly,
     addBalanceToUser,
     forgotPassword,
+    forgotPasswordTemp,
+    changePassword,
     verifyResetToken,
     resetPassword,
     googleLogin,

@@ -1,0 +1,182 @@
+# VISUAL ERD - ONLINE AUCTION SYSTEM DATABASE
+## Simplified Entity Relationship Diagram
+
+═══════════════════════════════════════════════════════════════════════════════
+
+                            ┌───────────────────────────────┐
+                            │          USER                 │
+                            │  (Central Entity)             │
+                            ├───────────────────────────────┤
+                            │ PK: _id                       │
+                            │ • email (unique)              │
+                            │ • password (hashed)           │
+                            │ • name                        │
+                            │ • phone (unique)              │
+                            │ • role (admin/buyer)          │
+                            │ • balance                     │
+                            │ • trustScore                  │
+                            │ • identityVerified            │
+                            │ • googleId                    │
+                            └───────────────────────────────┘
+                                        │
+                                        │ owns (1:N)
+                                        ▼
+┌──────────────┐                ┌────────────────────────────┐
+│  CATEGORY    │                │        PRODUCT             │
+├──────────────┤  1:N           ├────────────────────────────┤
+│ PK: _id      │◄───────────────│ PK: _id                    │
+│ • title      │ categorizes    │ FK: user (seller)          │
+│ • titleMn    │                │ FK: category               │
+│ • parent ─┐  │                │ FK: highestBidder          │
+│ • icon    │  │                │ FK: soldTo                 │
+│ • slug    │  │                │ • title                    │
+└───────────┼──┘                │ • description (rich text)  │
+            │                   │ • images[] (max 20)        │
+            │ self-ref          │ • price                    │
+            │ (hierarchy)       │ • currentBid               │
+            └──────────┐        │ • auctionStart             │
+                       ▼        │ • bidDeadline              │
+            ┌──────────────┐    │ • auctionStatus            │
+            │  CATEGORY    │    │ • sold                     │
+            │  (child)     │    │ • verified                 │
+            └──────────────┘    │ • views                    │
+                                └────────────────────────────┘
+                                        │
+                ┌───────────────────────┼───────────────────────┐
+                │                       │                       │
+                │ has (1:N)             │ has (1:N)             │ has (1:N)
+                ▼                       ▼                       ▼
+        ┌───────────────┐       ┌───────────────┐     ┌───────────────┐
+        │   BIDDING     │       │   WATCHLIST   │     │    REVIEW     │
+        ├───────────────┤       ├───────────────┤     ├───────────────┤
+        │ PK: _id       │       │ PK: _id       │     │ PK: _id       │
+        │ FK: user      │       │ FK: user      │     │ FK: product   │
+        │ FK: product   │       │ FK: product   │     │ FK: toUser    │
+        │ • price       │       │ • notifyOn... │     │ FK: fromUser  │
+        │ • createdAt   │       │ • createdAt   │     │ • rating(1-5) │
+        └───────────────┘       └───────────────┘     │ • comment     │
+                │                       │             └───────────────┘
+                │ placed by (N:1)       │ watched by (N:1)    │
+                │                       │                     │ written by (N:1)
+                │                       │                     │
+                ▼                       ▼                     ▼
+        ┌───────────────────────────────────────────────────────┐
+        │                     USER                              │
+        └───────────────────────────────────────────────────────┘
+                                │
+                ┌───────────────┼───────────────┬───────────────┐
+                │               │               │               │
+                │ has (1:N)     │ has (1:N)     │ has (1:N)     │ files (1:N)
+                ▼               ▼               ▼               ▼
+        ┌──────────────┐ ┌──────────────┐ ┌─────────────┐ ┌─────────────┐
+        │ TRANSACTION  │ │ NOTIFICATION │ │    LIKE     │ │   REPORT    │
+        ├──────────────┤ ├──────────────┤ ├─────────────┤ ├─────────────┤
+        │ PK: _id      │ │ PK: _id      │ │ PK: _id     │ │ PK: _id     │
+        │ FK: buyer    │ │ FK: user     │ │ FK: user    │ │ FK: reporter│
+        │ FK: seller   │ │ FK: product  │ │ FK: product │ │ FK: product │
+        │ FK: product  │ │ • type       │ │ • createdAt │ │ FK: user    │
+        │ • amount     │ │ • title      │ └─────────────┘ │ • type      │
+        │ • createdAt  │ │ • message    │                 │ • status    │
+        └──────────────┘ │ • read       │                 │ • resolved  │
+                │        │ • createdAt  │                 └─────────────┘
+                │        └──────────────┘
+                │                │
+                │ involves        │ related to
+                ▼                ▼
+        ┌──────────────────────────────────┐
+        │           PRODUCT                │
+        └──────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════════
+
+RELATIONSHIP KEY:
+
+─────>    One-to-One (1:1)
+─────<    One-to-Many (1:N)
+─────><   Many-to-Many (M:N)
+─ ─ ─>    Optional Relationship
+
+═══════════════════════════════════════════════════════════════════════════════
+
+MAIN RELATIONSHIPS:
+
+1. USER → PRODUCT (1:N)           - One user can sell many products
+2. USER → BIDDING (1:N)           - One user can place many bids
+3. USER → WATCHLIST (1:N)         - One user can watch many products
+4. USER → REVIEW (1:N as writer)  - One user writes many reviews
+5. USER → REVIEW (1:N as subject) - One user receives many reviews
+6. USER → TRANSACTION (1:N buyer) - One user makes many purchases
+7. USER → TRANSACTION (1:N seller)- One user makes many sales
+8. USER → NOTIFICATION (1:N)      - One user has many notifications
+9. USER → REPORT (1:N)            - One user files many reports
+
+10. PRODUCT → BIDDING (1:N)       - One product has many bids
+11. PRODUCT → WATCHLIST (1:N)     - One product watched by many
+12. PRODUCT → REVIEW (1:N)        - One product has many reviews
+13. PRODUCT → TRANSACTION (1:1)   - One product = one transaction
+14. PRODUCT → NOTIFICATION (1:N)  - One product generates many notifications
+15. PRODUCT → REPORT (1:N)        - One product has many reports
+
+16. CATEGORY → PRODUCT (1:N)      - One category has many products
+17. CATEGORY → CATEGORY (1:N)     - Parent-child hierarchy
+
+═══════════════════════════════════════════════════════════════════════════════
+
+ENTITY SUMMARY:
+
+┌──────────────┬──────────────────────┬─────────────────────────────────┐
+│ Entity       │ Primary Key          │ Main Purpose                    │
+├──────────────┼──────────────────────┼─────────────────────────────────┤
+│ User         │ _id (ObjectId)       │ User accounts & authentication  │
+│ Product      │ _id (ObjectId)       │ Auction items/products          │
+│ Bidding      │ _id (ObjectId)       │ Bid history and tracking        │
+│ Category     │ _id (ObjectId)       │ Product categories (66 total)   │
+│ Watchlist    │ _id (ObjectId)       │ Saved/watched products          │
+│ Review       │ _id (ObjectId)       │ User ratings and reviews        │
+│ Transaction  │ _id (ObjectId)       │ Completed sales                 │
+│ Notification │ _id (ObjectId)       │ User notifications              │
+│ Report       │ _id (ObjectId)       │ Product/user reports            │
+│ Like         │ _id (ObjectId)       │ Liked products                  │
+│ Settings     │ _id (ObjectId)       │ Notification preferences        │
+└──────────────┴──────────────────────┴─────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════════
+
+CARDINALITY EXAMPLES:
+
+[USER] ─────< [PRODUCT]
+   1           Many
+
+   One user can create many products
+   Each product belongs to one user (seller)
+
+[PRODUCT] ─────< [BIDDING] >───── [USER]
+     1            Many        Many    1
+
+   One product has many bids
+   Many users can bid on one product
+   One user can place many bids
+
+[USER] ─────< [WATCHLIST] >───── [PRODUCT]
+  1            Many          Many      1
+
+   Many-to-Many relationship via Watchlist junction table
+   One user watches many products
+   One product watched by many users
+
+═══════════════════════════════════════════════════════════════════════════════
+
+DATABASE STATISTICS:
+
+• Total Collections: 11
+• Total Relationships: 17+
+• Total Indexes: 30+
+• Hierarchical Collections: 1 (Category - self-referencing)
+• Junction Collections: 2 (Watchlist, Bidding - for M:N relationships)
+
+═══════════════════════════════════════════════════════════════════════════════
+
+For detailed ERD with all attributes, see: DATABASE_ERD.md
+For visual creation in draw.io, follow instructions in: DATABASE_ERD.md
+
+═══════════════════════════════════════════════════════════════════════════════

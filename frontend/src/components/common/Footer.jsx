@@ -1,4 +1,3 @@
-import "../../index.css";
 import { Link } from "react-router-dom";
 import { useLanguage } from "../../context/LanguageContext";
 import { useTheme } from "../../context/ThemeContext";
@@ -7,41 +6,33 @@ export const Footer = () => {
   const { t, language } = useLanguage();
   const { isDarkMode } = useTheme();
 
-  const footerBg = isDarkMode ? "bg-dark" : "bg-secondary";
-  const textColor = isDarkMode ? "text-light" : "text-white";
-
   return (
-    <footer className={`footer ${footerBg} ${textColor} py-4 mt-5`}>
-      <div className="container">
-        <div className="row">
+    <footer className="bg-bn-bg-secondary border-t border-bn-border mt-auto">
+      <div className="max-w-bn mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           {/* Quick Links */}
-          <div className="col-md-3 col-6 mb-3 mb-md-0">
-            <h6 className="fw-bold mb-3">
-              <i className="bi bi-lightning-charge me-2"></i>
+          <div>
+            <h6 className="text-sm font-semibold text-bn-text mb-4">
               {t("quickLinks") || "Quick Links"}
             </h6>
-            <ul className="list-unstyled">
-              <li className="mb-2">
-                <Link to="/" className={`text-decoration-none ${textColor}`} style={{ opacity: 0.8 }}>
-                  <i className="bi bi-house-door me-2"></i>
+            <ul className="space-y-2.5">
+              <li>
+                <Link to="/" className="text-sm text-bn-text-secondary hover:text-bn-primary transition-colors no-underline">
                   {t("home") || "Нүүр"}
                 </Link>
               </li>
-              <li className="mb-2">
-                <Link to="/allproduct" className={`text-decoration-none ${textColor}`} style={{ opacity: 0.8 }}>
-                  <i className="bi bi-grid me-2"></i>
+              <li>
+                <Link to="/allproduct" className="text-sm text-bn-text-secondary hover:text-bn-primary transition-colors no-underline">
                   {t("allProducts") || "Бүх бараа"}
                 </Link>
               </li>
-              <li className="mb-2">
-                <Link to="/categories" className={`text-decoration-none ${textColor}`} style={{ opacity: 0.8 }}>
-                  <i className="bi bi-folder me-2"></i>
+              <li>
+                <Link to="/categories" className="text-sm text-bn-text-secondary hover:text-bn-primary transition-colors no-underline">
                   {t("categories") || "Ангилал"}
                 </Link>
               </li>
-              <li className="mb-2">
-                <Link to="/brands" className={`text-decoration-none ${textColor}`} style={{ opacity: 0.8 }}>
-                  <i className="bi bi-award me-2"></i>
+              <li>
+                <Link to="/brands" className="text-sm text-bn-text-secondary hover:text-bn-primary transition-colors no-underline">
                   {t("brands") || "Брэнд"}
                 </Link>
               </li>
@@ -49,33 +40,28 @@ export const Footer = () => {
           </div>
 
           {/* Account */}
-          <div className="col-md-3 col-6 mb-3 mb-md-0">
-            <h6 className="fw-bold mb-3">
-              <i className="bi bi-person-circle me-2"></i>
+          <div>
+            <h6 className="text-sm font-semibold text-bn-text mb-4">
               {t("account") || "Account"}
             </h6>
-            <ul className="list-unstyled">
-              <li className="mb-2">
-                <Link to="/profile" className={`text-decoration-none ${textColor}`} style={{ opacity: 0.8 }}>
-                  <i className="bi bi-person me-2"></i>
+            <ul className="space-y-2.5">
+              <li>
+                <Link to="/profile" className="text-sm text-bn-text-secondary hover:text-bn-primary transition-colors no-underline">
                   {t("profile") || "Профайл"}
                 </Link>
               </li>
-              <li className="mb-2">
-                <Link to="/mylist" className={`text-decoration-none ${textColor}`} style={{ opacity: 0.8 }}>
-                  <i className="bi bi-eye me-2"></i>
+              <li>
+                <Link to="/mylist" className="text-sm text-bn-text-secondary hover:text-bn-primary transition-colors no-underline">
                   {t("myList") || "Миний жагсаалт"}
                 </Link>
               </li>
-              <li className="mb-2">
-                <Link to="/login" className={`text-decoration-none ${textColor}`} style={{ opacity: 0.8 }}>
-                  <i className="bi bi-box-arrow-in-right me-2"></i>
+              <li>
+                <Link to="/login" className="text-sm text-bn-text-secondary hover:text-bn-primary transition-colors no-underline">
                   {t("login") || "Нэвтрэх"}
                 </Link>
               </li>
-              <li className="mb-2">
-                <Link to="/register" className={`text-decoration-none ${textColor}`} style={{ opacity: 0.8 }}>
-                  <i className="bi bi-person-plus me-2"></i>
+              <li>
+                <Link to="/register" className="text-sm text-bn-text-secondary hover:text-bn-primary transition-colors no-underline">
                   {t("signup") || "Бүртгүүлэх"}
                 </Link>
               </li>
@@ -83,67 +69,61 @@ export const Footer = () => {
           </div>
 
           {/* Information */}
-          <div className="col-md-3 col-6 mb-3 mb-md-0">
-            <h6 className="fw-bold mb-3">
-              <i className="bi bi-info-circle me-2"></i>
+          <div>
+            <h6 className="text-sm font-semibold text-bn-text mb-4">
               {t("information") || "Information"}
             </h6>
-            <ul className="list-unstyled">
-              <li className="mb-2">
-                <Link to="/about" className={`text-decoration-none ${textColor}`} style={{ opacity: 0.8 }}>
-                  <i className="bi bi-file-text me-2"></i>
+            <ul className="space-y-2.5">
+              <li>
+                <Link to="/about" className="text-sm text-bn-text-secondary hover:text-bn-primary transition-colors no-underline">
                   {t("about") || "Бидний тухай"}
                 </Link>
               </li>
-              <li className="mb-2">
-                <a href="#" className={`text-decoration-none ${textColor}`} style={{ opacity: 0.8 }}>
-                  <i className="bi bi-question-circle me-2"></i>
+              <li>
+                <span className="text-sm text-bn-text-secondary cursor-default">
                   {t("help") || "Тусламж"}
-                </a>
+                </span>
               </li>
-              <li className="mb-2">
-                <a href="#" className={`text-decoration-none ${textColor}`} style={{ opacity: 0.8 }}>
-                  <i className="bi bi-envelope me-2"></i>
+              <li>
+                <span className="text-sm text-bn-text-secondary cursor-default">
                   {t("contact") || "Холбоо барих"}
-                </a>
+                </span>
               </li>
-              <li className="mb-2">
-                <a href="#" className={`text-decoration-none ${textColor}`} style={{ opacity: 0.8 }}>
-                  <i className="bi bi-file-earmark-text me-2"></i>
+              <li>
+                <span className="text-sm text-bn-text-secondary cursor-default">
                   {t("terms") || "Хэрэглэх нөхцөл"}
-                </a>
+                </span>
               </li>
             </ul>
           </div>
 
           {/* Contact Info */}
-          <div className="col-md-3 col-6">
-            <h6 className="fw-bold mb-3">{t("contactUs") || "Contact Us"}</h6>
-            <ul className="list-unstyled">
-              <li className="mb-2" style={{ opacity: 0.8 }}>
-                <i className="bi bi-envelope me-2"></i>
+          <div>
+            <h6 className="text-sm font-semibold text-bn-text mb-4">
+              {t("contactUs") || "Contact Us"}
+            </h6>
+            <ul className="space-y-2.5">
+              <li className="text-sm text-bn-text-secondary flex items-center gap-2">
+                <i className="bi bi-envelope text-bn-text-tertiary" />
                 info@auctionhub.mn
               </li>
-              <li className="mb-2" style={{ opacity: 0.8 }}>
-                <i className="bi bi-telephone me-2"></i>
+              <li className="text-sm text-bn-text-secondary flex items-center gap-2">
+                <i className="bi bi-telephone text-bn-text-tertiary" />
                 +976 11 234 567
               </li>
-              <li className="mb-2" style={{ opacity: 0.8 }}>
-                <i className="bi bi-geo-alt me-2"></i>
+              <li className="text-sm text-bn-text-secondary flex items-center gap-2">
+                <i className="bi bi-geo-alt text-bn-text-tertiary" />
                 {language === 'MN' ? 'Улаанбаатар хот' : 'Ulaanbaatar'}
               </li>
             </ul>
           </div>
         </div>
 
-        <hr className={`my-4 ${isDarkMode ? 'border-secondary' : 'border-light'}`} style={{ opacity: 0.3 }} />
-
-        <div className="row">
-          <div className="col-12 text-center">
-            <p className="mb-0" style={{ opacity: 0.8 }}>
-              © {new Date().getFullYear()} AUCTIONHUB. {t("allRightsReserved") || "Бүх эрх хуулиар хамгаалагдсан."}
-            </p>
-          </div>
+        <div className="border-t border-bn-border mt-10 pt-8 text-center">
+          <span className="text-lg font-bold text-bn-primary tracking-tight">Auction<span className="text-bn-danger">Hub</span></span>
+          <p className="text-sm text-bn-text-tertiary mt-3">
+            &copy; {new Date().getFullYear()} AuctionHub. {t("allRightsReserved") || "Бүх эрх хуулиар хамгаалагдсан."}
+          </p>
         </div>
       </div>
     </footer>

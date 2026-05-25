@@ -63,7 +63,7 @@ export const MercariProductCard = ({ product, showLikeButton = true, onLikeClick
           
           {/* Additional Badges */}
           {product.condition === 'like-new' && (
-            <div className="mercari-badge mercari-badge-top-left" style={{ backgroundColor: '#FF6A00' }}>
+            <div className="mercari-badge mercari-badge-top-left" style={{ backgroundColor: 'var(--bn-primary)' }}>
               <span className="mercari-badge-text">美品</span>
             </div>
           )}

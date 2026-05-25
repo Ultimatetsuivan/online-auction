@@ -19,5 +19,19 @@ const biddingSchema = mongoose.Schema( {
   },
   { timestamps: true }
 );
+
+// ===== Database Indexes for Performance =====
+// Compound index for finding highest bid on a product (sorted by price descending)
+biddingSchema.index({ product: 1, price: -1, createdAt: -1 });
+
+// Compound index for user's bid history on a specific product
+biddingSchema.index({ user: 1, product: 1, createdAt: -1 });
+
+// Index for user's complete bid history (sorted by date)
+biddingSchema.index({ user: 1, createdAt: -1 });
+
+// Index for product bid history
+biddingSchema.index({ product: 1, createdAt: -1 });
+
 const Bidding = mongoose.model("Bidding", biddingSchema)
 module.exports = Bidding;

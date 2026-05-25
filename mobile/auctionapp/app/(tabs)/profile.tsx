@@ -7,15 +7,12 @@ import {
   ScrollView,
   Alert,
   Image,
-  // Modal, // REMOVED - no longer using modal
-  // ActivityIndicator, // REMOVED - no longer using
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-// import * as ImagePicker from "expo-image-picker"; // REMOVED - no longer using
 import theme from "../theme";
 import { api } from "../../src/api";
 import { useTheme } from "../../src/contexts/ThemeContext";
@@ -24,11 +21,6 @@ export default function ProfileScreen() {
   const { isDarkMode, themeColors } = useTheme();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  // OLD verification modal state - COMMENTED OUT
-  // const [verificationModalVisible, setVerificationModalVisible] = useState(false);
-  // const [documentImage, setDocumentImage] = useState<string | null>(null);
-  // const [selfieImage, setSelfieImage] = useState<string | null>(null);
-  // const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     loadUser();
@@ -53,115 +45,6 @@ export default function ProfileScreen() {
       setLoading(false);
     }
   };
-
-  // OLD verification functions - COMMENTED OUT (Now using identity-verification screen)
-  /*
-  const requestCameraPermission = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Зөвшөөрөл хэрэгтэй", "Камер ашиглахын тулд зөвшөөрөл өгнө үү");
-      return false;
-    }
-    return true;
-  };
-
-  const takePhoto = async (type: "document" | "selfie") => {
-    const hasPermission = await requestCameraPermission();
-    if (!hasPermission) return;
-
-    try {
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: type === "document" ? [4, 3] : [1, 1],
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets[0]) {
-        if (type === "document") {
-          setDocumentImage(result.assets[0].uri);
-        } else {
-          setSelfieImage(result.assets[0].uri);
-        }
-      }
-    } catch (error) {
-      console.error("Camera error:", error);
-      Alert.alert("Алдаа", "Зураг авахад алдаа гарлаа");
-    }
-  };
-
-  const pickImage = async (type: "document" | "selfie") => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: type === "document" ? [4, 3] : [1, 1],
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets[0]) {
-        if (type === "document") {
-          setDocumentImage(result.assets[0].uri);
-        } else {
-          setSelfieImage(result.assets[0].uri);
-        }
-      }
-    } catch (error) {
-      console.error("Image picker error:", error);
-      Alert.alert("Алдаа", "Зураг сонгоход алдаа гарлаа");
-    }
-  };
-
-  const submitVerification = async () => {
-    if (!documentImage || !selfieImage) {
-      Alert.alert("Анхааруулга", "Бичиг баримт болон селфи зургийг авна уу");
-      return;
-    }
-
-    setUploading(true);
-    try {
-      const formData = new FormData();
-
-      // Add document image
-      formData.append("documentImage", {
-        uri: documentImage,
-        type: "image/jpeg",
-        name: "document.jpg",
-      } as any);
-
-      // Add selfie image
-      formData.append("selfieImage", {
-        uri: selfieImage,
-        type: "image/jpeg",
-        name: "selfie.jpg",
-      } as any);
-
-      const response = await api.post("/api/users/verify", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
-      if (response.status === 200 || response.status === 201) {
-        Alert.alert("Амжилттай", "Баталгаажуулалтын хүсэлт илгээгдлээ", [
-          {
-            text: "OK",
-            onPress: () => {
-              setVerificationModalVisible(false);
-              setDocumentImage(null);
-              setSelfieImage(null);
-            },
-          },
-        ]);
-      }
-    } catch (error: any) {
-      console.error("Verification error:", error);
-      Alert.alert("Алдаа", error.response?.data?.error || "Баталгаажуулалт илгээхэд алдаа гарлаа");
-    } finally {
-      setUploading(false);
-    }
-  };
-  */
 
   const handleLogout = () => {
     Alert.alert("Гарах", "Та гарахдаа итгэлтэй байна уу?", [
@@ -240,25 +123,29 @@ export default function ProfileScreen() {
           <Text style={[styles.headerTitle, { color: themeColors.text }]}>Профайл</Text>
         </View>
 
-        {/* User Info */}
-        <View style={[styles.userSection, { backgroundColor: themeColors.surface }]}>
-          <View style={styles.avatarContainer}>
+        {/* Hero card */}
+        <View style={[styles.heroCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+          <View style={styles.heroRow}>
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>
-                {user.name?.charAt(0).toUpperCase() || "U"}
+                {(user.name || "U").split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2)}
               </Text>
             </View>
+            <View style={styles.heroInfo}>
+              <Text style={[styles.userName, { color: themeColors.text }]}>{user.name || "User"}</Text>
+              <Text style={[styles.userEmail, { color: themeColors.textSecondary }]}>{user.email}</Text>
+              {user.isVerified && (
+                <View style={styles.verifiedPill}>
+                  <Ionicons name="shield-checkmark" size={12} color="#16a34a" />
+                  <Text style={styles.verifiedPillText}>Баталгаажсан</Text>
+                </View>
+              )}
+            </View>
           </View>
-          <Text style={[styles.userName, { color: themeColors.text }]}>
-            {user.name || "User"}
-          </Text>
-          <Text style={[styles.userEmail, { color: themeColors.textSecondary }]}>
-            {user.email}
-          </Text>
           {user.balance !== undefined && (
-            <View style={styles.balanceCard}>
-              <Text style={styles.balanceLabel}>Үлдэгдэл</Text>
-              <Text style={styles.balanceAmount}>₮{user.balance.toLocaleString()}</Text>
+            <View style={[styles.balanceRow, { borderTopColor: themeColors.border }]}>
+              <Text style={[styles.balanceLabel, { color: themeColors.textSecondary }]}>Үлдэгдэл</Text>
+              <Text style={styles.balanceAmount}>₮{(user.balance || 0).toLocaleString()}</Text>
             </View>
           )}
         </View>
@@ -376,7 +263,7 @@ export default function ProfileScreen() {
           <MenuItem
             icon="add-circle-outline"
             title="Бүтээгдэхүүн нэмэх"
-            onPress={() => router.push("/(tabs)/search")}
+            onPress={() => router.push("/(hidden)/add-product")}
             highlight
             themeColors={themeColors}
           />
@@ -575,58 +462,82 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 14,
     borderBottomWidth: 1,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "800",
   },
-  userSection: {
-    paddingVertical: 32,
-    paddingHorizontal: 16,
-    alignItems: "center",
-    marginBottom: 16,
+  heroCard: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: "hidden",
   },
-  avatarContainer: {
-    marginBottom: 16,
+  heroRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    gap: 14,
+  },
+  heroInfo: {
+    flex: 1,
+  },
+  verifiedPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 4,
+    backgroundColor: "#dcfce7",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 20,
+    alignSelf: "flex-start",
+  },
+  verifiedPillText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#16a34a",
+  },
+  balanceRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
   },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: theme.brand600,
     alignItems: "center",
     justifyContent: "center",
+    flexShrink: 0,
   },
   avatarText: {
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: "800",
     color: theme.white,
   },
   userName: {
-    fontSize: 20,
-    fontWeight: "700",
-    marginBottom: 4,
+    fontSize: 17,
+    fontWeight: "800",
+    marginBottom: 2,
   },
   userEmail: {
-    fontSize: 14,
-    marginBottom: 16,
-  },
-  balanceCard: {
-    backgroundColor: theme.brand50,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: "center",
+    fontSize: 13,
   },
   balanceLabel: {
     fontSize: 12,
-    color: theme.gray600,
-    marginBottom: 4,
+    fontWeight: "600",
   },
   balanceAmount: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "800",
     color: theme.brand600,
   },

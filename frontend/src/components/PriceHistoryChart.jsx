@@ -162,8 +162,8 @@ export const PriceHistoryChart = ({ bids, startingPrice, startDate, endDate }) =
         <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#FF6A00" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="#FF6A00" stopOpacity={0} />
+              <stop offset="5%" stopColor="#4F46E5" stopOpacity={0.3} />
+              <stop offset="95%" stopColor="#4F46E5" stopOpacity={0} />
             </linearGradient>
           </defs>
           <CartesianGrid
@@ -186,7 +186,7 @@ export const PriceHistoryChart = ({ bids, startingPrice, startDate, endDate }) =
           <Area
             type="monotone"
             dataKey="price"
-            stroke="#FF6A00"
+            stroke="#4F46E5"
             strokeWidth={2}
             fill="url(#colorPrice)"
             animationDuration={800}

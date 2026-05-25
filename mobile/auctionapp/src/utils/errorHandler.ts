@@ -5,6 +5,9 @@ export enum ErrorType {
   NETWORK = 'NETWORK',
   AUTHENTICATION = 'AUTHENTICATION',
   VALIDATION = 'VALIDATION',
+  FORBIDDEN = 'FORBIDDEN',
+  NOT_FOUND = 'NOT_FOUND',
+  CONFLICT = 'CONFLICT', // Race condition - 409
   SERVER = 'SERVER',
   UNKNOWN = 'UNKNOWN',
 }
@@ -42,11 +45,41 @@ export class ErrorHandler {
         };
       }
 
+      // Forbidden errors
+      if (status === 403) {
+        return {
+          type: ErrorType.FORBIDDEN,
+          message: data?.error || data?.message || 'Хандах эрх хүрэлцэхгүй байна',
+          code: status,
+          originalError: error,
+        };
+      }
+
+      // Not found errors
+      if (status === 404) {
+        return {
+          type: ErrorType.NOT_FOUND,
+          message: data?.error || data?.message || 'Олдсонгүй',
+          code: status,
+          originalError: error,
+        };
+      }
+
+      // Conflict errors (race condition)
+      if (status === 409) {
+        return {
+          type: ErrorType.CONFLICT,
+          message: data?.error || data?.message || 'Өөр хэрэглэгч яг одоо санал өгсөн байна. Дахин оролдоно уу',
+          code: status,
+          originalError: error,
+        };
+      }
+
       // Validation errors
       if (status === 400 || status === 422) {
         return {
           type: ErrorType.VALIDATION,
-          message: data?.message || data?.error || 'Invalid input. Please check your data.',
+          message: data?.error || data?.message || 'Буруу өгөгдөл илгээсэн байна',
           code: status,
           originalError: error,
         };
@@ -56,7 +89,7 @@ export class ErrorHandler {
       if (status >= 500) {
         return {
           type: ErrorType.SERVER,
-          message: 'Server error. Please try again later.',
+          message: 'Серверийн алдаа гарлаа. Дараа дахин оролдоно уу',
           code: status,
           originalError: error,
         };
@@ -108,15 +141,21 @@ export class ErrorHandler {
   static getErrorTitle(type: ErrorType): string {
     switch (type) {
       case ErrorType.NETWORK:
-        return 'Connection Error';
+        return 'Сүлжээний алдаа';
       case ErrorType.AUTHENTICATION:
-        return 'Authentication Error';
+        return 'Нэвтрэх шаардлагатай';
       case ErrorType.VALIDATION:
-        return 'Validation Error';
+        return 'Буруу өгөгдөл';
+      case ErrorType.FORBIDDEN:
+        return 'Хандах эрх хүрэлцэхгүй';
+      case ErrorType.NOT_FOUND:
+        return 'Олдсонгүй';
+      case ErrorType.CONFLICT:
+        return 'Давхардсан үйлдэл';
       case ErrorType.SERVER:
-        return 'Server Error';
+        return 'Серверийн алдаа';
       default:
-        return 'Error';
+        return 'Алдаа';
     }
   }
 
@@ -124,6 +163,44 @@ export class ErrorHandler {
     const appError = this.parseError(error);
     return appError.message;
   }
+
+  /**
+   * Check if error is a conflict error (409 - race condition)
+   */
+  static isConflictError(error: any): boolean {
+    const appError = this.parseError(error);
+    return appError.type === ErrorType.CONFLICT;
+  }
+
+  /**
+   * Check if error is a validation error
+   */
+  static isValidationError(error: any): boolean {
+    const appError = this.parseError(error);
+    return appError.type === ErrorType.VALIDATION;
+  }
+}
+
+/**
+ * Validate search query
+ * Matches backend validation rules
+ */
+export function validateSearchQuery(query: string): { valid: boolean; error: string | null } {
+  if (!query || typeof query !== 'string') {
+    return { valid: false, error: 'Хайлтын утга хоосон байна' };
+  }
+
+  const trimmed = query.trim();
+
+  if (trimmed.length < 1) {
+    return { valid: false, error: 'Хайлтын утга хоосон байна' };
+  }
+
+  if (trimmed.length > 100) {
+    return { valid: false, error: 'Хайлтын утга 100-аас бага тэмдэгт байх ёстой' };
+  }
+
+  return { valid: true, error: null };
 }
 
 export default ErrorHandler;

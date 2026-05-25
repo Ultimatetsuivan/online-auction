@@ -13,6 +13,9 @@ const { createNotification } = require("./notificationController");
 const { returnDeposit } = require("./depositController");
 const { updateTrustScore } = require("../utils/trustScore");
 const categoryClassifier = require("../utils/aiCategoryClassifier");
+const { sanitizeSearchQuery } = require("../utils/inputSanitization");
+const { sanitizeProductDescription } = require("../utils/htmlSanitizer");
+const { withTransaction } = require("../utils/transactionHelper");
 
 // Configure Cloudinary
 cloudinary.config({
@@ -35,6 +38,7 @@ const postProduct = asyncHandler(async (req, res) => {
             description,
             price,
             category,
+            sellType,            // 'auction' or 'fixed'
             height,
             length,
             width,
@@ -60,57 +64,69 @@ const postProduct = asyncHandler(async (req, res) => {
             });
         }
 
-        // Validate auction duration
-        if(!auctionDuration || auctionDuration <= 0) {
-            return res.status(400).json({
-                success: false,
-                error: "Аукционы үргэлжлэх хугацааг сонгоно уу"
-            });
-        }
+        // Determine sell type (default to auction for backward compatibility)
+        const productSellType = sellType || 'auction';
 
-        // ===== Handle Start Mode =====
+        // ===== Handle Start Mode and Auction Fields (only for auction type) =====
         let auctionStart;
         let auctionStatus;
+        let bidDeadline;
         const now = new Date();
 
-        if(startMode === 'scheduled') {
-            // Scheduled start: validate and combine date + time
-            if(!scheduledDate || !scheduledTime) {
+        if(productSellType === 'auction') {
+            // Validate auction duration for auction products
+            if(!auctionDuration || auctionDuration <= 0) {
                 return res.status(400).json({
                     success: false,
-                    error: "Эхлэх огноо болон цагийг оруулна уу"
+                    error: "Аукционы үргэлжлэх хугацааг сонгоно уу"
                 });
             }
 
-            // Combine date and time into single datetime (UTC)
-            const dateTimeString = `${scheduledDate}T${scheduledTime}:00`;
-            auctionStart = new Date(dateTimeString);
+            if(startMode === 'scheduled') {
+                // Scheduled start: validate and combine date + time
+                if(!scheduledDate || !scheduledTime) {
+                    return res.status(400).json({
+                        success: false,
+                        error: "Эхлэх огноо болон цагийг оруулна уу"
+                    });
+                }
 
-            // Validate that scheduled start is in the future
-            if(auctionStart <= now) {
-                return res.status(400).json({
-                    success: false,
-                    error: "Эхлэх огноо ирээдүйд байх ёстой"
-                });
+                // Combine date and time into single datetime (UTC)
+                const dateTimeString = `${scheduledDate}T${scheduledTime}:00`;
+                auctionStart = new Date(dateTimeString);
+
+                // Validate that scheduled start is in the future
+                if(auctionStart <= now) {
+                    return res.status(400).json({
+                        success: false,
+                        error: "Эхлэх огноо ирээдүйд байх ёстой"
+                    });
+                }
+
+                auctionStatus = 'scheduled';
+                console.log(`[Create Product] Scheduled auction: starts at ${auctionStart.toISOString()}`);
+
+            } else {
+                // Immediate start: auction starts now
+                auctionStart = now;
+                auctionStatus = 'active';
+                console.log(`[Create Product] Immediate auction: starts now`);
             }
 
-            auctionStatus = 'scheduled';
-            console.log(`[Create Product] Scheduled auction: starts at ${auctionStart.toISOString()}`);
+            // ===== Calculate Auction End Time =====
+            // bidDeadline = auctionStart + duration (in days)
+            const durationMs = parseInt(auctionDuration) * 24 * 60 * 60 * 1000;
+            bidDeadline = new Date(auctionStart.getTime() + durationMs);
 
+            console.log(`[Create Product] Auction duration: ${auctionDuration} days`);
+            console.log(`[Create Product] Auction ends at: ${bidDeadline.toISOString()}`);
         } else {
-            // Immediate start: auction starts now
+            // Fixed-price product - set to immediately available with no end date
             auctionStart = now;
             auctionStatus = 'active';
-            console.log(`[Create Product] Immediate auction: starts now`);
+            bidDeadline = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000); // 1 year from now
+            console.log(`[Create Product] Fixed-price product created`);
         }
-
-        // ===== Calculate Auction End Time =====
-        // bidDeadline = auctionStart + duration (in days)
-        const durationMs = parseInt(auctionDuration) * 24 * 60 * 60 * 1000;
-        const bidDeadline = new Date(auctionStart.getTime() + durationMs);
-
-        console.log(`[Create Product] Auction duration: ${auctionDuration} days`);
-        console.log(`[Create Product] Auction ends at: ${bidDeadline.toISOString()}`);
         // ===== End of Start Mode Handling =====
 
         // Generate unique slug
@@ -130,15 +146,24 @@ const postProduct = asyncHandler(async (req, res) => {
      // Handle file uploads
 let fileData = [];
 if(req.files && req.files.length > 0) {
-  console.log(`Processing ${req.files.length} images`);
-  
+  console.log(`[Upload] Processing ${req.files.length} images`);
+
   for (const file of req.files) {
     try {
-      console.log(`Uploading ${file.originalname} to Cloudinary`);
+      console.log(`[Upload] File: ${file.originalname}, MIME: ${file.mimetype}, Size: ${file.size} bytes`);
+
+      // Upload to Cloudinary (automatically converts HEIC to JPEG)
       const uploadFile = await cloudinary.uploader.upload(file.path, {
         folder: "Bidding/Product",
         resource_type: "image",
+        format: "jpg", // Force convert all images to JPEG for consistency
+        transformation: [
+          { quality: "auto:good" }, // Optimize quality
+          { fetch_format: "auto" }  // Auto-select best format
+        ]
       });
+
+      console.log(`[Upload] Successfully uploaded to Cloudinary: ${uploadFile.public_id}`);
 
       fileData.push({
         url: uploadFile.secure_url,
@@ -181,6 +206,7 @@ if(req.files && req.files.length > 0) {
             slug,
             description,
             price,
+            sellType: productSellType,
             category: category || "General",
             height,
             length,
@@ -189,14 +215,14 @@ if(req.files && req.files.length > 0) {
             bidThreshold: bidThreshold || null,
             reservePrice: reservePrice || null,
             buyNowPrice: buyNowPrice || null,
-            minIncrement: minIncrement || 1,
+            minIncrement: minIncrement || 5000,
             // New start system fields
-            startMode: startMode || 'immediate',
+            startMode: productSellType === 'auction' ? (startMode || 'immediate') : 'immediate',
             auctionStart: auctionStart,
-            auctionDuration: parseInt(auctionDuration),
+            auctionDuration: productSellType === 'auction' ? parseInt(auctionDuration) : null,
             bidDeadline: bidDeadline,
             auctionStatus: auctionStatus,
-            available: auctionStatus === 'active', // Only active auctions are available
+            available: auctionStatus === 'active', // Only active auctions/products are available
             images: fileData,
         });
 
@@ -244,11 +270,20 @@ const getAllAvailableProducts = asyncHandler(async (req, res) => {
             auctionStatus: 'active' // Only show active auctions
         }; 
         
-        // Handle search
+        // Handle search - sanitize to prevent ReDoS attacks
         if (search) {
+            const searchResult = sanitizeSearchQuery(search, { maxLength: 100 });
+            if (!searchResult.isValid) {
+                return res.status(400).json({
+                    success: false,
+                    error: searchResult.error
+                });
+            }
+
+            // Use sanitized search query (regex special chars are now escaped)
             query.$or = [
-                { title: { $regex: search, $options: 'i' } },
-                { description: { $regex: search, $options: 'i' } }
+                { title: { $regex: searchResult.sanitized, $options: 'i' } },
+                { description: { $regex: searchResult.sanitized, $options: 'i' } }
             ];
         }
         
@@ -469,6 +504,7 @@ const updateProduct = asyncHandler(async (req, res) => {
                 newDeadline.setDate(newDeadline.getDate() + durationDays);
                 updateData.bidDeadline = newDeadline;
                 updateData.auctionStatus = 'active';
+                updateData.available = true;
                 updateData.bidStartTime = now;
             }
         }
@@ -516,15 +552,27 @@ const buyNowProduct = asyncHandler(async (req, res) => {
 
   const product = await Product.findById(productId).populate("user");
   if (!product) {
-    return res.status(404).json({ success: false, message: "D~D1D� D�D��?D�D� D_D�D'�?D_D�D3O_D1" });
+    return res.status(404).json({ success: false, message: "Бүтээгдэхүүн олдсонгүй" });
   }
 
-  if (!product.buyNowPrice) {
-    return res.status(400).json({ success: false, message: "Buy now not available for this product" });
+  // Determine purchase price based on product type
+  let purchasePrice;
+  if (product.sellType === 'fixed') {
+    // Fixed-price product: use regular price
+    purchasePrice = product.price;
+    if (!purchasePrice || purchasePrice <= 0) {
+      return res.status(400).json({ success: false, message: "Invalid product price" });
+    }
+  } else {
+    // Auction product: use buyNowPrice (optional feature)
+    purchasePrice = product.buyNowPrice;
+    if (!purchasePrice) {
+      return res.status(400).json({ success: false, message: "Buy now not available for this auction" });
+    }
   }
 
   if (product.sold || product.auctionStatus === "ended") {
-    return res.status(400).json({ success: false, message: "Auction already ended or sold" });
+    return res.status(400).json({ success: false, message: "Product already sold or auction ended" });
   }
 
   if (product.user?._id?.toString() === userId.toString()) {
@@ -536,49 +584,48 @@ const buyNowProduct = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: "Buyer not found" });
   }
 
-  if (buyer.balance < product.buyNowPrice) {
-    return res.status(400).json({ success: false, message: "Insufficient balance for buy now" });
+  if (buyer.balance < purchasePrice) {
+    return res.status(400).json({ success: false, message: "Insufficient balance" });
   }
 
-  const session = await Product.startSession();
-  session.startTransaction();
-
   try {
-    // Deduct from buyer and credit seller
-    await User.updateOne({ _id: userId }, { $inc: { balance: -product.buyNowPrice } }).session(session);
-    await User.updateOne({ _id: product.user._id }, { $inc: { balance: product.buyNowPrice } }).session(session);
+    // Execute buy now transaction with automatic transaction support detection
+    await withTransaction(async (session) => {
+      // Deduct from buyer and credit seller
+      const updateOptions = session ? { session } : {};
+      await User.updateOne({ _id: userId }, { $inc: { balance: -purchasePrice } }, updateOptions);
+      await User.updateOne({ _id: product.user._id }, { $inc: { balance: purchasePrice } }, updateOptions);
 
-    product.currentBid = product.buyNowPrice;
-    product.highestBidder = userId;
-    product.sold = true;
-    product.soldTo = userId;
-    product.available = false;
-    product.auctionStatus = "ended";
-    await product.save({ session });
+      product.currentBid = purchasePrice;
+      product.highestBidder = userId;
+      product.sold = true;
+      product.soldTo = userId;
+      product.soldAt = new Date();
+      product.available = false;
+      product.auctionStatus = "ended";
+      await product.save(updateOptions);
 
-    await Transaction.create([{
-      buyer: userId,
-      seller: product.user._id,
-      product: productId,
-      amount: product.buyNowPrice
-    }], { session });
+      await Transaction.create([{
+        buyer: userId,
+        seller: product.user._id,
+        product: productId,
+        amount: purchasePrice
+      }], updateOptions);
 
-    await BiddingProduct.create([{
-      user: userId,
-      product: productId,
-      price: product.buyNowPrice
-    }], { session });
-
-    await session.commitTransaction();
-    session.endSession();
+      await BiddingProduct.create([{
+        user: userId,
+        product: productId,
+        price: purchasePrice
+      }], updateOptions);
+    });
 
     // Update trust score post-transaction
     await updateTrustScore(userId, 'completed');
 
     // Return deposits to losing bidders (held deposits not owned by the buyer)
-    const loserDeposits = await Deposit.find({ 
-      product: productId, 
-      status: 'held', 
+    const loserDeposits = await Deposit.find({
+      product: productId,
+      status: 'held',
       user: { $ne: userId }
     });
     await Promise.all(loserDeposits.map(d => returnDeposit(d._id, 'Auction completed via Buy Now')));
@@ -589,7 +636,7 @@ const buyNowProduct = asyncHandler(async (req, res) => {
     await Promise.all([
       sendPushNotification(userId, {
         title: "Congratulations! You Won!",
-        body: `"${product.title}" bought instantly for ${product.buyNowPrice.toLocaleString()}₮`,
+        body: `"${product.title}" bought instantly for ${purchasePrice.toLocaleString()}₮`,
         type: "won_auction",
         productId,
         actionUrl: `/products/${productId}`,
@@ -597,7 +644,7 @@ const buyNowProduct = asyncHandler(async (req, res) => {
       }),
       sendPushNotification(product.user._id, {
         title: "Item Sold!",
-        body: `"${product.title}" sold via Buy Now for ${product.buyNowPrice.toLocaleString()}₮`,
+        body: `"${product.title}" sold for ${purchasePrice.toLocaleString()}₮`,
         type: "sold",
         productId,
         actionUrl: `/products/${productId}`,
@@ -607,14 +654,14 @@ const buyNowProduct = asyncHandler(async (req, res) => {
         type: "won_auction",
         productId,
         title: "Congratulations! You Won!",
-        message: `"${product.title}" bought instantly for ${product.buyNowPrice.toLocaleString()}₮`,
+        message: `"${product.title}" bought instantly for ${purchasePrice.toLocaleString()}₮`,
         actionUrl: `/products/${productId}`
       }),
       createNotification(product.user._id, {
         type: "sold",
         productId,
         title: "Item Sold!",
-        message: `"${product.title}" sold via Buy Now for ${product.buyNowPrice.toLocaleString()}₮`,
+        message: `"${product.title}" sold for ${purchasePrice.toLocaleString()}₮`,
         actionUrl: `/products/${productId}`
       })
     ]);
@@ -622,12 +669,10 @@ const buyNowProduct = asyncHandler(async (req, res) => {
     return res.status(200).json({
       success: true,
       productId,
-      price: product.buyNowPrice,
+      price: purchasePrice,
       soldTo: userId
     });
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
     console.error("Buy now error:", error);
     return res.status(500).json({ success: false, message: "Failed to complete buy now", error: error.message });
   }
@@ -738,48 +783,47 @@ const sellNowToTopBidder = asyncHandler(async (req, res) => {
     skippedCount: skippedBidders.length
   });
 
-  console.log('Starting transaction...');
-  const session = await Product.startSession();
-  session.startTransaction();
-
   try {
-    console.log('Transferring funds...');
-    // Transfer funds from buyer to seller
-    await User.updateOne({ _id: buyerId }, { $inc: { balance: -salePrice } }).session(session);
-    await User.updateOne({ _id: userId }, { $inc: { balance: salePrice } }).session(session);
+    console.log('Starting transaction...');
+    // Execute sell now transaction with automatic transaction support detection
+    await withTransaction(async (session) => {
+      const updateOptions = session ? { session } : {};
 
-    console.log('Marking product as sold...');
-    // Mark product as sold
-    product.currentBid = salePrice;
-    product.highestBidder = buyerId;
-    product.sold = true;
-    product.soldTo = buyerId;
-    product.soldAt = new Date();
-    product.available = false;
-    product.auctionStatus = "ended";
+      console.log('Transferring funds...');
+      // Transfer funds from buyer to seller
+      await User.updateOne({ _id: buyerId }, { $inc: { balance: -salePrice } }, updateOptions);
+      await User.updateOne({ _id: userId }, { $inc: { balance: salePrice } }, updateOptions);
 
-    console.log('Saving product with values:', {
-      sold: product.sold,
-      auctionStatus: product.auctionStatus,
-      available: product.available
+      console.log('Marking product as sold...');
+      // Mark product as sold
+      product.currentBid = salePrice;
+      product.highestBidder = buyerId;
+      product.sold = true;
+      product.soldTo = buyerId;
+      product.soldAt = new Date();
+      product.available = false;
+      product.auctionStatus = "ended";
+
+      console.log('Saving product with values:', {
+        sold: product.sold,
+        auctionStatus: product.auctionStatus,
+        available: product.available
+      });
+
+      await product.save(updateOptions);
+
+      console.log('Product saved successfully');
+
+      // Create transaction record
+      await Transaction.create([{
+        buyer: buyerId,
+        seller: userId,
+        product: productId,
+        amount: salePrice
+      }], updateOptions);
+
+      console.log('Transaction completed successfully');
     });
-
-    await product.save({ session });
-
-    console.log('Product saved successfully');
-
-    // Create transaction record
-    await Transaction.create([{
-      buyer: buyerId,
-      seller: userId,
-      product: productId,
-      amount: salePrice
-    }], { session });
-
-    console.log('Committing transaction...');
-    await session.commitTransaction();
-    session.endSession();
-    console.log('Transaction committed successfully');
 
     // Update trust scores
     await updateTrustScore(buyerId, 'completed');
@@ -861,8 +905,6 @@ const sellNowToTopBidder = asyncHandler(async (req, res) => {
       skippedBidders: skippedBidders
     });
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
     console.error("Sell now error:", error);
     return res.status(500).json({
       success: false,
@@ -924,12 +966,45 @@ const getMySoldAuctions = asyncHandler(async (req, res) => {
 
 const getAllProductsAdmin = async (req, res) => {
     try {
-        const products = await Product.find({ user: req.params.userId }).populate("category");
-        res.json(products);
-      } catch (error) {
+        const products = await Product.find({ user: req.params.userId })
+            .populate("category")
+            .populate("user", "name email phone")
+            .sort({ createdAt: -1 });
+
+        // For each product, fetch bidding information
+        const productsWithBids = await Promise.all(products.map(async (product) => {
+            const productObj = product.toObject();
+
+            // Get all bids for this product with bidder information
+            const bids = await BiddingProduct.find({ product: product._id })
+                .populate('user', 'name email phone photo trustScore')
+                .sort({ price: -1, createdAt: -1 });
+
+            // Get unique bidders count
+            const uniqueBidders = await BiddingProduct.distinct('user', { product: product._id });
+
+            // Get highest bid
+            const highestBid = bids.length > 0 ? bids[0] : null;
+
+            // Calculate bid statistics
+            productObj.bidStats = {
+                totalBids: bids.length,
+                totalBidders: uniqueBidders.length,
+                highestBid: highestBid?.price || productObj.price,
+                highestBidder: highestBid?.user || null,
+                allBids: bids,
+                views: productObj.views || 0,
+                uniqueViewers: productObj.uniqueViewers?.length || 0
+            };
+
+            return productObj;
+        }));
+
+        res.json(productsWithBids);
+    } catch (error) {
         res.status(500).json({ error: error.message });
-      }
-  };
+    }
+};
 
 
 const getProduct = asyncHandler(async (req, res) => {
@@ -939,9 +1014,53 @@ const getProduct = asyncHandler(async (req, res) => {
     if(!product){
         res.status(400);
         throw new Error("Ийм бараа олдсонгүй");
-       }
+    }
 
-       res.status(200).json(product)
+    // Track view (don't count owner's views)
+    const viewerId = req.user?._id?.toString();
+    const ownerId = product.user?._id?.toString() || product.user?.toString();
+
+    if (viewerId && viewerId !== ownerId) {
+        // Only increment if viewer hasn't viewed before
+        if (!product.uniqueViewers.includes(viewerId)) {
+            await Product.findByIdAndUpdate(id, {
+                $inc: { views: 1 },
+                $addToSet: { uniqueViewers: viewerId }
+            });
+            product.views = (product.views || 0) + 1;
+        }
+    } else if (!viewerId) {
+        // Anonymous view - just increment
+        await Product.findByIdAndUpdate(id, {
+            $inc: { views: 1 }
+        });
+        product.views = (product.views || 0) + 1;
+    }
+
+    // Get bid statistics if user is the owner
+    let bidStats = null;
+    if (viewerId && viewerId === ownerId) {
+        const BiddingProduct = require("../models/bidding");
+
+        // Get total number of unique bidders
+        const uniqueBidders = await BiddingProduct.distinct('user', { product: id });
+
+        // Get all bids sorted by price (highest first)
+        const allBids = await BiddingProduct.find({ product: id })
+            .populate('user', 'name email phone photo')
+            .sort({ price: -1, createdAt: -1 });
+
+        bidStats = {
+            totalBidders: uniqueBidders.length,
+            totalBids: allBids.length,
+            bidders: allBids
+        };
+    }
+
+    res.status(200).json({
+        ...product.toObject(),
+        bidStats
+    });
 });
 
 const getAllSoldProduct = asyncHandler(async (req, res) => {
@@ -1144,8 +1263,11 @@ const updateSellerDescription = asyncHandler(async (req, res) => {
             });
         }
 
+        // Sanitize HTML to prevent XSS attacks
+        const sanitizedDescription = sanitizeProductDescription(sellerDescription);
+
         // Update seller description
-        product.sellerDescription = sellerDescription;
+        product.sellerDescription = sanitizedDescription;
         await product.save();
 
         res.status(200).json({

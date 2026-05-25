@@ -32,8 +32,9 @@ const notificationSettingsRoute = require("./routes/notificationSettingsRoute");
 // COMMENTED OUT: Luxury item verification (replaced with identity verification)
 // const verificationRoute = require("./routes/verificationRoute");
 const identityVerificationRoute = require("./routes/identityVerificationRoute");
+const aiRoute = require("./routes/aiRoute");
 
-const errorHandler = require("./middleware/errorMiddleWare");
+const { errorHandler } = require("./middleware/errorMiddleWare");
 const { apiLimiter } = require("./middleware/rateLimiter");
 
 // Initialize Firebase Admin SDK
@@ -129,6 +130,7 @@ app.use("/api", reportRoute);
 // COMMENTED OUT: Luxury item verification route
 // app.use("/api/verification", verificationRoute);
 app.use("/api/identity-verification", identityVerificationRoute);
+app.use("/api/ai", aiRoute);
 
 app.use("/uploads", express.static(path.join(__dirname, "upload")));
 

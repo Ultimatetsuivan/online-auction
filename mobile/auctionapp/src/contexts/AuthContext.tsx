@@ -35,13 +35,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ]);
 
       if (storedToken && storedUser) {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
-        // Optionally verify token is still valid
-        await refreshUser();
+        // Validate token BEFORE setting state
+        try {
+          const response = await api.get('/api/users/me', {
+            headers: { Authorization: `Bearer ${storedToken}` }
+          });
+          const userData = response.data?.data || response.data;
+
+          // Token is valid, set state
+          if (userData) {
+            setToken(storedToken);
+            setUser(userData);
+            // Update storage with fresh user data
+            await AsyncStorage.setItem('user', JSON.stringify(userData));
+          } else {
+            throw new Error('No user data returned');
+          }
+        } catch (error) {
+          // Token is invalid, clear everything
+          await Promise.all([
+            AsyncStorage.removeItem('token'),
+            AsyncStorage.removeItem('user'),
+          ]);
+          setToken(null);
+          setUser(null);
+        }
+      } else {
       }
     } catch (error) {
       console.error('Error loading auth data:', error);
+      setToken(null);
+      setUser(null);
     } finally {
       setIsLoading(false);
     }
@@ -49,7 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     try {
-      const response = await api.post('/api/auth/login', { email, password });
+      const response = await api.post('/api/users/login', { email, password });
       const { token: newToken, user: userData } = response.data;
 
       // Store auth data
@@ -91,13 +115,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const refreshUser = useCallback(async () => {
-    if (!token) return;
+  const refreshUser = useCallback(async (tokenToUse?: string) => {
+    const activeToken = tokenToUse || token;
+    if (!activeToken) return;
 
     try {
-      const response = await api.get('/api/users/me');
+      // Temporarily set the authorization header with the provided token
+      const response = await api.get('/api/users/me', {
+        headers: tokenToUse ? { Authorization: `Bearer ${tokenToUse}` } : undefined
+      });
       const userData = response.data?.data || response.data;
-      
+
       if (userData) {
         setUser(userData);
         await AsyncStorage.setItem('user', JSON.stringify(userData));

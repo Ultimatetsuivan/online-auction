@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -20,35 +20,12 @@ import theme from "../theme";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "../../src/contexts/ThemeContext";
 
-// Google Sign-In temporarily disabled - will be implemented later
-// import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
-
-
 export default function LoginScreen() {
   const { isDarkMode, themeColors } = useTheme();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  // Google Sign-In configuration - temporarily disabled
-  // useEffect(() => {
-  //   const configureGoogleSignIn = async () => {
-  //     try {
-  //       const response = await api.get("/api/users/google/client-id");
-  //       const webClientId = response.data?.clientIds?.web || response.data?.clientId || "377856194024-6ud79er14h5nnfhgpqbtuh2umldrk156.apps.googleusercontent.com";
-  //       GoogleSignin.configure({
-  //         webClientId: webClientId,
-  //         offlineAccess: true,
-  //         forceCodeForRefreshToken: true,
-  //       });
-  //       console.log("Google Sign In configured with webClientId:", webClientId);
-  //     } catch (error) {
-  //       console.error("Failed to configure Google Sign In:", error);
-  //     }
-  //   };
-  //   configureGoogleSignIn();
-  // }, []);
 
   const persistUserSession = async (userData: any) => {
     await AsyncStorage.setItem("user", JSON.stringify(userData));
@@ -452,9 +429,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: theme.gray700,
-  },
-  googleButtonDisabled: {
-    opacity: 0.6,
   },
   eMongoliaButton: {
     flexDirection: "row",

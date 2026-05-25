@@ -31,7 +31,7 @@ export const DraftStatusIndicator = () => {
     if (minutes < 60) return `${minutes} minutes ago';
     const hours = Math.floor(minutes / 60);
     if (hours === 1) return '1 hour ago';
-    return `${hours} hours ago`;
+    return ${hours} hours ago`;
   };
 
   return (

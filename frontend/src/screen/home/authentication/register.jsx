@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import "bootstrap/dist/css/bootstrap.min.css";
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../../components/common/Toast';
 import { buildApiUrl } from '../../../config/api';
 import { useTheme } from '../../../context/ThemeContext';
+import { Button } from '../../../components/design-system';
 
 export const Register = () => {
   const [formData, setFormData] = useState({
@@ -44,7 +44,6 @@ export const Register = () => {
       script.defer = true;
       script.onload = () => {
         setGoogleScriptLoaded(true);
-        console.log('Google script loaded');
       };
       script.onerror = () => {
         console.error('Failed to load Google script');
@@ -56,7 +55,6 @@ export const Register = () => {
       try {
         const response = await axios.get(buildApiUrl('/api/users/google/client-id'));
         setGoogleClientId(response.data.clientId);
-        console.log('Google Client ID loaded:', response.data.clientId);
         loadGoogleScript();
       } catch (error) {
         console.error('Failed to load Google Client ID:', error);
@@ -86,9 +84,9 @@ export const Register = () => {
         container.innerHTML = '';
         window.google.accounts.id.renderButton(
           container,
-          { 
+          {
             theme: isDarkMode ? 'filled_black' : 'outline',
-            size: 'large', 
+            size: 'large',
             text: 'signup_with',
             width: '400'
           }
@@ -205,7 +203,7 @@ export const Register = () => {
       setIsSubmitting(false);
     }
   };
-  
+
   const handleVerificationSubmit = async (e) => {
     e.preventDefault();
     if (!hasAcceptedEula) {
@@ -272,121 +270,121 @@ export const Register = () => {
     }
   };
 
+  const inputClasses = (fieldName) =>
+    `w-full px-4 py-2.5 bg-bn-surface border rounded-bn-md text-bn-text placeholder:text-bn-text-secondary/50 focus:outline-none focus:ring-2 focus:ring-bn-primary/30 focus:border-bn-primary transition-all ${
+      errors[fieldName] ? 'border-bn-danger' : 'border-bn-border'
+    }`;
+
   if (registrationStep === 2) {
     return (
-      <div className="container mt-5">
-        <div className="row justify-content-center">
-          <div className="col-md-6">
-            <div className="card">
-              <div className="card-body">
-                <h2 className="card-title text-center mb-4">Имэйл баталгаажуулалт</h2>
+      <div className="min-h-[calc(100vh-var(--bn-header-height))] flex items-center justify-center bg-bn-bg py-12 px-4">
+        <div className="w-full max-w-md bg-bn-surface rounded-bn-2xl shadow-xl p-8 md:p-10">
+          <h2 className="text-2xl font-bold text-bn-text text-center mb-6">Имэйл баталгаажуулалт</h2>
 
-                {errors.submit && (
-                  <div className="alert alert-danger">{errors.submit}</div>
-                )}
-
-                <p className="text-center">
-                  Бид <strong>{registeredEmail}</strong> хаяг руу 6 оронтой баталгаажуулах код илгээлээ.
-                </p>
-
-                <form onSubmit={handleVerificationSubmit}>
-                  <div className="mb-3">
-                    <label className="form-label">Баталгаажуулах код</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      value={verificationCode}
-                      onChange={(e) => setVerificationCode(e.target.value)}
-                      required
-                      maxLength="6"
-                      autoFocus
-                    />
-                  </div>
-
-                  <div className="mb-3">
-                    <div className="d-flex justify-content-between align-items-center">
-                      <span className="fw-semibold">
-                        {(eula?.titleMn || eula?.title || 'EULA')} {eula?.version ? `(v${eula.version})` : ''}
-                      </span>
-                      <button
-                        type="button"
-                        className="btn btn-link p-0"
-                        onClick={() => setShowEulaContent((prev) => !prev)}
-                        disabled={!eula}
-                      >
-                        {showEulaContent ? 'D`���+D��.' : 'D���?D��.'}
-                      </button>
-                    </div>
-                    {showEulaContent && eula && (
-                      <div
-                        className="border rounded bg-light p-3 small mt-2"
-                        style={{ maxHeight: '200px', overflowY: 'auto' }}
-                        dangerouslySetInnerHTML={{
-                          __html: eula.contentMn || eula.content || ''
-                        }}
-                      />
-                    )}
-                    {!eula && (
-                      <div className="text-muted small mt-2">EULA ачааллаж байна...</div>
-                    )}
-                  </div>
-
-                  <div className="form-check mb-3">
-                    <input
-                      className="form-check-input"
-                      type="checkbox"
-                      id="acceptEula"
-                      checked={hasAcceptedEula}
-                      onChange={(event) => {
-                        setHasAcceptedEula(event.target.checked);
-                        setErrors(prev => ({ ...prev, acceptEula: null }));
-                      }}
-                    />
-                    <label className="form-check-label" htmlFor="acceptEula">
-                      Үйлчилгээний нөхцөл болон EULA-г зөвшөөрч байна.
-                    </label>
-                    {errors.acceptEula && (
-                      <div className="text-danger small mt-1">{errors.acceptEula}</div>
-                    )}
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="btn btn-primary w-100"
-                    disabled={isSubmitting || verificationCode.length < 6}
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <span className="spinner-border spinner-border-sm me-2"></span>
-                        Баталгаажуулж байна...
-                      </>
-                    ) : 'Баталгаажуулах'}
-                  </button>
-                </form>
-
-                <div className="mt-3 text-center">
-                  <button
-                    onClick={resendVerificationCode}
-                    className="btn btn-link p-0"
-                  >
-                    Код дахин илгээх
-                  </button>
-                  <div className="mt-2">
-                    <button
-                      onClick={() => setRegistrationStep(1)}
-                      className="btn btn-link p-0 text-muted"
-                    >
-                      Буцах
-                    </button>
-                  </div>
-                </div>
-                <div className="mt-3 p-3 bg-light rounded">
-                  <small className="text-muted">
-                    <strong>Анхаар:</strong> Имэйл ирсэнгүй юу? Spam хавтас шалгана уу. Код 10 минутын дараа хүчингүй болно.
-                  </small>
-                </div>
-              </div>
+          {errors.submit && (
+            <div className="bg-red-50 border border-red-200 text-bn-danger rounded-bn-md px-4 py-3 mb-4 text-sm">
+              {errors.submit}
             </div>
+          )}
+
+          <p className="text-center text-bn-text-secondary mb-6">
+            Бид <strong className="text-bn-text">{registeredEmail}</strong> хаяг руу 6 оронтой баталгаажуулах код илгээлээ.
+          </p>
+
+          <form onSubmit={handleVerificationSubmit}>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-bn-text mb-1.5">Баталгаажуулах код</label>
+              <input
+                type="text"
+                className="w-full px-4 py-3 bg-bn-surface border border-bn-border rounded-bn-md text-bn-text text-center text-lg tracking-widest font-mono focus:outline-none focus:ring-2 focus:ring-bn-primary/30 focus:border-bn-primary transition-all"
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value)}
+                required
+                maxLength="6"
+                autoFocus
+              />
+            </div>
+
+            <div className="mb-4">
+              <div className="flex justify-between items-center mb-2">
+                <span className="font-semibold text-sm text-bn-text">
+                  {(eula?.titleMn || eula?.title || 'EULA')} {eula?.version ? `(v${eula.version})` : ''}
+                </span>
+                <button
+                  type="button"
+                  className="text-bn-primary text-sm font-medium hover:text-bn-primary-dark bg-transparent border-0"
+                  onClick={() => setShowEulaContent((prev) => !prev)}
+                  disabled={!eula}
+                >
+                  {showEulaContent ? 'Хаах' : 'Харах'}
+                </button>
+              </div>
+              {showEulaContent && eula && (
+                <div
+                  className="border border-bn-border rounded-bn-md bg-bn-bg-secondary p-3 text-sm max-h-48 overflow-y-auto mt-2"
+                  dangerouslySetInnerHTML={{
+                    __html: eula.contentMn || eula.content || ''
+                  }}
+                />
+              )}
+              {!eula && (
+                <div className="text-bn-text-secondary text-sm mt-2">EULA ачааллаж байна...</div>
+              )}
+            </div>
+
+            <label className="flex items-start gap-2 mb-4 cursor-pointer">
+              <input
+                className="w-4 h-4 mt-0.5 rounded border-bn-border text-bn-primary focus:ring-bn-primary"
+                type="checkbox"
+                id="acceptEula"
+                checked={hasAcceptedEula}
+                onChange={(event) => {
+                  setHasAcceptedEula(event.target.checked);
+                  setErrors(prev => ({ ...prev, acceptEula: null }));
+                }}
+              />
+              <span className="text-sm text-bn-text">
+                Үйлчилгээний нөхцөл болон EULA-г зөвшөөрч байна.
+              </span>
+            </label>
+            {errors.acceptEula && (
+              <p className="text-bn-danger text-xs -mt-2 mb-3">{errors.acceptEula}</p>
+            )}
+
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isSubmitting || verificationCode.length < 6}
+            >
+              {isSubmitting ? (
+                <>
+                  <span className="bn-spinner w-4 h-4 mr-2"></span>
+                  Баталгаажуулж байна...
+                </>
+              ) : 'Баталгаажуулах'}
+            </Button>
+          </form>
+
+          <div className="mt-5 text-center space-y-2">
+            <button
+              onClick={resendVerificationCode}
+              className="text-bn-primary text-sm font-medium hover:text-bn-primary-dark bg-transparent border-0"
+            >
+              Код дахин илгээх
+            </button>
+            <div>
+              <button
+                onClick={() => setRegistrationStep(1)}
+                className="text-bn-text-secondary text-sm hover:text-bn-text bg-transparent border-0"
+              >
+                Буцах
+              </button>
+            </div>
+          </div>
+          <div className="mt-4 p-3 bg-bn-bg-secondary rounded-bn-md">
+            <p className="text-bn-text-secondary text-xs">
+              <span className="font-semibold">Анхаар:</span> Имэйл ирсэнгүй юу? Spam хавтас шалгана уу. Код 10 минутын дараа хүчингүй болно.
+            </p>
           </div>
         </div>
       </div>
@@ -394,131 +392,140 @@ export const Register = () => {
   }
 
   return (
-    <div className="container mt-5">
-      <div className="row justify-content-center">
-        <div className="col-md-6">
-          <div className="card">
-            <div className="card-body">
-              <h2 className="card-title text-center mb-4">Бүртгэл үүсгэх</h2>
+    <div className="min-h-[calc(100vh-var(--bn-header-height))] flex items-center justify-center bg-bn-bg py-12 px-4">
+      <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 bg-bn-surface rounded-bn-2xl shadow-xl overflow-hidden">
+        {/* Brand Side */}
+        <div className="hidden lg:flex flex-col items-center justify-center bg-gradient-to-br from-bn-primary to-primary-600 p-12 text-white">
+          <span className="text-3xl font-bold tracking-tight mb-8">Auction<span className="text-white/70">Hub</span></span>
+          <h2 className="text-3xl font-bold mb-3 text-center">Бүртгэл үүсгэх</h2>
+          <p className="text-white/80 text-center max-w-xs">
+            Монголын тэргүүлэх дуудлага худалдааны платформ дээр санал тавьж, өөрийн бараагаа зарж эхлээрэй.
+          </p>
+        </div>
 
-              {errors.submit && (
-                <div className="alert alert-danger">{errors.submit}</div>
+        {/* Form Side */}
+        <div className="p-8 md:p-10">
+          <div className="text-center mb-6 lg:hidden">
+            <span className="text-2xl font-bold text-bn-primary tracking-tight">Auction<span className="text-bn-danger">Hub</span></span>
+          </div>
+          <h2 className="text-2xl font-bold text-bn-text text-center mb-6">Бүртгэл үүсгэх</h2>
+
+          {errors.submit && (
+            <div className="bg-red-50 border border-red-200 text-bn-danger rounded-bn-md px-4 py-3 mb-4 text-sm">
+              {errors.submit}
+            </div>
+          )}
+
+          {/* Google Sign-In */}
+          <div className="mb-6">
+            <div className="text-center mb-4">
+              <div id="googleSignInButton" className="inline-block"></div>
+              {isGoogleLoading && (
+                <div className="mt-2 text-sm text-bn-text-secondary">
+                  <span className="bn-spinner w-4 h-4 inline-block mr-2"></span>
+                  Google-ээр нэвтэрч байна...
+                </div>
               )}
-
-              {/* Google Sign-In Section */}
-              <div className="mb-4">
-                <div className="text-center mb-3">
-                  <div id="googleSignInButton" className="d-inline-block"></div>
-                  {isGoogleLoading && (
-                    <div className="mt-2">
-                      <span className="spinner-border spinner-border-sm me-2"></span>
-                      Google-ээр нэвтэрч байна...
-                    </div>
-                  )}
-                </div>
-                <div className="d-flex align-items-center mb-3">
-                  <hr className="flex-grow-1" />
-                  <span className="mx-3">Эсвэл</span>
-                  <hr className="flex-grow-1" />
-                </div>
-              </div>
-
-              <form onSubmit={handleSubmit} noValidate>
-                <div className="mb-3">
-                  <label htmlFor="name" className="form-label">Нэр</label>
-                  <input
-                    type="text"
-                    className={`form-control ${errors.name ? 'is-invalid' : ''}`}
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    required
-                  />
-                  {errors.name && <div className="invalid-feedback">{errors.name}</div>}
-                </div>
-
-                <div className="mb-3">
-                  <label htmlFor="email" className="form-label">Имэйл</label>
-                  <input
-                    type="email"
-                    className={`form-control ${errors.email ? 'is-invalid' : ''}`}
-                    id="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                  />
-                  {errors.email && <div className="invalid-feedback">{errors.email}</div>}
-                </div>
-
-                <div className="mb-3">
-                  <label htmlFor="phone" className="form-label">Утасны дугаар</label>
-                  <input
-                    type="text"
-                    className={`form-control ${errors.phone ? 'is-invalid' : ''}`}
-                    id="phone"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    placeholder="99123456"
-                    maxLength="8"
-                    required
-                  />
-                  {errors.phone && <div className="invalid-feedback">{errors.phone}</div>}
-                  <div className="form-text">8 оронтой утасны дугаар (жишээ: 99123456)</div>
-                </div>
-
-                <div className="mb-3">
-                  <label htmlFor="password" className="form-label">Нууц үг</label>
-                  <input
-                    type="password"
-                    className={`form-control ${errors.password ? 'is-invalid' : ''}`}
-                    id="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    required
-                    minLength="6"
-                  />
-                  {errors.password && <div className="invalid-feedback">{errors.password}</div>}
-                </div>
-
-                <div className="mb-3">
-                  <label htmlFor="confirmPassword" className="form-label">Нууц үг (дахин)</label>
-                  <input
-                    type="password"
-                    className={`form-control ${errors.confirmPassword ? 'is-invalid' : ''}`}
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    required
-                  />
-                  {errors.confirmPassword && (
-                    <div className="invalid-feedback">{errors.confirmPassword}</div>
-                  )}
-                </div>
-
-                <button
-                  type="submit"
-                  className="btn btn-primary w-100"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm me-2"></span>
-                      Баталгаажуулах код илгээж байна...
-                    </>
-                  ) : 'Бүртгэл үүсгэх'}
-                </button>
-              </form>
-
-              <div className="mt-3 text-center">
-                <p>Бүртгэлтэй юу? <a href="/login">Нэвтрэх</a></p>
-              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <hr className="flex-1 border-bn-border" />
+              <span className="text-bn-text-secondary text-sm">Эсвэл</span>
+              <hr className="flex-1 border-bn-border" />
             </div>
           </div>
+
+          <form onSubmit={handleSubmit} noValidate>
+            <div className="mb-4">
+              <label htmlFor="name" className="block text-sm font-medium text-bn-text mb-1.5">Нэр</label>
+              <input
+                type="text"
+                className={inputClasses('name')}
+                id="name"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                required
+              />
+              {errors.name && <p className="text-bn-danger text-xs mt-1">{errors.name}</p>}
+            </div>
+
+            <div className="mb-4">
+              <label htmlFor="email" className="block text-sm font-medium text-bn-text mb-1.5">Имэйл</label>
+              <input
+                type="email"
+                className={inputClasses('email')}
+                id="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                required
+              />
+              {errors.email && <p className="text-bn-danger text-xs mt-1">{errors.email}</p>}
+            </div>
+
+            <div className="mb-4">
+              <label htmlFor="phone" className="block text-sm font-medium text-bn-text mb-1.5">Утасны дугаар</label>
+              <input
+                type="text"
+                className={inputClasses('phone')}
+                id="phone"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                placeholder="99123456"
+                maxLength="8"
+                required
+              />
+              {errors.phone && <p className="text-bn-danger text-xs mt-1">{errors.phone}</p>}
+              <p className="text-bn-text-secondary text-xs mt-1">8 оронтой утасны дугаар (жишээ: 99123456)</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-bn-text mb-1.5">Нууц үг</label>
+                <input
+                  type="password"
+                  className={inputClasses('password')}
+                  id="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                  minLength="6"
+                />
+                {errors.password && <p className="text-bn-danger text-xs mt-1">{errors.password}</p>}
+              </div>
+              <div>
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-bn-text mb-1.5">Нууц үг (дахин)</label>
+                <input
+                  type="password"
+                  className={inputClasses('confirmPassword')}
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  required
+                />
+                {errors.confirmPassword && <p className="text-bn-danger text-xs mt-1">{errors.confirmPassword}</p>}
+              </div>
+            </div>
+
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <span className="bn-spinner w-4 h-4 mr-2"></span>
+                  Баталгаажуулах код илгээж байна...
+                </>
+              ) : 'Бүртгэл үүсгэх'}
+            </Button>
+          </form>
+
+          <p className="text-center text-sm text-bn-text-secondary mt-6">
+            Бүртгэлтэй юу?{' '}
+            <a href="/login" className="text-bn-primary hover:text-bn-primary-dark no-underline font-medium">
+              Нэвтрэх
+            </a>
+          </p>
         </div>
       </div>
     </div>

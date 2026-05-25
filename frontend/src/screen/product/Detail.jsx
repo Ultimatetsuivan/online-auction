@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import 'bootstrap/dist/css/bootstrap.min.css';
 import { io } from 'socket.io-client';
 import { CountdownTimer } from '../../components/Timer';
 import { apiConfig, buildApiUrl } from '../../config/api';
 import { useToast } from '../../components/common/Toast';
-import { SkeletonProductDetail } from '../../components/common/Skeleton';
 import { LikeButton } from '../../components/LikeButton';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { PriceHistoryChart } from '../../components/PriceHistoryChart';
+import { getErrorMessage, isConflictError } from '../../utils/errorHandler';
+import { post } from '../../utils/apiClient';
 
 export const Details = () => {
   const toast = useToast();
@@ -55,6 +55,8 @@ export const Details = () => {
   const [buyerInfo, setBuyerInfo] = useState(null);
   const [showWinModal, setShowWinModal] = useState(false);
   const [winData, setWinData] = useState(null);
+  const [depositInfo, setDepositInfo] = useState(null); // { depositRequired, hasDeposit, depositAmount }
+  const [depositLoading, setDepositLoading] = useState(false);
   const historyPreviewCount = 8;
 
   const currentUser = useMemo(() => {
@@ -77,7 +79,7 @@ export const Details = () => {
         ? bid.user._id || bid.user.id
         : bid.user || bid.userId || 'anonymous';
       const existing = map.get(userId) || {
-        userName: bid.user?.name || 'Anonymous',
+        userName: bid.user?.name || 'Нэргүй',
         count: 0,
         lastAmount: bid.price,
         lastTime: bid.createdAt
@@ -153,6 +155,40 @@ export const Details = () => {
     return () => socket.disconnect();
   }, []);
 
+  const checkDepositStatus = async (pId) => {
+    const token = getAuthToken();
+    if (!token) return;
+    try {
+      const response = await axios.get(
+        buildApiUrl(`/api/deposits/check/${pId}`),
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setDepositInfo(response.data);
+    } catch (err) {
+      console.error('Deposit status check error:', err);
+    }
+  };
+
+  const handlePlaceDeposit = async () => {
+    const token = getAuthToken();
+    if (!token) { navigate('/login'); return; }
+    setDepositLoading(true);
+    try {
+      await axios.post(
+        buildApiUrl('/api/deposits/'),
+        { productId: productDetails._id },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      toast.success('Дэнчин амжилттай байршуулагдлаа');
+      await checkDepositStatus(productDetails._id);
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Дэнчин байршуулахад алдаа гарлаа';
+      toast.error(msg);
+    } finally {
+      setDepositLoading(false);
+    }
+  };
+
   const checkBidStatus = async (productId) => {
     const token = getAuthToken();
     if (!token) return false;
@@ -189,7 +225,8 @@ export const Details = () => {
 
         // Ensure pastBids is always an array
         const bidsData = bidHistory.data?.history || bidHistory.data || [];
-        setPastBids(Array.isArray(bidsData) ? bidsData : []);
+        const bidsArray = Array.isArray(bidsData) ? bidsData : [];
+        setPastBids(bidsArray);
 
         // Handle different response formats
         const products = Array.isArray(allProducts.data)
@@ -209,9 +246,9 @@ export const Details = () => {
 
         const outbidStatus = await checkBidStatus(productId);
         setIsUserOutbid(outbidStatus);
+        await checkDepositStatus(productId);
 
         // Check if user is winning (top bidder)
-        const bidsArray = Array.isArray(bidsData) ? bidsData : [];
         if (currentUser && bidsArray.length > 0) {
           const topBid = bidsArray[0];
           const topBidderId = topBid?.user?._id || topBid?.user?.id || topBid?.user;
@@ -222,7 +259,7 @@ export const Details = () => {
         }
 
         const currentPrice = productInfo.data.currentBid || productInfo.data.price;
-        setUserBidAmount(currentPrice + (productInfo.data.minIncrement || 1000));
+        setUserBidAmount(currentPrice + Math.max(productInfo.data.minIncrement || 5000, 5000));
         fetchReviews(productId, productInfo.data.user?._id);
 
         // Fetch buyer info if owner and product is sold
@@ -264,7 +301,7 @@ export const Details = () => {
           user: prev.user || updatedProduct.user // Keep original user if available
         }));
         setReserveMet(!updatedProduct.reservePrice || (updatedProduct.currentBid || updatedProduct.price || 0) >= updatedProduct.reservePrice);
-        setUserBidAmount(updatedProduct.currentBid + 500);
+        setUserBidAmount(updatedProduct.currentBid + Math.max(updatedProduct.minIncrement || 5000, 5000));
       }
     };
 
@@ -339,59 +376,79 @@ export const Details = () => {
     // Unformat the bid amount to get the actual number
     const bidValue = parseFloat(unformatNumber(userBidAmount)) || 0;
 
-    const minimumBid = (productDetails.currentBid || productDetails.price) + (productDetails.minIncrement || 1);
-    if (bidValue <= minimumBid) {
-      setBidError("Та илүү өндөр үнэ санал болгох ёстой.");
+    const minimumBid = (productDetails.currentBid || productDetails.price) + Math.max(productDetails.minIncrement || 5000, 5000);
+    if (bidValue < minimumBid) {
+      setBidError(`Та ₮${formatNumber(minimumBid.toString())}-аас дээш үнэ санал өгөх ёстой`);
       return;
     }
 
     try {
-      const response = await axios.post(
-        buildApiUrl('/api/bidding/'),
-        {
-          productId: productDetails._id,
-          price: bidValue,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
+      // Use new API client with improved error handling
+      const response = await post('/api/bidding/', {
+        productId: productDetails._id,
+        price: bidValue,
+      });
+
+      // Handle new backend response format: { success: true, biddingProduct, product, reserveMet }
+      if (response.success) {
+        const { product, biddingProduct, reserveMet: newReserveMet } = response;
+
+        // Update product details
+        setProductDetails(product);
+        setReserveMet(newReserveMet);
+
+        // Update bid history
+        setPastBids(previousBids => [biddingProduct, ...previousBids]);
+
+        // Emit socket updates (for real-time updates to other users)
+        if (socketConnection) {
+          socketConnection.emit('bidUpdate', product);
+          socketConnection.emit('newBid', biddingProduct);
         }
-      );
 
-      if (response.data.sold) {
-        socketConnection.emit('productSold', {
-          productId: productDetails._id,
-          buyerId: response.data.buyerId,
-          price: userBidAmount
-        });
-        toast.success(`Та энэ барааг ${userBidAmount}₮-р худалдан авлаа!`);
-      } else {
-        socketConnection.emit('bidUpdate', response.data.product);
-        socketConnection.emit('newBid', response.data.bid);
-        toast.success("Амжилттай үнэ өглөө");
-
+        // Update UI state
         setIsUserOutbid(false);
         setIsUserWinning(true); // User just placed the highest bid
-      }
+        setUserBidAmount(''); // Clear bid input
 
-      setProductDetails(response.data.product);
-      if (typeof response.data.reserveMet === 'boolean') {
-        setReserveMet(response.data.reserveMet);
+        // Show success message
+        toast.success(`Амжилттай ₮{formatNumber(bidValue.toString())}₮ үнэ өглөө`);
       }
-      setPastBids(previousBids => [response.data.bid, ...previousBids]);
-      setUserBidAmount(response.data.product.currentBid + (productDetails.minIncrement || 500));
 
     } catch (error) {
+      // Handle deposit requirement
+      if (error.response?.data?.requiresDeposit) {
+        setDepositInfo({
+          depositRequired: true,
+          hasDeposit: false,
+          depositAmount: error.response.data.depositAmount
+        });
+        return;
+      }
+
+      // Use improved error handling
+      const errorMsg = getErrorMessage(error);
+      setBidError(errorMsg);
+
+      // Handle specific error cases
+      if (isConflictError(error)) {
+        // Race condition - another user bid at the same time
+        toast.error('Өөр хэрэглэгч яг одоо санал өгсөн байна. Дахин оролдоно уу');
+        // Refresh product data to show latest bid
+        const refreshData = await axios.get(buildApiUrl(`/api/product/${productDetails._id}`));
+        setProductDetails(refreshData.data);
+      } else {
+        toast.error(errorMsg);
+      }
+
       console.error('Bidding error:', error);
-      setBidError(error.response?.data?.message || 'Үнийн санал өгөхөд алдаа гарлаа');
     }
   };
 
   const handleOwnerManageShortcut = () => {
     if (!productDetails) return;
     localStorage.setItem('pendingProductManage', productDetails._id);
-    navigate(`/profile?tab=myProducts&highlight=${productDetails._id}`);
+    navigate(`/profile/tab/myProducts?highlight=${productDetails._id}`);
   };
 
   const handleBuyNow = async () => {
@@ -428,7 +485,7 @@ export const Details = () => {
       setShowReviewPrompt(true); // Show review prompt after successful purchase
     } catch (error) {
       console.error('Buy now error:', error);
-      toast.error(error.response?.data?.message || 'Unable to complete buy now');
+      toast.error(error.response?.data?.message || 'Худалдаж авахад алдаа гарлаа');
     } finally {
       setBuyNowLoading(false);
     }
@@ -456,13 +513,13 @@ export const Details = () => {
           }
         }
       );
-      toast.success('Review submitted');
+      toast.success('Үнэлгээ амжилттай илгээгдлээ');
       setReviewComment('');
       setShowReviewPrompt(false); // Close review prompt after submission
       fetchReviews(productDetails._id, productDetails.user._id);
     } catch (error) {
       console.error('Review submit error:', error);
-      toast.error(error.response?.data?.message || 'Unable to submit review');
+      toast.error(error.response?.data?.message || 'Үнэлгээ илгээхэд алдаа гарлаа');
     }
   };
 
@@ -474,18 +531,18 @@ export const Details = () => {
       return;
     }
 
-    const confirmDelete = window.confirm('Are you sure you want to remove this listing?');
+    const confirmDelete = window.confirm('Энэ зарлагыг устгахдаа итгэлтэй байна уу?');
     if (!confirmDelete) return;
 
     try {
       await axios.delete(buildApiUrl(`/api/product/${productDetails._id}`), {
         headers: { Authorization: `Bearer ${token}` }
       });
-      toast.success('Listing removed successfully');
+      toast.success('Зарлага амжилттай устгагдлаа');
       navigate('/products');
     } catch (error) {
       console.error('Delete listing error:', error);
-      toast.error(error.response?.data?.message || 'Unable to remove listing right now.');
+      toast.error(error.response?.data?.message || 'Одоогоор зарлагыг устгах боломжгүй.');
     }
   };
 
@@ -499,33 +556,33 @@ export const Details = () => {
 
     // Check if there are any bids
     if (pastBids.length === 0) {
-      toast.error('No bids yet. Cannot sell to top bidder.');
+      toast.error('Санал байхгүй байна. Хамгийн өндөр саналтай хэрэглэгчид зарах боломжгүй.');
       return;
     }
 
     const topBid = pastBids[0];
-    const topBidder = topBid?.user?.name || 'Anonymous';
+    const topBidder = topBid?.user?.name || 'Нэргүй';
     const topBidAmount = topBid?.price || productDetails.currentBid;
 
     // Show confirmation dialog with details
-    const confirmMessage = `⚠️ CONFIRM INSTANT SALE\n\n` +
-      `You are about to sell this item instantly to:\n\n` +
-      `Buyer: ${topBidder}\n` +
-      `Amount: $${formatNumber(topBidAmount.toString())}\n\n` +
-      `This action is IRREVERSIBLE and will:\n` +
-      `• End the auction immediately\n` +
-      `• Mark the item as sold\n` +
-      `• Notify the winning bidder\n\n` +
-      `Are you absolutely sure you want to proceed?`;
+    const confirmMessage = `⚠️ ШУУД ЗАРАХ БАТАЛГААЖУУЛАЛТ\n\n` +
+      `Та энэ барааг дараах хэрэглэгчид шууд зарах гэж байна:\n\n` +
+      `Худалдан авагч: ${topBidder}\n` +
+      `Дүн: ₮${formatNumber(topBidAmount.toString())}\n\n` +
+      `Энэ үйлдлийг буцаах БОЛОМЖГҮЙ бөгөөд:\n` +
+      `• Дуудлага шууд дуусна\n` +
+      `• Бараа зарагдсан гэж тэмдэглэгдэнэ\n` +
+      `• Хожсон оролцогчид мэдэгдэл илгээгдэнэ\n\n` +
+      `Үргэлжлүүлэх үү?`;
 
     const firstConfirm = window.confirm(confirmMessage);
     if (!firstConfirm) return;
 
     // Second confirmation to prevent accidents
     const secondConfirm = window.confirm(
-      `FINAL CONFIRMATION\n\n` +
-      `This is your last chance to cancel.\n\n` +
-      `Sell to ${topBidder} for $${formatNumber(topBidAmount.toString())}?`
+      `ЭЦСИЙН БАТАЛГААЖУУЛАЛТ\n\n` +
+      `Энэ бол таны сүүлчийн боломж.\n\n` +
+      `${topBidder}-д ₮${formatNumber(topBidAmount.toString())}-д зарах уу?`
     );
     if (!secondConfirm) return;
 
@@ -536,7 +593,7 @@ export const Details = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      toast.success(`Item sold to ${topBidder} for $${formatNumber(topBidAmount.toString())}!`);
+      toast.success(`${topBidder}-д ₮${formatNumber(topBidAmount.toString())}-д амжилттай зарагдлаа!`);
 
       // Update product details to reflect sold status
       setProductDetails(prev => ({
@@ -567,30 +624,34 @@ export const Details = () => {
       }
     } catch (error) {
       console.error('Sell now error:', error);
-      toast.error(error.response?.data?.message || 'Unable to complete instant sale. Please try again.');
+      toast.error(error.response?.data?.message || 'Шууд зарахад алдаа гарлаа. Дахин оролдоно уу.');
     }
   };
 
+  // ── Design tokens (admin panel style) ───────────────────────────────────
+  const s = {
+    card: { background: '#fff', borderRadius: 16, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' },
+    tag: (bg, color) => ({ background: bg, color, borderRadius: 999, padding: '3px 10px', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }),
+    btn: (bg, color, border) => ({ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px 18px', borderRadius: 10, border: border || 'none', background: bg, color, fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'opacity 0.15s' }),
+  };
+
+  const isFixedPrice = productDetails?.sellType === 'fixed' || productDetails?.sellType === 'buy_now';
+
   if (isLoading) {
     return (
-      <div className="container my-4">
-        <SkeletonProductDetail />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: 16 }}>
+        <div style={{ width: 40, height: 40, borderRadius: '50%', border: '3px solid #e2e8f0', borderTopColor: 'var(--bn-primary)', animation: 'spin 0.8s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
 
   if (errorMessage) {
     return (
-      <div className="container my-5">
-        <div className="alert alert-danger">
-          <h5>Алдаа гарлаа</h5>
-          <p>{errorMessage}</p>
-          <button
-            className="btn btn-primary"
-            onClick={() => window.location.reload()}
-          >
-            Дахин оролдох
-          </button>
+      <div style={{ maxWidth: 480, margin: '80px auto', padding: '0 24px' }}>
+        <div style={{ ...s.card, padding: 28, textAlign: 'center' }}>
+          <p style={{ fontSize: 15, color: '#dc2626', marginBottom: 16 }}>{errorMessage}</p>
+          <button style={s.btn('var(--bn-primary)', '#fff')} onClick={() => window.location.reload()}>Дахин оролдох</button>
         </div>
       </div>
     );
@@ -598,1524 +659,627 @@ export const Details = () => {
 
   if (!productDetails) {
     return (
-      <div className="container my-5">
-        <div className="alert alert-info">
-          <h5>Product not found</h5>
-          <Link to="/products" className="btn btn-outline-primary">
-            View other products
-          </Link>
+      <div style={{ maxWidth: 480, margin: '80px auto', padding: '0 24px' }}>
+        <div style={{ ...s.card, padding: 28, textAlign: 'center' }}>
+          <p style={{ fontSize: 15, color: '#64748b', marginBottom: 16 }}>Бараа олдсонгүй</p>
+          <Link to="/products"><button style={s.btn('var(--bn-primary)', '#fff')}>Бараа үзэх</button></Link>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container my-4">
-      {/* Main Product Section - eBay Style */}
-      <div className="row mb-4">
-        {/* Left: Image Gallery */}
-        <div className="col-lg-7">
-          <div className="card shadow-sm border-0">
-            <div className="card-body p-3">
-              {/* Main Image with Controls */}
-              <div className="position-relative mb-3" style={{ backgroundColor: '#f8f9fa', borderRadius: '8px' }}>
-                <img
-                  src={productDetails.images[currentImageIndex]?.url || '/default.png'}
-                  className="d-block w-100"
-                  alt={`Product view ${currentImageIndex + 1}`}
-                  style={{
-                    height: '450px',
-                    objectFit: 'contain',
-                    borderRadius: '8px'
-                  }}
-                />
+    <div style={{ background: '#f8fafc', minHeight: '100vh', paddingBottom: 60 }}>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } } @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }`}</style>
 
-                {/* Navigation Arrows */}
-                {productDetails.images.length > 1 && (
-                  <>
-                    <button
-                      className="position-absolute top-50 start-0 translate-middle-y btn btn-light rounded-circle ms-2"
-                      onClick={prevImage}
-                      style={{ width: '45px', height: '45px', opacity: 0.9 }}
-                    >
-                      <i className="bi bi-chevron-left"></i>
-                    </button>
-                    <button
-                      className="position-absolute top-50 end-0 translate-middle-y btn btn-light rounded-circle me-2"
-                      onClick={nextImage}
-                      style={{ width: '45px', height: '45px', opacity: 0.9 }}
-                    >
-                      <i className="bi bi-chevron-right"></i>
-                    </button>
-                  </>
+      <div style={{ maxWidth: 1300, margin: '0 auto', padding: '28px 24px' }}>
+
+        {/* Breadcrumb */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 24, fontSize: 13, color: '#94a3b8' }}>
+          <Link to="/" style={{ color: '#64748b', textDecoration: 'none' }}>Нүүр</Link>
+          <span>›</span>
+          <Link to="/products" style={{ color: '#64748b', textDecoration: 'none' }}>Бараанууд</Link>
+          <span>›</span>
+          <span style={{ color: '#0f172a', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 280 }}>{productDetails.title}</span>
+        </div>
+
+        {/* ── TOP: Image + Bid Panel ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: 24, alignItems: 'flex-start', marginBottom: 24 }}>
+
+          {/* LEFT: Image gallery */}
+          <div style={{ ...s.card, overflow: 'hidden' }}>
+            <div style={{ position: 'relative', background: '#f8fafc', aspectRatio: '4/3', overflow: 'hidden' }}>
+              <img
+                src={productDetails.images[currentImageIndex]?.url || '/default.png'}
+                alt={productDetails.title}
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+              />
+              {productDetails.images.length > 1 && (
+                <>
+                  <button onClick={prevImage} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.95)', border: '1px solid #e2e8f0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', color: '#0f172a' }}>‹</button>
+                  <button onClick={nextImage} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.95)', border: '1px solid #e2e8f0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', color: '#0f172a' }}>›</button>
+                  <div style={{ position: 'absolute', bottom: 12, right: 12, background: 'rgba(0,0,0,0.45)', color: '#fff', borderRadius: 999, padding: '3px 10px', fontSize: 12 }}>
+                    {currentImageIndex + 1} / {productDetails.images.length}
+                  </div>
+                </>
+              )}
+              {/* Like button */}
+              <div style={{ position: 'absolute', top: 12, right: 12 }} onClick={(e) => e.stopPropagation()}>
+                <LikeButton product={productDetails} size="lg" />
+              </div>
+            </div>
+            {productDetails.images.length > 1 && (
+              <div style={{ display: 'flex', gap: 8, padding: '12px 16px', overflowX: 'auto' }}>
+                {productDetails.images.map((img, idx) => (
+                  <button key={idx} onClick={() => setCurrentImageIndex(idx)} style={{ flexShrink: 0, width: 68, height: 68, borderRadius: 10, overflow: 'hidden', border: `2px solid ${idx === currentImageIndex ? 'var(--bn-primary)' : '#e2e8f0'}`, cursor: 'pointer', padding: 0, opacity: idx === currentImageIndex ? 1 : 0.6, transition: 'all 0.15s' }}>
+                    <img src={img.url || '/default.png'} alt={`View ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* RIGHT: Bid panel */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, position: 'sticky', top: 80 }}>
+
+            {/* Title + badges */}
+            <div style={{ ...s.card, padding: 20 }}>
+              <h1 style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', margin: '0 0 12px', lineHeight: 1.35 }}>{productDetails.title}</h1>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {isFixedPrice
+                  ? <span style={s.tag('#f0fdf4', '#16a34a')}>Тогтмол үнэ</span>
+                  : <span style={s.tag('#fff7ed', '#ea580c')}>Дуудлага</span>}
+                {productDetails.sold
+                  ? <span style={s.tag('#f1f5f9', '#64748b')}>Зарагдсан</span>
+                  : <span style={s.tag('#f0fdf4', '#16a34a')}>Идэвхтэй</span>}
+                {(productDetails.category?.name || productDetails.category?.title) && (
+                  <span style={s.tag('#f1f5f9', '#475569')}>{productDetails.category?.name || productDetails.category?.title}</span>
                 )}
               </div>
+            </div>
 
-              {/* Thumbnail Strip */}
-              {productDetails.images.length > 1 && (
-                <div className="d-flex gap-2 overflow-auto pb-2" style={{ scrollBehavior: 'smooth' }}>
-                  {productDetails.images.map((image, index) => (
-                    <div
-                      key={index}
-                      onClick={() => setCurrentImageIndex(index)}
-                      className={`flex-shrink-0 ${index === currentImageIndex ? 'border-primary' : 'border-secondary'}`}
-                      style={{
-                        width: '80px',
-                        height: '80px',
-                        cursor: 'pointer',
-                        border: index === currentImageIndex ? '3px solid' : '2px solid',
-                        borderRadius: '6px',
-                        overflow: 'hidden',
-                        opacity: index === currentImageIndex ? 1 : 0.6,
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      <img
-                        src={image.url || '/default.png'}
-                        alt={`Thumbnail ${index + 1}`}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover'
-                        }}
-                      />
-                    </div>
-                  ))}
+            {/* Price */}
+            <div style={{ ...s.card, padding: 20 }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 6px' }}>
+                {isFixedPrice ? 'Үнэ' : 'Одоо зарагдаж байгаа үнэ'}
+              </p>
+              <div style={{ fontSize: 36, fontWeight: 800, color: isUserWinning && !productDetails.sold ? '#16a34a' : isUserOutbid ? '#dc2626' : 'var(--bn-accent)', lineHeight: 1.1, marginBottom: 6 }}>
+                ₮{formatNumber((productDetails.currentBid || productDetails.price || 0).toString())}
+              </div>
+              {!isFixedPrice && productDetails.price && productDetails.currentBid > productDetails.price && (
+                <p style={{ fontSize: 12, color: '#94a3b8', margin: '0 0 4px' }}>Эхлэх: ₮{formatNumber(productDetails.price.toString())}</p>
+              )}
+              {productDetails.buyNowPrice && !productDetails.sold && !isFixedPrice && (
+                <p style={{ fontSize: 13, color: '#16a34a', fontWeight: 600, margin: '6px 0 0' }}>Шууд авах: ₮{formatNumber(productDetails.buyNowPrice.toString())}</p>
+              )}
+              {productDetails.reservePrice && !reserveMet && (
+                <div style={{ marginTop: 10, background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#b45309' }}>
+                  Хамгийн бага үнэ хүрсэнгүй — ₮{formatNumber(productDetails.reservePrice.toString())}
                 </div>
               )}
             </div>
-          </div>
-        </div>
 
-        {/* Right: Seller Info, Price & CTAs */}
-        <div className="col-lg-5">
-          <div className="card shadow-sm border-0 h-100">
-            <div className="card-body">
-              {/* Title & Like */}
-              <div className="d-flex justify-content-between align-items-start mb-3">
-                <h1 className="h4 mb-0 flex-grow-1">{productDetails.title}</h1>
-                {productDetails && <LikeButton product={productDetails} size="lg" />}
+            {/* Countdown (auction only) */}
+            {!isFixedPrice && !productDetails.sold && (
+              <div style={{ ...s.card, padding: 16 }}>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 8px' }}>Үлдсэн хугацаа</p>
+                <CountdownTimer deadline={productDetails.bidDeadline} />
               </div>
+            )}
 
-              {/* Condition & Category */}
-              <div className="mb-3 pb-3 border-bottom">
-                <p className="mb-1 text-muted small">
-                  <strong>Category:</strong> {productDetails.category?.name || 'Not specified'}
-                </p>
-                <p className="mb-0 text-muted small">
-                  <strong>Status:</strong> <span className={productDetails.sold ? 'text-success' : 'text-warning'}>
-                    {productDetails.sold ? 'Sold' : 'Available'}
-                  </span>
-                </p>
-              </div>
-
-              {/* Price Section - eBay Style */}
-              <div className="mb-4">
-                <div className="d-flex align-items-baseline mb-2">
-                  <span className="text-muted me-2" style={{ fontSize: '14px' }}>Current bid:</span>
-                  <span
-                    className={`fs-3 fw-bold ${
-                      !isOwner && isUserWinning && !productDetails.sold ? 'text-success' :
-                      !isOwner && isUserOutbid ? 'text-danger' :
-                      'text-primary'
-                    }`}
-                  >
-                    ${formatNumber((productDetails.currentBid || productDetails.price).toString())}
-                  </span>
-                </div>
-
-                {productDetails.reservePrice && !reserveMet && (
-                  <div className="alert alert-warning py-2 mb-2 small">
-                    <i className="bi bi-info-circle me-1"></i>
-                    Reserve not met (${formatNumber(productDetails.reservePrice.toString())})
-                  </div>
-                )}
-
-                {productDetails.buyNowPrice && !productDetails.sold && (
-                  <div className="d-flex align-items-baseline mb-2">
-                    <span className="text-muted me-2" style={{ fontSize: '14px' }}>Buy It Now:</span>
-                    <span className="fs-5 fw-semibold text-success">
-                      ${formatNumber(productDetails.buyNowPrice.toString())}
-                    </span>
-                  </div>
-                )}
-
-                <p className="text-muted small mb-0">
-                  <i className="bi bi-tag me-1"></i>
-                  Starting bid: ${formatNumber(productDetails.price.toString())}
-                </p>
-              </div>
-
-              {/* Countdown Timer */}
-              <div className="p-3 bg-light rounded mb-4">
-                <div className="d-flex justify-content-between align-items-center">
-                  <span className="text-muted small">
-                    <i className="bi bi-clock me-1"></i>Time left:
-                  </span>
-                  <CountdownTimer deadline={productDetails.bidDeadline} />
+            {/* Status banners */}
+            {isUserWinning && !isUserOutbid && pastBids.length > 0 && !productDetails.sold && (
+              <div style={{ background: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: 12, padding: '12px 16px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                <span style={{ fontSize: 18 }}>🏆</span>
+                <div>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: '#15803d', margin: '0 0 2px' }}>Та тэргүүлж байна!</p>
+                  <p style={{ fontSize: 12, color: '#16a34a', margin: 0 }}>Анхаарал тавьж байгаарай — хэн нэгэн давж болно</p>
                 </div>
               </div>
-
-              {/* Owner Controls */}
-              {isOwner && !productDetails.sold && (
-                <div className="alert alert-info border-0 mb-4 py-2">
-                  <div className="d-flex justify-content-between align-items-center mb-2">
-                    <strong className="small">
-                      <i className="bi bi-person-badge me-1"></i>Your listing
-                    </strong>
-                    <span className="badge bg-white text-primary border small">
-                      {pastBids.length} bids
-                    </span>
-                  </div>
-
-                  {/* Top Bidder Info */}
-                  {pastBids.length > 0 && (
-                    <div className="mb-2 p-2 bg-light rounded">
-                      <div className="d-flex justify-content-between align-items-center">
-                        <div>
-                          <small className="text-muted d-block">Top Bidder:</small>
-                          <strong className="small">{pastBids[0]?.user?.name || 'Anonymous'}</strong>
-                        </div>
-                        <div className="text-end">
-                          <small className="text-muted d-block">Current Bid:</small>
-                          <strong className="text-success">${formatNumber((pastBids[0]?.price || productDetails.currentBid).toString())}</strong>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="d-flex flex-wrap gap-2">
-                    {/* Sell Now Button - only show if there are bids */}
-                    {pastBids.length > 0 && (
-                      <button
-                        className="btn btn-sm btn-success"
-                        onClick={handleSellNowToTopBidder}
-                        title="End auction now and sell to top bidder"
-                      >
-                        <i className="bi bi-check-circle me-1"></i>Sell Now
-                      </button>
-                    )}
-                    <button
-                      className="btn btn-sm btn-outline-primary"
-                      onClick={handleOwnerManageShortcut}
-                    >
-                      <i className="bi bi-sliders me-1"></i>Settings
-                    </button>
-                    <button
-                      className="btn btn-sm btn-outline-danger"
-                      onClick={handleDeleteListing}
-                    >
-                      <i className="bi bi-trash me-1"></i>Delete
-                    </button>
-                  </div>
+            )}
+            {isUserOutbid && !productDetails.sold && (
+              <div style={{ background: '#fef2f2', border: '1.5px solid #fca5a5', borderRadius: 12, padding: '12px 16px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                <span style={{ fontSize: 18 }}>⚠️</span>
+                <div>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: '#dc2626', margin: '0 0 2px' }}>Таны санал давагдлаа!</p>
+                  <p style={{ fontSize: 12, color: '#ef4444', margin: 0 }}>Илүү өндөр санал тавиарай</p>
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Owner Controls - Sold State */}
-              {isOwner && productDetails.sold && (
-                <div className="alert alert-success border-3 border-success mb-4">
-                  <div className="text-center mb-3">
-                    <i className="bi bi-cash-coin text-success" style={{ fontSize: '2.5rem' }}></i>
-                    <h5 className="mt-2 mb-0 text-success">
-                      <strong>Item Sold Successfully!</strong>
-                    </h5>
-                  </div>
-                  <div className="text-center mb-3">
-                    <p className="mb-1">
-                      <strong>Sale Price:</strong> <span className="fs-5 text-success">${formatNumber(productDetails.currentBid.toString())}</span>
-                    </p>
-                    <p className="mb-0 small text-muted">
-                      Sold on {new Date(productDetails.soldAt).toLocaleString()}
-                    </p>
-                  </div>
-
-                  {buyerInfo && (
-                    <>
-                      <hr />
-                      <div className="p-3 bg-light rounded">
-                        <h6 className="mb-2">
-                          <i className="bi bi-person-circle me-2"></i>Buyer Contact Information
-                        </h6>
-                        <div className="row">
-                          <div className="col-md-6 mb-2">
-                            <strong className="small d-block text-muted">Name:</strong>
-                            <span>{buyerInfo.name || 'N/A'}</span>
-                          </div>
-                          <div className="col-md-6 mb-2">
-                            <strong className="small d-block text-muted">Email:</strong>
-                            <span>{buyerInfo.email || 'N/A'}</span>
-                          </div>
-                          <div className="col-md-6 mb-2">
-                            <strong className="small d-block text-muted">Phone:</strong>
-                            <span className="fw-semibold">
-                              {buyerInfo.phone || 'Not provided'}
-                            </span>
-                          </div>
-                          <div className="col-md-6 mb-2">
-                            <button
-                              className="btn btn-sm btn-outline-primary w-100"
-                              onClick={() => navigate(`/profile/${buyerInfo._id}`)}
-                            >
-                              <i className="bi bi-person me-1"></i>View Buyer Profile
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="alert alert-info mt-3 mb-0 py-2 small">
-                        <i className="bi bi-info-circle me-2"></i>
-                        Please contact the buyer to arrange pickup/delivery. Funds have been received.
-                      </div>
-                    </>
-                  )}
-
-                  <div className="mt-3">
-                    <button
-                      className="btn btn-sm btn-outline-primary w-100"
-                      onClick={handleOwnerManageShortcut}
-                    >
-                      <i className="bi bi-sliders me-1"></i>View All My Products
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Bidding Section for Non-Owners */}
-              {!productDetails.sold && !isOwner && (
-                <div className="mb-4">
-                  {/* Winning Status Indicator */}
-                  {isUserWinning && !isUserOutbid && pastBids.length > 0 && (
-                    <div className="alert alert-success d-flex align-items-center py-2 mb-2 small" role="alert">
-                      <i className="bi bi-trophy-fill me-2"></i>
-                      <div>
-                        <strong>You're the top bidder!</strong>
-                        <br />
-                        <small>Keep watching - someone might outbid you</small>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Outbid Warning */}
-                  {isUserOutbid && (
-                    <div className="alert alert-danger d-flex align-items-center py-2 mb-2 small" role="alert">
-                      <i className="bi bi-exclamation-triangle-fill me-2"></i>
-                      <div>
-                        <strong>You've been outbid!</strong>
-                        <br />
-                        <small>Place a higher bid to win</small>
-                      </div>
-                    </div>
-                  )}
-
-                  <label className="form-label small fw-semibold">
-                    Place bid (min ${formatNumber(((productDetails.currentBid || productDetails.price) + 1).toString())})
-                  </label>
-                  <div className="input-group mb-2">
-                    <span className="input-group-text">$</span>
-                    <input
-                      type="text"
-                      className="form-control"
-                      value={userBidAmount}
-                      onChange={(e) => setUserBidAmount(formatNumber(e.target.value))}
-                      placeholder={(productDetails.currentBid || productDetails.price) + 1}
-                    />
-                    <button
-                      className={`btn ${isUserOutbid ? 'btn-danger' : 'btn-primary'}`}
-                      onClick={submitBid}
-                    >
-                      {isUserOutbid ? 'Bid Again' : 'Place Bid'}
-                    </button>
-                  </div>
-
-                  {productDetails.buyNowPrice && (
-                    <button
-                      className="btn btn-success w-100"
-                      disabled={buyNowLoading}
-                      onClick={handleBuyNow}
-                    >
-                      <i className="bi bi-cart-check me-2"></i>
-                      {buyNowLoading ? 'Processing...' : `Buy It Now - $${formatNumber(productDetails.buyNowPrice.toString())}`}
-                    </button>
-                  )}
-
-                  {bidError && (
-                    <div className="alert alert-danger mt-2 py-2 small">
-                      {bidError}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {!productDetails.sold && isOwner && (
-                <div className="alert alert-secondary py-2 small">
-                  <i className="bi bi-info-circle me-1"></i>
-                  You cannot bid on your own listing.
-                </div>
-              )}
-
-              {/* Winner Display - Show if user won */}
-              {productDetails.sold && isWinner && (
-                <div className="alert alert-success border-3 border-success mb-4">
-                  <div className="text-center mb-3">
-                    <i className="bi bi-trophy-fill text-warning" style={{ fontSize: '3rem' }}></i>
-                    <h4 className="mt-2 mb-0 text-success">
-                      <strong>🎉 Congratulations! You Won!</strong>
-                    </h4>
-                  </div>
-                  <div className="text-center mb-3">
-                    <p className="mb-1">
-                      <strong>Purchase Price:</strong> <span className="fs-5 text-success">${formatNumber(productDetails.currentBid.toString())}</span>
-                    </p>
-                    <p className="mb-0 small text-muted">
-                      Won on {new Date(productDetails.soldAt).toLocaleString()}
-                    </p>
-                  </div>
-                  <hr />
-                  <div className="p-3 bg-light rounded">
-                    <h6 className="mb-2">
-                      <i className="bi bi-person-circle me-2"></i>Seller Contact Information
-                    </h6>
-                    <div className="row">
-                      <div className="col-md-6 mb-2">
-                        <strong className="small d-block text-muted">Name:</strong>
-                        <span>{productDetails.user?.name || 'N/A'}</span>
-                      </div>
-                      <div className="col-md-6 mb-2">
-                        <strong className="small d-block text-muted">Email:</strong>
-                        <span>{productDetails.user?.email || 'N/A'}</span>
-                      </div>
-                      <div className="col-md-6 mb-2">
-                        <strong className="small d-block text-muted">Phone:</strong>
-                        <span className="fw-semibold">
-                          {productDetails.user?.phone || 'Not provided'}
-                        </span>
-                      </div>
-                      <div className="col-md-6 mb-2">
+            {/* Bid form for non-owners */}
+            {!productDetails.sold && !isOwner && (
+              <div style={{ ...s.card, padding: 20 }}>
+                {productDetails.sellType === 'auction' ? (
+                  <>
+                    {/* Deposit required banner */}
+                    {depositInfo?.depositRequired && !depositInfo?.hasDeposit && (
+                      <div style={{ background: '#fffbeb', border: '1.5px solid #fbbf24', borderRadius: 12, padding: '14px 16px', marginBottom: 14 }}>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: '#92400e', margin: '0 0 4px' }}>Дэнчин шаардлагатай</p>
+                        <p style={{ fontSize: 12, color: '#78350f', margin: '0 0 12px', lineHeight: 1.5 }}>
+                          Энэ бараа их үнэтэй тул дуудлагад оролцохын тулд <strong>₮{formatNumber(depositInfo.depositAmount.toString())}</strong> дэнчин байршуулах шаардлагатай. Дуусмагц буцаана.
+                        </p>
                         <button
-                          className="btn btn-sm btn-outline-primary w-100"
-                          onClick={() => navigate(`/profile/${productDetails.user?._id}`)}
+                          onClick={handlePlaceDeposit}
+                          disabled={depositLoading}
+                          style={{ ...s.btn('#f59e0b', '#fff'), width: '100%', padding: '11px', fontSize: 14, opacity: depositLoading ? 0.6 : 1 }}
                         >
-                          <i className="bi bi-person me-1"></i>View Seller Profile
+                          {depositLoading ? 'Боловсруулж байна…' : `₮${formatNumber(depositInfo.depositAmount.toString())} дэнчин байршуулах`}
                         </button>
                       </div>
-                    </div>
-                  </div>
-                  <div className="mt-3 mb-4" style={{
-                    backgroundColor: '#d4edda',
-                    border: '1px solid #28a745',
-                    borderRadius: '12px',
-                    padding: '16px 20px',
-                    color: '#155724',
-                    fontSize: '0.95rem',
-                    fontWeight: '500',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px'
-                  }}>
-                    <i className="bi bi-check-circle-fill" style={{ fontSize: '1.2rem', color: '#28a745' }}></i>
-                    <span>Please contact the seller to arrange pickup/delivery. Funds have been transferred.</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Regular Sold Display - Show if sold but user didn't win */}
-              {productDetails.sold && !isWinner && (
-                <div className="alert alert-secondary py-2">
-                  <i className="bi bi-check-circle-fill me-2"></i>
-                  <strong>Sold</strong> for ${formatNumber(productDetails.currentBid.toString())}
-                  <br />
-                  <small className="text-muted">{new Date(productDetails.soldAt).toLocaleString()}</small>
-                </div>
-              )}
-
-              {/* Review Prompt after Purchase */}
-              {showReviewPrompt && productDetails.sold && !isOwner && isWinner && (
-                <div className="mb-4" style={{
-                  backgroundColor: '#fff5e6',
-                  border: '2px solid #FF6A00',
-                  borderRadius: '16px',
-                  padding: '28px',
-                  boxShadow: '0 4px 12px rgba(255, 106, 0, 0.15)'
-                }}>
-                  <div className="d-flex justify-content-between align-items-start mb-3">
-                    <div>
-                      <h5 className="mb-2" style={{
-                        color: '#FF6A00', 
-                        fontWeight: '700',
-                        fontSize: '1.3rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px'
-                      }}>
-                        <i className="bi bi-star-fill" style={{ color: '#ffc107', fontSize: '1.4rem' }}></i>
-                        How was your experience?
-                      </h5>
-                      <p className="mb-0" style={{ color: '#0a58ca', fontSize: '0.95rem' }}>
-                        Share your thoughts about this purchase and help other buyers!
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      className="btn-close"
-                      onClick={() => setShowReviewPrompt(false)}
-                      aria-label="Close"
-                      style={{ opacity: 0.6 }}
-                      onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
-                      onMouseLeave={(e) => e.currentTarget.style.opacity = '0.6'}
-                    ></button>
-                  </div>
-                  
-                  <div className="mb-3">
-                    <label className="form-label fw-semibold mb-2" style={{ color: '#0a58ca', fontSize: '0.95rem' }}>
-                      Your rating
-                    </label>
-                    <div className="d-flex align-items-center gap-3">
-                      <div className="d-flex gap-1" style={{ fontSize: '1.8rem' }}>
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <button
-                            key={star}
-                            type="button"
-                            className="btn p-0 border-0"
-                            onClick={() => setReviewRating(star)}
-                            style={{
-                              color: star <= reviewRating ? '#ffc107' : '#dee2e6',
-                              fontSize: '1.8rem',
-                              lineHeight: '1',
-                              transition: 'all 0.2s ease',
-                              cursor: 'pointer'
-                            }}
-                            onMouseEnter={(e) => {
-                              if (star > reviewRating) {
-                                e.currentTarget.style.color = '#ffc107';
-                                e.currentTarget.style.transform = 'scale(1.1)';
-                              }
-                            }}
-                            onMouseLeave={(e) => {
-                              if (star > reviewRating) {
-                                e.currentTarget.style.color = '#dee2e6';
-                                e.currentTarget.style.transform = 'scale(1)';
-                              }
-                            }}
-                          >
-                            ★
-                          </button>
-                        ))}
-                      </div>
-                      <span style={{ color: '#0a58ca', fontWeight: '600', fontSize: '0.95rem' }}>
-                        {reviewRating} {reviewRating === 1 ? 'star' : 'stars'}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <div className="mb-4">
-                    <label className="form-label fw-semibold mb-2" style={{ color: '#0a58ca', fontSize: '0.95rem' }}>
-                      Your review
-                    </label>
-                    <textarea
-                      className="form-control"
-                      rows="4"
-                      value={reviewComment}
-                      onChange={(e) => setReviewComment(e.target.value)}
-                      placeholder="Tell us about your experience with this seller and product..."
-                      style={{
-                        borderRadius: '12px',
-                        border: '2px solid #b3d9ff',
-                        padding: '14px 16px',
-                        fontSize: '0.95rem',
-                        resize: 'vertical',
-                        transition: 'all 0.3s ease'
-                      }}
-                      onFocus={(e) => {
-                        e.currentTarget.style.borderColor = '#FF6A00';
-                        e.currentTarget.style.boxShadow = '0 0 0 3px rgba(13, 110, 253, 0.1)';
-                      }}
-                      onBlur={(e) => {
-                        e.currentTarget.style.borderColor = '#b3d9ff';
-                        e.currentTarget.style.boxShadow = 'none';
-                      }}
-                    />
-                    <small className="text-muted" style={{ fontSize: '0.85rem', marginTop: '6px', display: 'block' }}>
-                      Your review helps other buyers make informed decisions
-                    </small>
-                  </div>
-                  
-                  <div className="d-flex gap-3">
-                    <button 
-                      className="btn btn-primary" 
-                      onClick={submitReview}
-                      style={{
-                        borderRadius: '12px',
-                        padding: '12px 28px',
-                        fontWeight: '600',
-                        fontSize: '0.95rem',
-                        boxShadow: '0 4px 12px rgba(13, 110, 253, 0.3)',
-                        transition: 'all 0.3s ease',
-                        border: 'none'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'translateY(-2px)';
-                        e.currentTarget.style.boxShadow = '0 6px 16px rgba(13, 110, 253, 0.4)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(13, 110, 253, 0.3)';
-                      }}
-                    >
-                      <i className="bi bi-send me-2"></i>Submit Review
-                    </button>
-                    <button 
-                      className="btn btn-outline-secondary" 
-                      onClick={() => setShowReviewPrompt(false)}
-                      style={{
-                        borderRadius: '12px',
-                        padding: '12px 28px',
-                        fontWeight: '600',
-                        fontSize: '0.95rem',
-                        borderWidth: '2px',
-                        transition: 'all 0.3s ease'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#f8f9fa';
-                        e.currentTarget.style.borderColor = '#6c757d';
-                        e.currentTarget.style.transform = 'translateY(-2px)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                        e.currentTarget.style.borderColor = '#6c757d';
-                        e.currentTarget.style.transform = 'translateY(0)';
-                      }}
-                    >
-                      Maybe Later
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Seller Info Card */}
-              <div className="border-top pt-4 mt-4">
-                <h6 className="text-muted small mb-3 fw-bold text-uppercase" style={{ letterSpacing: '0.5px' }}>
-                  Seller Information
-                </h6>
-                <div
-                  className="d-flex align-items-center p-3 rounded"
-                  style={{ 
-                    cursor: 'pointer', 
-                    transition: 'all 0.3s ease',
-                    backgroundColor: 'transparent',
-                    border: '1px solid #e9ecef'
-                  }}
-                  onClick={() => navigate(`/profile/${productDetails.user?._id}`)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#f8f9fa';
-                    e.currentTarget.style.borderColor = '#FF6A00';
-                    e.currentTarget.style.transform = 'translateX(4px)';
-                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                    e.currentTarget.style.borderColor = '#e9ecef';
-                    e.currentTarget.style.transform = 'translateX(0)';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                >
-                  <div style={{
-                    width: '60px',
-                    height: '60px',
-                    borderRadius: '50%',
-                    overflow: 'hidden',
-                    border: '3px solid #FF6A00',
-                    padding: '2px',
-                    backgroundColor: '#fff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    {productDetails.user?.photo?.filePath ? (
-                      <img
-                        src={productDetails.user.photo.filePath}
-                        alt="Seller"
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
-                          borderRadius: '50%'
-                        }}
-                      />
-                    ) : (
-                      <i className="bi bi-person-circle" style={{ fontSize: '2.5rem', color: '#6c757d' }}></i>
                     )}
-                  </div>
-                  <div className="flex-grow-1 ms-3">
-                    <p className="mb-1 fw-bold" style={{ fontSize: '1.05rem', color: '#212529' }}>
-                      {productDetails.user?.name || 'Anonymous'}
+                    {/* Deposit held badge */}
+                    {depositInfo?.depositRequired && depositInfo?.hasDeposit && (
+                      <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: '8px 12px', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#15803d', fontWeight: 600 }}>
+                        <span>✓</span> ₮{formatNumber(depositInfo.depositAmount.toString())} дэнчин байршуулсан — санал тавих боломжтой
+                      </div>
+                    )}
+                    <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 8px' }}>
+                      Санал тавих (хамгийн бага ₮{formatNumber(((productDetails.currentBid || productDetails.price) + Math.max(productDetails.minIncrement || 5000, 5000)).toString())})
                     </p>
-                    {sellerStats.averageRating ? (
-                      <div className="d-flex align-items-center gap-2">
-                        <span className="text-warning" style={{ fontSize: '1rem' }}>★</span>
-                        <span style={{ fontWeight: '600', color: '#495057' }}>
-                          {sellerStats.averageRating.toFixed(1)}
-                        </span>
-                        <span className="text-muted" style={{ fontSize: '0.9rem' }}>
-                          ({sellerStats.count} {sellerStats.count === 1 ? 'review' : 'reviews'})
-                        </span>
+                    {/* Quick increment chips */}
+                    {(() => {
+                      const base = productDetails.currentBid || productDetails.price || 0;
+                      const inc = Math.max(productDetails.minIncrement || 5000, 5000);
+                      const presets = [inc, inc * 2, inc * 5, inc * 10];
+                      const disabled = depositInfo?.depositRequired && !depositInfo?.hasDeposit;
+                      return (
+                        <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap', opacity: disabled ? 0.4 : 1 }}>
+                          {presets.map((delta) => (
+                            <button
+                              key={delta}
+                              disabled={disabled}
+                              onClick={() => setUserBidAmount(formatNumber(String(base + delta)))}
+                              style={{ padding: '6px 12px', background: '#eef2ff', border: '1.5px solid #c7d2fe', borderRadius: 8, fontSize: 13, fontWeight: 700, color: 'var(--bn-primary)', cursor: disabled ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}
+                            >
+                              +₮{formatNumber(String(delta))}
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 10, opacity: (depositInfo?.depositRequired && !depositInfo?.hasDeposit) ? 0.4 : 1 }}>
+                      <div style={{ display: 'flex', border: '1.5px solid #e2e8f0', borderRadius: 10, overflow: 'hidden', flex: 1 }}>
+                        <span style={{ display: 'flex', alignItems: 'center', padding: '0 13px', background: '#f8fafc', fontSize: 14, fontWeight: 700, color: '#64748b', borderRight: '1.5px solid #e2e8f0', flexShrink: 0 }}>₮</span>
+                        <input type="text" value={userBidAmount} onChange={(e) => setUserBidAmount(formatNumber(e.target.value))} placeholder={String((productDetails.currentBid || productDetails.price) + Math.max(productDetails.minIncrement || 5000, 5000))} disabled={depositInfo?.depositRequired && !depositInfo?.hasDeposit} style={{ flex: 1, padding: '11px 14px', border: 'none', outline: 'none', fontSize: 15, fontWeight: 600, color: '#0f172a', background: '#fff' }} />
                       </div>
-                    ) : (
-                      <span className="text-muted" style={{ fontSize: '0.9rem' }}>No reviews yet</span>
+                      <button onClick={submitBid} disabled={depositInfo?.depositRequired && !depositInfo?.hasDeposit} style={{ padding: '11px 20px', background: isUserOutbid ? '#dc2626' : 'var(--bn-primary)', color: '#fff', border: 'none', fontWeight: 700, fontSize: 14, cursor: (depositInfo?.depositRequired && !depositInfo?.hasDeposit) ? 'not-allowed' : 'pointer', borderRadius: 10, flexShrink: 0 }}>
+                        {isUserOutbid ? 'Дахин санал тавих' : 'Санал тавих'}
+                      </button>
+                    </div>
+                    {productDetails.buyNowPrice && (
+                      <button onClick={handleBuyNow} disabled={buyNowLoading} style={{ ...s.btn('#16a34a', '#fff'), width: '100%', padding: '11px', fontSize: 14, opacity: buyNowLoading ? 0.6 : 1 }}>
+                        {buyNowLoading ? 'Боловсруулж байна…' : `Шууд авах — ₮${formatNumber(productDetails.buyNowPrice.toString())}`}
+                      </button>
                     )}
-                  </div>
-                  <i className="bi bi-chevron-right text-muted" style={{ fontSize: '1.2rem' }}></i>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Vehicle History Report - Show only if VIN exists */}
-      {productDetails.vin && (
-        <div className="row mb-4">
-          <div className="col-12">
-            <div className="card shadow-sm border-0">
-              <div className="card-header bg-white border-bottom">
-                <h5 className="mb-0">
-                  <i className="bi bi-file-earmark-text me-2"></i>{t('vehicleHistoryReport')}
-                </h5>
-              </div>
-              <div className="card-body">
-                {productDetails.vehicleHistoryReport?.available ? (
-                  <div className="row align-items-center">
-                    <div className="col-md-8">
-                      <div className="d-flex align-items-center mb-2">
-                        <i className="bi bi-shield-check text-success fs-3 me-3"></i>
-                        <div>
-                          <h6 className="mb-1">{t('reportAvailableForPurchase')}</h6>
-                          <p className="mb-0 text-muted small">
-                            <i className="bi bi-patch-check-fill text-primary me-1"></i>
-                            {t('trustedPartner')}: {productDetails.vehicleHistoryReport.provider}
-                          </p>
-                        </div>
-                      </div>
-                      {productDetails.vehicleHistoryReport.reportUrl && (
-                        <a
-                          href={productDetails.vehicleHistoryReport.reportUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn btn-outline-primary btn-sm mt-2"
-                        >
-                          <i className="bi bi-file-earmark-pdf me-1"></i>
-                          View Full Report
-                        </a>
-                      )}
-                    </div>
-                    <div className="col-md-4 text-center">
-                      <img
-                        src={`https://logo.clearbit.com/${productDetails.vehicleHistoryReport.provider?.toLowerCase()}.com`}
-                        alt={productDetails.vehicleHistoryReport.provider}
-                        className="img-fluid"
-                        style={{ maxHeight: '60px' }}
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                        }}
-                      />
-                    </div>
-                  </div>
+                    {bidError && <div style={{ marginTop: 10, background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '8px 12px', fontSize: 13, color: '#dc2626' }}>{bidError}</div>}
+                  </>
                 ) : (
-                  <div>
-                    <div className="alert alert-secondary mb-3">
-                      <i className="bi bi-info-circle me-2"></i>
-                      <strong>{t('reportNotAvailable')}</strong>
-                    </div>
-                    <p className="mb-2"><strong>{t('possibleReasonsNotAvailable')}</strong></p>
-                    <ul className="small text-muted">
-                      <li>{t('reasonTooOldNoHistory')}</li>
-                      <li>{t('reasonManufacturedBefore1981')}</li>
-                      <li>{t('reasonNo17DigitVIN')}</li>
-                      <li>{t('reasonNotIntendedForUS')}</li>
-                      <li>{t('reasonIncorrectVIN')}</li>
-                    </ul>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Item Specifics Grid */}
-      <div className="row mb-4">
-        <div className="col-12">
-          <div className="card shadow-sm border-0">
-            <div className="card-header bg-white border-bottom">
-              <h5 className="mb-0">
-                <i className="bi bi-list-ul me-2"></i>{t('itemSpecifics')}
-              </h5>
-            </div>
-            <div className="card-body">
-              <div className="row g-3">
-                {/* Rich Text Description */}
-                <div className="col-12">
-                  <div className="p-4 bg-light rounded">
-                    <h6 className="text-muted mb-3">
-                      <i className="bi bi-text-paragraph me-2"></i>
-                      {t('description')}
-                    </h6>
-                    <div
-                      className="description-content"
-                      dangerouslySetInnerHTML={{
-                        __html: productDetails.description || '<p class="text-muted">No description provided</p>'
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Category */}
-                <div className="col-md-3 col-6">
-                  <div className="p-3 bg-light rounded">
-                    <h6 className="text-muted small mb-1">{t('category')}</h6>
-                    <p className="mb-0">{productDetails.category?.name || 'N/A'}</p>
-                  </div>
-                </div>
-
-                {/* Listed Date */}
-                <div className="col-md-3 col-6">
-                  <div className="p-3 bg-light rounded">
-                    <h6 className="text-muted small mb-1">{t('listed')}</h6>
-                    <p className="mb-0">{new Date(productDetails.createdAt).toLocaleDateString()}</p>
-                  </div>
-                </div>
-
-                {/* Vehicle-Specific Fields */}
-                {productDetails.year && (
-                  <div className="col-md-3 col-6">
-                    <div className="p-3 bg-light rounded">
-                      <h6 className="text-muted small mb-1">{t('year')}</h6>
-                      <p className="mb-0 fw-semibold">{productDetails.year}</p>
-                    </div>
-                  </div>
-                )}
-
-                {productDetails.make && (
-                  <div className="col-md-3 col-6">
-                    <div className="p-3 bg-light rounded">
-                      <h6 className="text-muted small mb-1">{t('make')}</h6>
-                      <p className="mb-0 fw-semibold">{productDetails.make}</p>
-                    </div>
-                  </div>
-                )}
-
-                {productDetails.model && (
-                  <div className="col-md-3 col-6">
-                    <div className="p-3 bg-light rounded">
-                      <h6 className="text-muted small mb-1">{t('model')}</h6>
-                      <p className="mb-0 fw-semibold">{productDetails.model}</p>
-                    </div>
-                  </div>
-                )}
-
-                {productDetails.mileage && (
-                  <div className="col-md-3 col-6">
-                    <div className="p-3 bg-light rounded">
-                      <h6 className="text-muted small mb-1">{t('mileage')}</h6>
-                      <p className="mb-0 fw-semibold">{productDetails.mileage.toLocaleString()} km</p>
-                    </div>
-                  </div>
-                )}
-
-                {productDetails.vin && (
-                  <div className="col-md-6">
-                    <div className="p-3 bg-light rounded">
-                      <h6 className="text-muted small mb-1">{t('vin')}</h6>
-                      <p className="mb-0 fw-semibold font-monospace">{productDetails.vin}</p>
-                    </div>
-                  </div>
-                )}
-
-                {productDetails.transmission && (
-                  <div className="col-md-3 col-6">
-                    <div className="p-3 bg-light rounded">
-                      <h6 className="text-muted small mb-1">{t('transmission')}</h6>
-                      <p className="mb-0 fw-semibold">{t(productDetails.transmission)}</p>
-                    </div>
-                  </div>
-                )}
-
-                {productDetails.fuelType && (
-                  <div className="col-md-3 col-6">
-                    <div className="p-3 bg-light rounded">
-                      <h6 className="text-muted small mb-1">{t('fuelType')}</h6>
-                      <p className="mb-0 fw-semibold">{t(productDetails.fuelType)}</p>
-                    </div>
-                  </div>
-                )}
-
-                {productDetails.vehicleTitle && (
-                  <div className="col-md-3 col-6">
-                    <div className="p-3 bg-light rounded">
-                      <h6 className="text-muted small mb-1">{t('vehicleTitle')}</h6>
-                      <p className="mb-0 fw-semibold">{t(productDetails.vehicleTitle)}</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* General Item Fields */}
-                {productDetails.condition && (
-                  <div className="col-md-3 col-6">
-                    <div className="p-3 bg-light rounded">
-                      <h6 className="text-muted small mb-1">{t('condition')}</h6>
-                      <p className="mb-0 fw-semibold">{t(productDetails.condition)}</p>
-                    </div>
-                  </div>
-                )}
-
-                {productDetails.brand && (
-                  <div className="col-md-3 col-6">
-                    <div className="p-3 bg-light rounded">
-                      <h6 className="text-muted small mb-1">{t('brand')}</h6>
-                      <p className="mb-0 fw-semibold">{productDetails.brand}</p>
-                    </div>
-                  </div>
-                )}
-
-                {productDetails.color && (
-                  <div className="col-md-3 col-6">
-                    <div className="p-3 bg-light rounded">
-                      <h6 className="text-muted small mb-1">{t('color')}</h6>
-                      <p className="mb-0 fw-semibold">{productDetails.color}</p>
-                    </div>
-                  </div>
-                )}
-
-                {productDetails.size && (
-                  <div className="col-md-3 col-6">
-                    <div className="p-3 bg-light rounded">
-                      <h6 className="text-muted small mb-1">{t('size')}</h6>
-                      <p className="mb-0 fw-semibold">{productDetails.size}</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Pricing Information */}
-                <div className="col-md-3 col-6">
-                  <div className="p-3 bg-light rounded">
-                    <h6 className="text-muted small mb-1">{t('startingPrice')}</h6>
-                    <p className="mb-0 fw-semibold">${formatNumber(productDetails.price.toString())}</p>
-                  </div>
-                </div>
-
-                <div className="col-md-3 col-6">
-                  <div className="p-3 bg-light rounded">
-                    <h6 className="text-muted small mb-1">{t('bids')}</h6>
-                    <p className="mb-0 fw-semibold">{pastBids.length}</p>
-                  </div>
-                </div>
-
-                {productDetails.reservePrice && (
-                  <div className="col-md-3 col-6">
-                    <div className="p-3 bg-light rounded">
-                      <h6 className="text-muted small mb-1">Reserve Price</h6>
-                      <p className="mb-0 fw-semibold">${formatNumber(productDetails.reservePrice.toString())}</p>
-                    </div>
-                  </div>
-                )}
-
-                {productDetails.minIncrement && (
-                  <div className="col-md-3 col-6">
-                    <div className="p-3 bg-light rounded">
-                      <h6 className="text-muted small mb-1">Min Increment</h6>
-                      <p className="mb-0 fw-semibold">${formatNumber(productDetails.minIncrement.toString())}</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Custom Item Specifics from Map */}
-                {productDetails.itemSpecifics && Object.keys(productDetails.itemSpecifics).length > 0 && (
-                  Object.entries(productDetails.itemSpecifics).map(([key, value]) => (
-                    <div key={key} className="col-md-3 col-6">
-                      <div className="p-3 bg-light rounded">
-                        <h6 className="text-muted small mb-1">{key}</h6>
-                        <p className="mb-0 fw-semibold">{value}</p>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Bid History & Price Chart */}
-      <div className="row mb-4">
-        <div className="col-lg-6">
-          <div className="card shadow-sm border-0 h-100">
-            <div className="card-header bg-white border-bottom">
-              <h5 className="mb-0">
-                <i className="bi bi-clock-history me-2"></i>Bid History
-              </h5>
-            </div>
-            <div className="card-body">
-              {pastBids.length > 0 ? (
-                <>
-                  {groupedHistory.length > 0 && (
-                    <div className="d-flex flex-wrap gap-2 mb-3">
-                      {groupedHistory.slice(0, 4).map((summary, index) => (
-                        <div key={`${summary.userName}-${index}`} className="badge bg-light text-dark border">
-                          <strong>{summary.userName}</strong>
-                          <span className="ms-2 text-muted">{summary.count} bid{summary.count > 1 ? 's' : ''}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <div className="table-responsive">
-                    <table className="table table-sm table-hover">
-                      <thead className="table-light">
-                        <tr>
-                          <th>Bidder</th>
-                          <th>Amount</th>
-                          <th>Time</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {visibleBids.map((bid) => (
-                          bid ? (
-                            <tr key={bid._id || bid.createdAt}>
-                              <td>{bid.user?.name || 'Anonymous'}</td>
-                              <td className="fw-bold text-primary">${bid.price?.toLocaleString() || 'N/A'}</td>
-                              <td className="text-muted small">{bid.createdAt ? new Date(bid.createdAt).toLocaleString() : 'Unknown'}</td>
-                            </tr>
-                          ) : null
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  {hasMoreHistory && (
-                    <div className="text-center mt-2">
-                      <button
-                        className="btn btn-sm btn-outline-secondary"
-                        onClick={() => setHistoryExpanded(prev => !prev)}
-                      >
-                        {historyExpanded ? 'Show Less' : `View All ${pastBids.length} Bids`}
-                      </button>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="text-center py-5">
-                  <i className="bi bi-clock-history fs-1 text-muted mb-3 d-block"></i>
-                  <p className="text-muted">No bids yet. Be the first!</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="col-lg-6">
-          <div className="card shadow-sm border-0 h-100">
-            <div className="card-header bg-white border-bottom">
-              <h5 className="mb-0">
-                <i className="bi bi-graph-up me-2"></i>Price History
-              </h5>
-            </div>
-            <div className="card-body">
-              <PriceHistoryChart
-                bids={pastBids}
-                startingPrice={productDetails.price}
-                startDate={productDetails.createdAt || productDetails.auctionStart}
-                endDate={productDetails.bidDeadline}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Reviews Section */}
-      <div className="row mb-4">
-        <div className="col-12">
-          <div className="card shadow-sm border-0">
-            <div className="card-header bg-white border-bottom">
-              <h5 className="mb-0">
-                <i className="bi bi-star me-2"></i>Reviews
-              </h5>
-            </div>
-            <div className="card-body">
-              <div className="row">
-                <div className="col-md-4 border-end">
-                  {reviewStats.count ? (
-                    <div className="text-center p-3">
-                      <h2 className="display-4 mb-0">{reviewStats.averageRating?.toFixed(1)}</h2>
-                      <div className="text-warning mb-2">
-                        {[...Array(5)].map((_, i) => (
-                          <i key={i} className={`bi bi-star${i < Math.round(reviewStats.averageRating) ? '-fill' : ''}`}></i>
-                        ))}
-                      </div>
-                      <p className="text-muted small mb-0">{reviewStats.count} review{reviewStats.count > 1 ? 's' : ''}</p>
-                    </div>
-                  ) : (
-                    <div className="text-center p-3">
-                      <p className="text-muted">No reviews yet</p>
-                    </div>
-                  )}
-
-                  {!isOwner && isWinner && productDetails.sold && (
-                    <div className="p-3 border-top">
-                      <h6 className="mb-2">Leave a review</h6>
-                      <select
-                        className="form-select form-select-sm mb-2"
-                        value={reviewRating}
-                        onChange={(e) => setReviewRating(Number(e.target.value))}
-                      >
-                        {[5,4,3,2,1].map((r) => (
-                          <option key={r} value={r}>{'★'.repeat(r)} {r} star{r > 1 ? 's' : ''}</option>
-                        ))}
-                      </select>
-                      <textarea
-                        className="form-control form-control-sm mb-2"
-                        rows="2"
-                        value={reviewComment}
-                        onChange={(e) => setReviewComment(e.target.value)}
-                        placeholder="Share your experience"
-                      />
-                      <button className="btn btn-sm btn-primary w-100" onClick={submitReview}>
-                        Submit Review
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                <div className="col-md-8">
-                  {productReviews.length > 0 ? (
-                    <div className="p-3" style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                      {productReviews.map((rev) => (
-                        <div key={rev._id} className="border-bottom pb-3 mb-3">
-                          <div className="d-flex justify-content-between align-items-start mb-1">
-                            <strong>{rev.fromUser?.name || 'Buyer'}</strong>
-                            <span className="text-warning">
-                              {'★'.repeat(rev.rating)}{'☆'.repeat(5 - rev.rating)}
-                            </span>
-                          </div>
-                          <p className="text-muted small mb-1">{new Date(rev.createdAt).toLocaleDateString()}</p>
-                          <p className="mb-0">{rev.comment}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center p-5">
-                      <i className="bi bi-chat-left-text fs-1 text-muted mb-3 d-block"></i>
-                      <p className="text-muted">No reviews yet. Be the first to review!</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Seller Description Section */}
-      {productDetails.sellerDescription && (
-        <div className="row mb-4">
-          <div className="col-12">
-            <div className="card shadow-sm border-0">
-              <div className="card-header bg-white border-bottom">
-                <h5 className="mb-0">
-                  <i className="bi bi-info-circle me-2"></i>{t('itemDescriptionFromSeller')}
-                </h5>
-              </div>
-              <div className="card-body">
-                {/* Seller Info Banner */}
-                <div className="alert alert-light border d-flex align-items-center justify-content-between mb-4">
-                  <div className="d-flex align-items-center">
-                    <img
-                      src={productDetails.user?.photo?.filePath || '/default.png'}
-                      alt={productDetails.user?.name}
-                      className="rounded-circle me-3"
-                      style={{
-                        width: '60px',
-                        height: '60px',
-                        objectFit: 'cover',
-                        border: '3px solid #dee2e6'
-                      }}
-                    />
-                    <div>
-                      <h6 className="mb-1">{productDetails.user?.name || 'Anonymous Seller'}</h6>
-                      {sellerStats.averageRating && (
-                        <div className="small">
-                          <span className="text-warning">★★★★★</span>
-                          <span className="ms-2 fw-bold">{sellerStats.averageRating.toFixed(1)}</span>
-                          <span className="text-muted ms-1">({sellerStats.count} {t('itemsSold')})</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="d-flex gap-2">
-                    <button
-                      className="btn btn-outline-primary btn-sm"
-                      onClick={() => navigate(`/profile/${productDetails.user?._id}`)}
-                    >
-                      <i className="bi bi-shop me-1"></i>{t('viewStore')}
-                    </button>
-                    <button
-                      className="btn btn-outline-secondary btn-sm"
-                      onClick={() => window.location.href = `mailto:${productDetails.user?.email}`}
-                    >
-                      <i className="bi bi-envelope me-1"></i>{t('contactUs')}
+                  <div style={{ textAlign: 'center' }}>
+                    <p style={{ fontSize: 32, fontWeight: 900, color: 'var(--bn-accent)', margin: '0 0 16px' }}>₮{formatNumber(productDetails.price.toString())}</p>
+                    <button onClick={handleBuyNow} disabled={buyNowLoading} style={{ ...s.btn('#16a34a', '#fff'), width: '100%', padding: '13px', fontSize: 15, opacity: buyNowLoading ? 0.6 : 1 }}>
+                      {buyNowLoading ? 'Боловсруулж байна…' : 'Шууд авах'}
                     </button>
                   </div>
-                </div>
-
-                {/* Rich Description Content */}
-                <div
-                  className="seller-description-content p-4 bg-light rounded"
-                  dangerouslySetInnerHTML={{ __html: productDetails.sellerDescription }}
-                  style={{
-                    minHeight: '200px',
-                    lineHeight: '1.8',
-                    fontSize: '15px'
-                  }}
-                />
-
-                {/* Shipping & Payment Info */}
-                <div className="row mt-4 g-3">
-                  <div className="col-md-4">
-                    <div className="p-3 border rounded text-center">
-                      <i className="bi bi-truck fs-3 text-primary mb-2 d-block"></i>
-                      <h6 className="mb-1">{t('shipping')}</h6>
-                      <p className="small text-muted mb-0">{t('seeItemDescription')}</p>
-                    </div>
-                  </div>
-                  <div className="col-md-4">
-                    <div className="p-3 border rounded text-center">
-                      <i className="bi bi-geo-alt fs-3 text-success mb-2 d-block"></i>
-                      <h6 className="mb-1">{t('located')}</h6>
-                      <p className="small text-muted mb-0">{productDetails.user?.address || 'Not specified'}</p>
-                    </div>
-                  </div>
-                  <div className="col-md-4">
-                    <div className="p-3 border rounded text-center">
-                      <i className="bi bi-credit-card fs-3 text-warning mb-2 d-block"></i>
-                      <h6 className="mb-1">{t('payments')}</h6>
-                      <p className="small text-muted mb-0">{t('fullPaymentRequired')} 3 {t('withinDaysOfClose')}</p>
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
-            </div>
-          </div>
-        </div>
-      )}
+            )}
 
-      {/* Similar Listings */}
-      <div className="row">
-        <div className="col-12">
-          <div className="card shadow-sm border-0">
-            <div className="card-header bg-white border-bottom">
-              <h5 className="mb-0">
-                <i className="bi bi-grid-3x3-gap me-2"></i>Similar Listings
-              </h5>
-            </div>
-            <div className="card-body">
-              {recommendedProducts.length > 0 ? (
-                <div className="row g-3">
-                  {recommendedProducts.map((product) => (
-                    <div key={product._id} className="col-lg-3 col-md-4 col-sm-6">
-                      <Link
-                        to={`/products/${product._id}`}
-                        className="text-decoration-none"
-                      >
-                        <div className="card h-100 border hover-shadow" style={{ transition: 'box-shadow 0.2s' }}>
-                          {product.images && product.images.length > 0 ? (
-                            <img
-                              src={product.images.find(img => img.isPrimary)?.url || product.images[0]?.url}
-                              alt={product.title}
-                              className="card-img-top"
-                              style={{ height: '150px', objectFit: 'cover' }}
-                              onError={(e) => {
-                                e.target.style.display = 'none';
-                                e.target.nextSibling.style.display = 'flex';
-                              }}
-                            />
-                          ) : null}
-                          <div
-                            className="bg-light d-flex align-items-center justify-content-center"
-                            style={{
-                              height: '150px',
-                              display: product.images && product.images.length > 0 ? 'none' : 'flex'
-                            }}
-                          >
-                            <i className="bi bi-image text-muted" style={{ fontSize: '40px' }}></i>
-                          </div>
-                          <div className="card-body p-3">
-                            <h6 className="card-title text-truncate mb-2">{product.title}</h6>
-                            <p className="mb-0 fw-bold text-primary">
-                              ${formatNumber((product.currentBid || product.price).toString())}
-                            </p>
-                            <p className="mb-0 text-muted small">
-                              {product.sold ? 'Sold' : `${product.bids || 0} bid${product.bids !== 1 ? 's' : ''}`}
-                            </p>
-                          </div>
-                        </div>
-                      </Link>
+            {/* Owner — active listing */}
+            {isOwner && !productDetails.sold && (
+              <div style={{ ...s.card, padding: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>Таны зарлага</p>
+                  <span style={s.tag('#eff6ff', '#3b82f6')}>{pastBids.length} санал</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 14 }}>
+                  {[['Үзэлт', productDetails.views || 0], ['Оролцогч', productDetails.bidStats?.totalBidders || 0], ['Нийт санал', productDetails.bidStats?.totalBids || 0]].map(([label, value]) => (
+                    <div key={label} style={{ background: '#f8fafc', borderRadius: 10, padding: '10px 8px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 20, fontWeight: 800, color: '#0f172a' }}>{value}</div>
+                      <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{label}</div>
                     </div>
                   ))}
                 </div>
-              ) : (
-                <div className="text-center py-5">
-                  <i className="bi bi-box-seam fs-1 text-muted mb-3 d-block"></i>
-                  <p className="text-muted">No similar items found</p>
+                {pastBids.length > 0 && (
+                  <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 10, padding: '12px 14px', marginBottom: 12 }}>
+                    <p style={{ fontSize: 11, color: '#16a34a', margin: '0 0 6px', fontWeight: 700 }}>🏆 Тэргүүлэгч</p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: '#0f172a' }}>{pastBids[0]?.user?.name || 'Нэргүй'}</span>
+                      <span style={{ fontSize: 15, fontWeight: 800, color: '#16a34a' }}>₮{formatNumber((pastBids[0]?.price || productDetails.currentBid).toString())}</span>
+                    </div>
+                  </div>
+                )}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {pastBids.length > 0 && (
+                    <button onClick={handleSellNowToTopBidder} style={{ ...s.btn('#eef2ff', 'var(--bn-primary)', '1.5px solid #c7d2fe'), flex: 1 }}>Шууд зарах</button>
+                  )}
+                  <button onClick={handleOwnerManageShortcut} style={{ ...s.btn('#f1f5f9', '#475569', '1.5px solid #e2e8f0'), flex: 1 }}>Тохиргоо</button>
+                  <button onClick={handleDeleteListing} style={{ ...s.btn('#fef2f2', '#dc2626', '1.5px solid #fca5a5'), flex: 1 }}>Устгах</button>
                 </div>
-              )}
+              </div>
+            )}
+
+            {/* Owner — sold */}
+            {isOwner && productDetails.sold && (
+              <div style={{ ...s.card, padding: 20 }}>
+                <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                  <div style={{ fontSize: 36, marginBottom: 8 }}>🎉</div>
+                  <p style={{ fontSize: 16, fontWeight: 700, color: '#16a34a', margin: '0 0 4px' }}>Бараа зарагдлаа!</p>
+                  <p style={{ fontSize: 26, fontWeight: 900, color: 'var(--bn-accent)', margin: '0 0 4px' }}>₮{formatNumber(productDetails.currentBid.toString())}</p>
+                  <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>{new Date(productDetails.soldAt).toLocaleString()} -д зарагдсан</p>
+                </div>
+                {buyerInfo && (
+                  <div style={{ background: '#f8fafc', borderRadius: 10, padding: 14, marginBottom: 12 }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 10px' }}>Худалдан авагчийн мэдээлэл</p>
+                    {[['Нэр', buyerInfo.name], ['И-мэйл', buyerInfo.email], ['Утас', buyerInfo.phone]].map(([label, val]) => (
+                      <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #f1f5f9' }}>
+                        <span style={{ fontSize: 12, color: '#94a3b8' }}>{label}</span>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{val || 'N/A'}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <button onClick={handleOwnerManageShortcut} style={{ ...s.btn('#f1f5f9', '#475569', '1.5px solid #e2e8f0'), width: '100%' }}>Миний зарууд</button>
+              </div>
+            )}
+
+            {/* Winner panel */}
+            {productDetails.sold && isWinner && (
+              <div style={{ ...s.card, padding: 20, background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)' }}>
+                {(() => {
+                  const seller = productDetails.user || {};
+                  const sellerName = seller.name || seller.username || seller.surname || null;
+                  const soldDateRaw = productDetails.soldAt || productDetails.bidDeadline || productDetails.updatedAt;
+                  const soldDate = soldDateRaw ? new Date(soldDateRaw) : null;
+                  const soldLabel = soldDate && !isNaN(soldDate)
+                    ? soldDate.toLocaleString('mn-MN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+                    : null;
+                  return (
+                    <>
+                      <div style={{ textAlign: 'center', marginBottom: 14 }}>
+                        <div style={{ fontSize: 36, marginBottom: 8 }}>🏆</div>
+                        <p style={{ fontSize: 16, fontWeight: 700, color: '#15803d', margin: '0 0 4px' }}>Та хожлоо!</p>
+                        <p style={{ fontSize: 26, fontWeight: 900, color: '#16a34a', margin: '0 0 4px' }}>₮{formatNumber(productDetails.currentBid.toString())}</p>
+                        {soldLabel && <p style={{ fontSize: 12, color: '#6b7280', margin: 0 }}>{soldLabel}</p>}
+                      </div>
+                      <div style={{ background: '#fff', borderRadius: 10, padding: 14 }}>
+                        <p style={{ fontSize: 11, fontWeight: 700, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 10px' }}>Борлуулагчийн мэдээлэл</p>
+                        {[['Нэр', sellerName], ['И-мэйл', seller.email], ['Утас', seller.phone]].map(([label, val]) => (
+                          <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #f1f5f9' }}>
+                            <span style={{ fontSize: 12, color: '#94a3b8' }}>{label}</span>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: val ? '#0f172a' : '#cbd5e1' }}>{val || '—'}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  );
+                })()}
+                <div style={{ marginTop: 10, background: '#dcfce7', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#15803d', fontWeight: 500 }}>
+                  ✓ Хүргэлт / авалтыг зохицуулахын тулд борлуулагчтай холбогдоно уу.
+                </div>
+              </div>
+            )}
+
+            {/* Sold — not winner, not owner */}
+            {productDetails.sold && !isWinner && !isOwner && (
+              <div style={{ ...s.card, padding: 16 }}>
+                <div style={{ background: '#f8fafc', borderRadius: 10, padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#64748b' }}>Зарагдсан</span>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>₮{formatNumber(productDetails.currentBid.toString())}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Review prompt */}
+            {showReviewPrompt && productDetails.sold && !isOwner && isWinner && (
+              <div style={{ ...s.card, padding: 20, border: '2px solid var(--bn-primary)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                  <div>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', margin: '0 0 3px' }}>⭐ Үнэлгээ үлдээх</p>
+                    <p style={{ fontSize: 12, color: '#64748b', margin: 0 }}>Туршлагаа бусад худалдан авагчидтай хуваалцаарай</p>
+                  </div>
+                  <button onClick={() => setShowReviewPrompt(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 20, padding: 0, lineHeight: 1 }}>×</button>
+                </div>
+                <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button key={star} onClick={() => setReviewRating(star)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 24, color: star <= reviewRating ? '#f59e0b' : '#d1d5db', padding: '0 2px' }}>★</button>
+                  ))}
+                </div>
+                <textarea value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} placeholder="Туршлагаа хуваалцаарай…" rows={3} style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #e2e8f0', borderRadius: 10, fontSize: 13, resize: 'vertical', outline: 'none', boxSizing: 'border-box', marginBottom: 10 }} />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={submitReview} style={{ ...s.btn('var(--bn-primary)', '#fff'), flex: 1 }}>Илгээх</button>
+                  <button onClick={() => setShowReviewPrompt(false)} style={{ ...s.btn('#f1f5f9', '#64748b', '1.5px solid #e2e8f0'), flex: 1 }}>Дараа</button>
+                </div>
+              </div>
+            )}
+
+            {/* Seller card */}
+            <div style={{ ...s.card, padding: 16 }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 12px' }}>Борлуулагч</p>
+              <button onClick={() => navigate(`/profile/${productDetails.user?._id}`)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: '#f8fafc', borderRadius: 10, border: '1.5px solid #e2e8f0', cursor: 'pointer', textAlign: 'left' }}>
+                <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--bn-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700, color: '#fff', flexShrink: 0, overflow: 'hidden' }}>
+                  {productDetails.user?.photo?.filePath
+                    ? <img src={productDetails.user.photo.filePath} alt="Seller" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : (productDetails.user?.name?.charAt(0)?.toUpperCase() || '?')}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: '#0f172a', margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{productDetails.user?.name || 'Борлуулагч'}</p>
+                  {sellerStats.averageRating
+                    ? <p style={{ fontSize: 12, color: '#f59e0b', margin: 0 }}>{'★'.repeat(Math.round(sellerStats.averageRating))}{'☆'.repeat(5 - Math.round(sellerStats.averageRating))}<span style={{ color: '#64748b', marginLeft: 4 }}>{sellerStats.averageRating.toFixed(1)} ({sellerStats.count})</span></p>
+                    : <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>Үнэлгээ байхгүй</p>}
+                </div>
+                <span style={{ color: '#94a3b8', fontSize: 18 }}>›</span>
+              </button>
+            </div>
+
+          </div>{/* end right panel */}
+        </div>{/* end two-column */}
+
+        {/* ── BOTTOM SECTIONS ── */}
+
+        {/* Description */}
+        <div style={{ ...s.card, marginBottom: 20, overflow: 'hidden' }}>
+          <div style={{ padding: '14px 22px', borderBottom: '1px solid #e2e8f0' }}>
+            <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: 0 }}>Тайлбар</p>
+          </div>
+          <div style={{ padding: '20px 22px' }}>
+            <div dangerouslySetInnerHTML={{ __html: productDetails.description || '<p style="color:#94a3b8">Тайлбар байхгүй</p>' }} />
+          </div>
+        </div>
+
+        {/* Item Details grid */}
+        <div style={{ ...s.card, marginBottom: 20, overflow: 'hidden' }}>
+          <div style={{ padding: '14px 22px', borderBottom: '1px solid #e2e8f0' }}>
+            <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: 0 }}>Барааны мэдээлэл</p>
+          </div>
+          <div style={{ padding: '20px 22px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
+              {[
+                ['Ангилал', productDetails.category?.name || productDetails.category?.title],
+                ['Нийтэлсэн', new Date(productDetails.createdAt).toLocaleDateString()],
+                productDetails.condition && ['Төлөв', t(productDetails.condition)],
+                productDetails.brand && ['Брэнд', productDetails.brand],
+                productDetails.color && ['Өнгө', productDetails.color],
+                productDetails.size && ['Хэмжээ', productDetails.size],
+                productDetails.year && ['Он', productDetails.year],
+                productDetails.make && ['Марк', productDetails.make],
+                productDetails.model && ['Загвар', productDetails.model],
+                productDetails.mileage && ['Гүйлт', `${productDetails.mileage.toLocaleString()} км`],
+                productDetails.vin && ['VIN', productDetails.vin],
+                ['Эхлэх үнэ', `₮${formatNumber(productDetails.price.toString())}`],
+                ['Нийт санал', String(pastBids.length)],
+                productDetails.reservePrice && ['Хамгийн бага үнэ', `₮${formatNumber(productDetails.reservePrice.toString())}`],
+                productDetails.minIncrement && ['Хамгийн бага нэмэлт', `₮${formatNumber(productDetails.minIncrement.toString())}`],
+                ...(productDetails.itemSpecifics ? Object.entries(productDetails.itemSpecifics).map(([k, v]) => [k, String(v)]) : []),
+              ].filter(Boolean).map(([label, value]) => value && (
+                <div key={label} style={{ background: '#f8fafc', borderRadius: 10, padding: '10px 12px' }}>
+                  <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 3px', fontWeight: 600 }}>{label}</p>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: 0 }}>{value}</p>
+                </div>
+              ))}
             </div>
           </div>
         </div>
-      </div>
 
-      {/* 🎉 CELEBRATION MODAL - Shown when user wins! */}
-      {showWinModal && winData && (
-        <div
-          className="modal show d-block"
-          style={{ backgroundColor: 'rgba(0,0,0,0.8)' }}
-          onClick={() => setShowWinModal(false)}
-        >
-          <div className="modal-dialog modal-dialog-centered modal-lg">
-            <div
-              className="modal-content border-0 shadow-lg"
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                color: 'white'
-              }}
-            >
-              <div className="modal-body text-center p-5">
-                {/* Confetti-style celebration */}
-                <div className="mb-4" style={{ fontSize: '80px', animation: 'bounce 1s infinite' }}>
-                  🎉🏆🎊
-                </div>
-
-                <h1 className="display-3 fw-bold mb-3" style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.3)' }}>
-                  CONGRATULATIONS!
-                </h1>
-
-                <h2 className="h3 mb-4">🎯 YOU WON THE AUCTION! 🎯</h2>
-
-                {winData.image && (
-                  <div className="mb-4">
-                    <img
-                      src={winData.image}
-                      alt={winData.title}
-                      className="img-fluid rounded shadow"
-                      style={{
-                        maxHeight: '200px',
-                        objectFit: 'contain',
-                        border: '4px solid rgba(255,255,255,0.3)'
-                      }}
-                    />
+        {/* Bid History + Price Chart (auction only) */}
+        {!isFixedPrice && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+            {/* Bid History */}
+            <div style={{ ...s.card, overflow: 'hidden' }}>
+              <div style={{ padding: '14px 22px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: 0 }}>Санлын түүх</p>
+                <span style={s.tag('#f1f5f9', '#64748b')}>{pastBids.length} санал</span>
+              </div>
+              <div style={{ padding: '16px 20px' }}>
+                {pastBids.length > 0 ? (
+                  <>
+                    {groupedHistory.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+                        {groupedHistory.slice(0, 4).map((g, i) => (
+                          <span key={i} style={s.tag('#f1f5f9', '#475569')}>{g.userName} · {g.count}</span>
+                        ))}
+                      </div>
+                    )}
+                    <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                        <thead>
+                          <tr style={{ borderBottom: '2px solid #f1f5f9' }}>
+                            {['Оролцогч', 'Дүн', 'Огноо'].map((h) => (
+                              <th key={h} style={{ textAlign: 'left', padding: '6px 8px', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {visibleBids.map((bid, idx) => bid ? (
+                            <tr key={bid._id || bid.createdAt} style={{ borderBottom: '1px solid #f1f5f9', background: idx === 0 ? '#f0fdf4' : 'transparent' }}>
+                              <td style={{ padding: '9px 8px', fontWeight: idx === 0 ? 700 : 400, color: '#0f172a' }}>{idx === 0 && <span style={{ marginRight: 4 }}>🏆</span>}{bid.user?.name || 'Нэргүй'}</td>
+                              <td style={{ padding: '9px 8px', fontWeight: 700, color: 'var(--bn-accent)' }}>₮{formatNumber(bid.price?.toString() || '0')}</td>
+                              <td style={{ padding: '9px 8px', color: '#94a3b8', fontSize: 11 }}>{bid.createdAt ? new Date(bid.createdAt).toLocaleString('mn-MN') : '—'}</td>
+                            </tr>
+                          ) : null)}
+                        </tbody>
+                      </table>
+                    </div>
+                    {hasMoreHistory && (
+                      <div style={{ textAlign: 'center', marginTop: 12 }}>
+                        <button onClick={() => setHistoryExpanded(p => !p)} style={{ ...s.btn('#f1f5f9', '#475569', '1.5px solid #e2e8f0'), padding: '7px 16px', fontSize: 12 }}>
+                          {historyExpanded ? 'Хураах' : `Бүгдийг харах (${pastBids.length})`}
+                        </button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '32px 16px', color: '#94a3b8' }}>
+                    <div style={{ fontSize: 32, marginBottom: 8 }}>🕐</div>
+                    <p style={{ margin: 0, fontSize: 13 }}>Одоогоор санал байхгүй. Эхнийх нь байгаарай!</p>
                   </div>
                 )}
+              </div>
+            </div>
 
-                <div className="bg-white text-dark rounded p-4 mb-4">
-                  <h4 className="mb-3">{winData.title}</h4>
-                  <div className="d-flex justify-content-around align-items-center">
-                    <div>
-                      <small className="text-muted d-block">Winning Price</small>
-                      <h2 className="text-success mb-0">
-                        ${formatNumber(winData.price.toString())}
-                      </h2>
-                    </div>
-                    <div className="vr" style={{ height: '50px' }}></div>
-                    <div>
-                      <small className="text-muted d-block">Method</small>
-                      <h5 className="mb-0">
-                        <span className="badge bg-primary">{winData.method}</span>
-                      </h5>
-                    </div>
+            {/* Price Chart */}
+            <div style={{ ...s.card, overflow: 'hidden' }}>
+              <div style={{ padding: '14px 22px', borderBottom: '1px solid #e2e8f0' }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: 0 }}>Үнийн түүх</p>
+              </div>
+              <div style={{ padding: '16px 20px' }}>
+                <PriceHistoryChart bids={pastBids} startingPrice={productDetails.price} startDate={productDetails.createdAt || productDetails.auctionStart} endDate={productDetails.bidDeadline} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Owner bidders list */}
+        {isOwner && !productDetails.sold && productDetails.bidStats?.bidders?.length > 0 && (
+          <div style={{ ...s.card, marginBottom: 20, overflow: 'hidden' }}>
+            <div style={{ padding: '14px 22px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: 0 }}>Оролцогчид</p>
+              <span style={s.tag('#eff6ff', '#3b82f6')}>Нийт {productDetails.bidStats.bidders.length}</span>
+            </div>
+            <div style={{ padding: '16px 20px', maxHeight: 320, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {productDetails.bidStats.bidders.map((bid, idx) => (
+                <div key={bid._id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 10, background: idx === 0 ? '#f0fdf4' : '#f8fafc', border: idx === 0 ? '1px solid #86efac' : '1px solid #f1f5f9' }}>
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: idx === 0 ? '#16a34a' : '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: idx === 0 ? '#fff' : '#64748b', flexShrink: 0 }}>
+                    {idx === 0 ? '🏆' : `#${idx + 1}`}
                   </div>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: '#0f172a', margin: '0 0 1px' }}>{bid.user?.name || 'Хэрэглэгч'}</p>
+                    <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>{bid.user?.email}</p>
+                  </div>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--bn-accent)' }}>₮{formatNumber(bid.price?.toString() || '0')}</span>
                 </div>
+              ))}
+            </div>
+          </div>
+        )}
 
-                <div className="alert alert-light mb-4">
-                  <p className="mb-2">
-                    <strong>✨ What happens next?</strong>
-                  </p>
-                  <p className="mb-0 small">
-                    • Funds have been deducted from your balance<br />
-                    • Seller contact information is now visible above<br />
-                    • Contact the seller to arrange pickup/delivery<br />
-                    • Don't forget to leave a review!
-                  </p>
+        {/* Reviews */}
+        <div style={{ ...s.card, marginBottom: 20, overflow: 'hidden' }}>
+          <div style={{ padding: '14px 22px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: 0 }}>Үнэлгээнүүд</p>
+            {reviewStats.count > 0 && <span style={s.tag('#f1f5f9', '#64748b')}>{reviewStats.count} үнэлгээ</span>}
+          </div>
+          <div style={{ padding: '20px 22px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: reviewStats.count > 0 ? '150px 1fr' : '1fr', gap: 24 }}>
+              {reviewStats.count > 0 && (
+                <div style={{ textAlign: 'center', borderRight: '1px solid #f1f5f9', paddingRight: 24 }}>
+                  <div style={{ fontSize: 48, fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>{reviewStats.averageRating?.toFixed(1)}</div>
+                  <div style={{ fontSize: 20, color: '#f59e0b', margin: '6px 0' }}>
+                    {[...Array(5)].map((_, i) => <span key={i}>{i < Math.round(reviewStats.averageRating) ? '★' : '☆'}</span>)}
+                  </div>
+                  <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>{reviewStats.count} үнэлгээ</p>
                 </div>
+              )}
+              <div>
+                {productReviews.length > 0 ? (
+                  <div style={{ maxHeight: 300, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    {productReviews.map((rev) => (
+                      <div key={rev._id} style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: 14 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                          <span style={{ fontSize: 14, fontWeight: 600, color: '#0f172a' }}>{rev.fromUser?.name || 'Худалдан авагч'}</span>
+                          <span style={{ color: '#f59e0b', fontSize: 14 }}>{'★'.repeat(rev.rating)}{'☆'.repeat(5 - rev.rating)}</span>
+                        </div>
+                        <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 5px' }}>{new Date(rev.createdAt).toLocaleDateString()}</p>
+                        <p style={{ fontSize: 13, color: '#374151', margin: 0 }}>{rev.comment}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '24px 16px', color: '#94a3b8' }}>
+                    <div style={{ fontSize: 28, marginBottom: 8 }}>💬</div>
+                    <p style={{ margin: 0, fontSize: 13 }}>Одоогоор үнэлгээ байхгүй. Эхнийх нь байгаарай!</p>
+                  </div>
+                )}
+                {!isOwner && isWinner && productDetails.sold && (
+                  <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #f1f5f9' }}>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: '0 0 10px' }}>Үнэлгээ үлдээх</p>
+                    <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button key={star} onClick={() => setReviewRating(star)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: star <= reviewRating ? '#f59e0b' : '#d1d5db', padding: '0 2px' }}>★</button>
+                      ))}
+                    </div>
+                    <textarea value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} placeholder="Туршлагаа хуваалцаарай..." rows={2} style={{ width: '100%', padding: '9px 12px', border: '1.5px solid #e2e8f0', borderRadius: 10, fontSize: 13, resize: 'none', outline: 'none', boxSizing: 'border-box', marginBottom: 10 }} />
+                    <button onClick={submitReview} style={s.btn('var(--bn-primary)', '#fff')}>Үнэлгээ илгээх</button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
 
-                <div className="d-flex gap-3 justify-content-center">
-                  <button
-                    className="btn btn-light btn-lg px-5"
-                    onClick={() => {
-                      setShowWinModal(false);
-                      setShowReviewPrompt(true);
-                    }}
-                  >
-                    <i className="bi bi-star-fill me-2"></i>
-                    Leave a Review
-                  </button>
-                  <button
-                    className="btn btn-outline-light btn-lg px-5"
-                    onClick={() => setShowWinModal(false)}
-                  >
-                    <i className="bi bi-check-circle me-2"></i>
-                    Got it!
-                  </button>
+        {/* Seller Description */}
+        {productDetails.sellerDescription && (
+          <div style={{ ...s.card, marginBottom: 20, overflow: 'hidden' }}>
+            <div style={{ padding: '14px 22px', borderBottom: '1px solid #e2e8f0' }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: 0 }}>{t('itemDescriptionFromSeller')}</p>
+            </div>
+            <div style={{ padding: '20px 22px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#f8fafc', borderRadius: 12, padding: '14px 16px', marginBottom: 18 }}>
+                <div style={{ width: 44, height: 44, borderRadius: '50%', overflow: 'hidden', border: '2px solid #e2e8f0', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bn-primary)', color: '#fff', fontSize: 18, fontWeight: 700 }}>
+                  {productDetails.user?.photo?.filePath
+                    ? <img src={productDetails.user.photo.filePath} alt="Seller" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : productDetails.user?.name?.charAt(0)?.toUpperCase()}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: '#0f172a', margin: '0 0 2px' }}>{productDetails.user?.name}</p>
+                  {sellerStats.averageRating && <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>⭐ {sellerStats.averageRating.toFixed(1)} · {sellerStats.count} {t('itemsSold')}</p>}
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => navigate(`/profile/${productDetails.user?._id}`)} style={{ ...s.btn('#f1f5f9', '#475569', '1.5px solid #e2e8f0'), padding: '7px 14px', fontSize: 12 }}>{t('viewStore')}</button>
+                  <button onClick={() => { window.location.href = `mailto:${productDetails.user?.email}`; }} style={{ ...s.btn('#f1f5f9', '#475569', '1.5px solid #e2e8f0'), padding: '7px 14px', fontSize: 12 }}>{t('contactUs')}</button>
                 </div>
               </div>
+              <div dangerouslySetInnerHTML={{ __html: productDetails.sellerDescription }} style={{ lineHeight: 1.7 }} />
+            </div>
+          </div>
+        )}
+
+        {/* Similar Listings */}
+        {recommendedProducts.length > 0 && (
+          <div style={{ ...s.card, overflow: 'hidden' }}>
+            <div style={{ padding: '14px 22px', borderBottom: '1px solid #e2e8f0' }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: 0 }}>Төстэй зарууд</p>
+            </div>
+            <div style={{ padding: '20px 22px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14 }}>
+                {recommendedProducts.map((rec) => (
+                  <Link key={rec._id} to={`/products/${rec._id}`} style={{ textDecoration: 'none' }}>
+                    <div style={{ background: '#f8fafc', borderRadius: 12, overflow: 'hidden', border: '1px solid #e2e8f0', transition: 'box-shadow 0.15s' }} onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.1)'; }} onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; }}>
+                      {rec.images?.length > 0
+                        ? <img src={rec.images.find(i => i.isPrimary)?.url || rec.images[0]?.url} alt={rec.title} style={{ width: '100%', height: 140, objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none'; }} />
+                        : <div style={{ height: 140, background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 28 }}>📦</div>}
+                      <div style={{ padding: '10px 12px' }}>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rec.title}</p>
+                        <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--bn-accent)', margin: '0 0 2px' }}>₮{formatNumber((rec.currentBid || rec.price).toString())}</p>
+                        <p style={{ fontSize: 11, color: '#94a3b8', margin: 0 }}>{rec.sold ? 'Зарагдсан' : `${rec.bids || 0} санал`}</p>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>{/* end maxWidth wrapper */}
+
+      {/* Win Modal */}
+      {showWinModal && winData && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)' }} onClick={() => setShowWinModal(false)}>
+          <div style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)', color: '#fff', borderRadius: 24, boxShadow: '0 24px 48px rgba(0,0,0,0.4)', maxWidth: 480, width: '100%', margin: '0 16px', overflow: 'hidden' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ textAlign: 'center', padding: '40px 32px' }}>
+              <div style={{ fontSize: 64, marginBottom: 16, animation: 'bounce 1s infinite' }}>🏆</div>
+              <h1 style={{ fontSize: 32, fontWeight: 900, margin: '0 0 8px', textShadow: '2px 2px 4px rgba(0,0,0,0.3)' }}>БАЯР ХҮРГЭЕ!</h1>
+              <h2 style={{ fontSize: 16, fontWeight: 400, opacity: 0.85, margin: '0 0 24px' }}>ТА ДУУДЛАГАД ХОЖЛОО!</h2>
+              {winData.image && <img src={winData.image} alt={winData.title} style={{ maxHeight: 180, borderRadius: 12, objectFit: 'contain', marginBottom: 20, border: '2px solid rgba(255,255,255,0.3)' }} />}
+              <p style={{ fontSize: 20, fontWeight: 700, margin: '0 0 4px' }}>{winData.title}</p>
+              <p style={{ fontSize: 28, fontWeight: 900, margin: '0 0 20px' }}>₮{formatNumber((winData.price || 0).toString())}</p>
+              <button onClick={() => setShowWinModal(false)} style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', border: '2px solid rgba(255,255,255,0.4)', borderRadius: 12, padding: '12px 32px', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>Хаах</button>
             </div>
           </div>
         </div>
       )}
 
-      <style jsx>{`
-        @keyframes bounce {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-20px); }
-        }
-
-        .modal.show {
-          animation: fadeIn 0.3s ease-in;
-        }
-
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-
-        .seller-description-content {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-        }
-
-        .seller-description-content img {
-          max-width: 100%;
-          height: auto;
-          border-radius: 8px;
-          margin: 15px 0;
-        }
-
-        .seller-description-content table {
-          width: 100%;
-          border-collapse: collapse;
-          margin: 15px 0;
-        }
-
-        .seller-description-content table td,
-        .seller-description-content table th {
-          padding: 12px;
-          border: 1px solid #dee2e6;
-        }
-
-        .seller-description-content h1,
-        .seller-description-content h2,
-        .seller-description-content h3 {
-          margin-top: 25px;
-          margin-bottom: 15px;
-          color: #333;
-        }
-
-        .seller-description-content ul,
-        .seller-description-content ol {
-          margin: 15px 0;
-          padding-left: 25px;
-        }
-
-        .seller-description-content a {
-          color: #FF6A00;
-          text-decoration: none;
-        }
-
-        .seller-description-content a:hover {
-          text-decoration: underline;
-        }
-
-        /* Rich Text Description Styling */
-        .description-content {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-          line-height: 1.6;
-        }
-
-        .description-content img {
-          max-width: 100%;
-          height: auto;
-          border-radius: 8px;
-          margin: 15px 0;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-
-        .description-content table {
-          width: 100%;
-          border-collapse: collapse;
-          margin: 15px 0;
-          background: white;
-        }
-
-        .description-content table td,
-        .description-content table th {
-          padding: 12px;
-          border: 1px solid #dee2e6;
-        }
-
-        .description-content table th {
-          background-color: #f8f9fa;
-          font-weight: 600;
-        }
-
-        .description-content h1,
-        .description-content h2,
-        .description-content h3,
-        .description-content h4,
-        .description-content h5,
-        .description-content h6 {
-          margin-top: 20px;
-          margin-bottom: 10px;
-          color: #333;
-          font-weight: 600;
-        }
-
-        .description-content h1 { font-size: 2rem; }
-        .description-content h2 { font-size: 1.5rem; }
-        .description-content h3 { font-size: 1.25rem; }
-
-        .description-content ul,
-        .description-content ol {
-          margin: 15px 0;
-          padding-left: 25px;
-        }
-
-        .description-content li {
-          margin: 5px 0;
-        }
-
-        .description-content a {
-          color: #FF6A00;
-          text-decoration: none;
-        }
-
-        .description-content a:hover {
-          text-decoration: underline;
-        }
-
-        .description-content p {
-          margin-bottom: 10px;
-        }
-
-        .description-content strong {
-          font-weight: 600;
-          color: #333;
-        }
-
-        .description-content em {
-          font-style: italic;
-        }
-
-        .description-content blockquote {
-          border-left: 4px solid #FF6A00;
-          padding-left: 15px;
-          margin: 15px 0;
-          color: #666;
-          font-style: italic;
-        }
-      `}</style>
     </div>
   );
 };

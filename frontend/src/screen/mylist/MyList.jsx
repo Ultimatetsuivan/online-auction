@@ -202,7 +202,7 @@ export const MyList = () => {
           <div
             className="spinner-border"
             role="status"
-            style={{ color: "#FF6A00" }}
+            style={{ color: "var(--bn-primary)" }}
           >
             <span className="visually-hidden">Loading...</span>
           </div>
@@ -250,12 +250,12 @@ export const MyList = () => {
                 style={{
                   width: 36,
                   height: 36,
-                  backgroundColor: "rgba(255, 106, 0, 0.12)",
+                  backgroundColor: "rgba(79, 70, 229, 0.12)",
                 }}
               >
                 <i
                   className="bi bi-eye-fill"
-                  style={{ color: "#FF6A00", fontSize: "1.1rem" }}
+                  style={{ color: "var(--bn-primary)", fontSize: "1.1rem" }}
                 ></i>
               </span>
               <span>{t("myWatchlist") || "My Watchlist"}</span>
@@ -296,7 +296,7 @@ export const MyList = () => {
                     <h5 className="mb-0 fw-bold d-flex align-items-center">
                       <i
                         className="bi bi-eye-fill me-2"
-                        style={{ color: "#FF6A00" }}
+                        style={{ color: "var(--bn-primary)" }}
                       ></i>
                       {t("watchlist") || "Watchlist"}
                     </h5>
@@ -313,7 +313,7 @@ export const MyList = () => {
                     <div className="text-center py-4">
                       <i
                         className="bi bi-eye mb-2"
-                        style={{ fontSize: "2rem", color: "#FF6A00" }}
+                        style={{ fontSize: "2rem", color: "var(--bn-primary)" }}
                       ></i>
                       <p className="mb-1 fw-semibold">
                         {t("noWatchlistItems") || "No items in watchlist yet"}
@@ -326,8 +326,8 @@ export const MyList = () => {
                         to="/allproduct"
                         className="btn btn-sm text-white"
                         style={{
-                          backgroundColor: "#FF6A00",
-                          borderColor: "#FF6A00",
+                          backgroundColor: "var(--bn-primary)",
+                          borderColor: "var(--bn-primary)",
                         }}
                       >
                         {t("browseNow") || "Browse products"}
@@ -373,13 +373,13 @@ export const MyList = () => {
                     className={`text-center p-4 rounded-4 shadow-lg ${isDarkMode ? 'bg-dark text-light' : 'bg-white'}`}
                     style={{ maxWidth: '400px', margin: '0 1rem' }}
                   >
-                    <i className="bi bi-eye-fill mb-3 d-block" style={{ fontSize: '3rem', color: '#FF6A00' }}></i>
+                    <i className="bi bi-eye-fill mb-3 d-block" style={{ fontSize: '3rem', color: 'var(--bn-primary)' }}></i>
                     <h4 className="mb-3 fw-bold">{t("myWatchlist") || "My Watchlist"}</h4>
                     <p className="text-muted mb-4">
                       {t("loginToViewWatchlist") || "Хайж байгаа барааны жагсаалтаа харахын тулд нэвтэрнэ үү"}
                     </p>
                     <div className="d-flex gap-2 justify-content-center">
-                      <Link to="/login" className="btn btn-primary px-4" style={{ backgroundColor: '#FF6A00', borderColor: '#FF6A00' }}>
+                      <Link to="/login" className="btn btn-primary px-4" style={{ backgroundColor: 'var(--bn-primary)', borderColor: 'var(--bn-primary)' }}>
                         <i className="bi bi-box-arrow-in-right me-2"></i>
                         {t("login") || "Нэвтрэх"}
                       </Link>
@@ -403,7 +403,7 @@ export const MyList = () => {
                   <h5 className="mb-1 fw-bold d-flex align-items-center">
                     <i
                       className="bi bi-box-seam me-2"
-                      style={{ color: "#FF6A00" }}
+                      style={{ color: "var(--bn-primary)" }}
                     ></i>
                     {t("newProducts") || "New Products"}
                   </h5>
@@ -413,7 +413,7 @@ export const MyList = () => {
                     <div className="text-center py-4">
                       <i
                         className="bi bi-bell-slash mb-2"
-                        style={{ fontSize: "2rem", color: "#FF6A00" }}
+                        style={{ fontSize: "2rem", color: "var(--bn-primary)" }}
                       ></i>
                       <p className="mb-1 fw-semibold">
                         {t("noNewProducts") ||
@@ -457,7 +457,7 @@ export const MyList = () => {
                   <h5 className="mb-1 fw-bold d-flex align-items-center">
                     <i
                       className="bi bi-funnel me-2"
-                      style={{ color: "#FF6A00" }}
+                      style={{ color: "var(--bn-primary)" }}
                     ></i>
                     {t("savedFilters") || "Saved Filters"}
                   </h5>
@@ -467,7 +467,7 @@ export const MyList = () => {
                     <div className="text-center py-4">
                       <i
                         className="bi bi-funnel mb-2"
-                        style={{ fontSize: "2rem", color: "#FF6A00" }}
+                        style={{ fontSize: "2rem", color: "var(--bn-primary)" }}
                       ></i>
                       <p className="mb-1 fw-semibold">
                         {t("noSavedFilters") ||
@@ -534,8 +534,8 @@ export const MyList = () => {
                                   }).toString()}`}
                                   className="btn btn-sm text-white"
                                   style={{
-                                    backgroundColor: "#FF6A00",
-                                    borderColor: "#FF6A00",
+                                    backgroundColor: "var(--bn-primary)",
+                                    borderColor: "var(--bn-primary)",
                                   }}
                                 >
                                   {t("viewAll") || "View all"} &gt;
@@ -576,7 +576,7 @@ export const MyList = () => {
                                 <div
                                   className="spinner-border spinner-border-sm"
                                   role="status"
-                                  style={{ color: "#FF6A00" }}
+                                  style={{ color: "var(--bn-primary)" }}
                                 >
                                   <span className="visually-hidden">
                                     Loading...
@@ -624,7 +624,7 @@ export const MyList = () => {
                   <h5 className="mb-1 fw-bold d-flex align-items-center">
                     <i
                       className="bi bi-people me-2"
-                      style={{ color: "#FF6A00" }}
+                      style={{ color: "var(--bn-primary)" }}
                     ></i>
                     {t("followers") || "Followers"}
                   </h5>
@@ -634,7 +634,7 @@ export const MyList = () => {
                     <div className="text-center py-4">
                       <i
                         className="bi bi-person-plus mb-2"
-                        style={{ fontSize: "2rem", color: "#FF6A00" }}
+                        style={{ fontSize: "2rem", color: "var(--bn-primary)" }}
                       ></i>
                       <p className="mb-1 fw-semibold">
                         {t("noFollowing") ||
@@ -661,12 +661,12 @@ export const MyList = () => {
                                   height: "44px",
                                   backgroundColor: isDarkMode
                                     ? "#1f1f1f"
-                                    : "rgba(255,106,0,0.08)",
+                                    : "rgba(79,70,229,0.08)",
                                 }}
                               >
                                 <i
                                   className="bi bi-person-circle"
-                                  style={{ color: "#FF6A00", fontSize: "1.5rem" }}
+                                  style={{ color: "var(--bn-primary)", fontSize: "1.5rem" }}
                                 ></i>
                               </div>
                               <div>

@@ -2,27 +2,24 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import clsx from 'clsx';
 
-/**
- * Modern Card Component
- *
- * Features: hover effects, variants, padding options
- * Variants: default, bordered, elevated
- */
 export const Card = ({
   children,
   variant = 'default',
   padding = 'md',
   hoverable = false,
+  interactive = false,
   className = '',
   onClick,
   ...props
 }) => {
-  const baseClasses = 'bg-white rounded-xl transition-all duration-200';
+  const base = 'bg-bn-surface rounded-bn-lg transition-all duration-200';
 
   const variants = {
-    default: 'shadow-soft border border-neutral-200',
-    bordered: 'border-2 border-neutral-200',
-    elevated: 'shadow-soft-lg',
+    default: 'shadow-card border border-bn-border',
+    bordered: 'border border-bn-border',
+    elevated: 'shadow-soft-md',
+    flat: 'bg-bn-bg-secondary',
+    interactive: 'shadow-card border border-bn-border hover:shadow-card-hover hover:-translate-y-0.5 cursor-pointer',
   };
 
   const paddings = {
@@ -32,23 +29,23 @@ export const Card = ({
     lg: 'p-8',
   };
 
-  const hoverClasses = hoverable
-    ? 'hover:shadow-soft-md hover:-translate-y-1 cursor-pointer'
+  const hoverClasses = hoverable && variant !== 'interactive'
+    ? 'hover:shadow-card-hover hover:-translate-y-0.5 cursor-pointer'
     : '';
 
   const classes = clsx(
-    baseClasses,
-    variants[variant],
+    base,
+    variants[interactive ? 'interactive' : variant],
     paddings[padding],
     hoverClasses,
     className
   );
 
-  if (hoverable || onClick) {
+  if (hoverable || interactive || onClick) {
     return (
       <motion.div
-        whileHover={{ y: -4, boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)' }}
-        whileTap={{ scale: 0.99 }}
+        whileHover={{ y: -2 }}
+        whileTap={{ scale: 0.995 }}
         className={classes}
         onClick={onClick}
         {...props}

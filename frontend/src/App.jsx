@@ -10,10 +10,28 @@ import { ThemeProvider } from './context/ThemeContext';
 import { LanguageProvider } from './context/LanguageContext';
 import { LikedProductsProvider } from './context/LikedProductsContext';
 import { DraftProvider } from './context/DraftContext';
+import { useAuthValidation } from './hooks/useAuthValidation';
 import './styles/themes.css';
 
 
 function App() {
+  const { isValidating } = useAuthValidation();
+
+  // Show loading while validating token
+  if (isValidating) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        fontSize: '1.2rem'
+      }}>
+        Loading...
+      </div>
+    );
+  }
+
   return (
     <>
      <BrowserRouter>
@@ -45,6 +63,11 @@ function App() {
         </Layout>
         }/>
         <Route path="/profile" element={
+        <Layout>
+          <Profile />
+        </Layout>
+        }/>
+        <Route path="/profile/tab/:tab" element={
         <Layout>
           <Profile />
         </Layout>

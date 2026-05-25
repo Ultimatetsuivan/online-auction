@@ -36,7 +36,7 @@ export const Brands = () => {
       <div className="row">
         <div className="col-12">
           <h2 className="mb-4">
-            <i className="bi bi-award me-2" style={{ color: '#FF6A00' }}></i>
+            <i className="bi bi-award me-2" style={{ color: 'var(--bn-primary)' }}></i>
             All Brands
           </h2>
 
@@ -52,7 +52,7 @@ export const Brands = () => {
                   <div className="mb-2">
                     <i
                       className={`bi bi-${brand.icon} fs-1`}
-                      style={{ color: '#FF6A00' }}
+                      style={{ color: 'var(--bn-primary)' }}
                     ></i>
                   </div>
                   <h6 className="mb-1 fw-bold">{brand.name}</h6>
@@ -67,7 +67,7 @@ export const Brands = () => {
           {/* Popular Brands Section */}
           <div className="mt-5">
             <h4 className="mb-3">
-              <i className="bi bi-star me-2" style={{ color: '#FF6A00' }}></i>
+              <i className="bi bi-star me-2" style={{ color: 'var(--bn-primary)' }}></i>
               Popular Brands
             </h4>
             <div className="d-flex flex-wrap gap-2">
@@ -91,7 +91,7 @@ export const Brands = () => {
             </p>
             <button
               className="btn text-white"
-              style={{ backgroundColor: '#FF6A00', borderColor: '#FF6A00' }}
+              style={{ backgroundColor: 'var(--bn-primary)', borderColor: 'var(--bn-primary)' }}
               onClick={() => navigate('/categories')}
             >
               <i className="bi bi-grid-3x3-gap me-2"></i>

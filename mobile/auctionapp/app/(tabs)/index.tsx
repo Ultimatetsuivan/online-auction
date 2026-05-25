@@ -44,6 +44,7 @@ export default function HomeScreen() {
   const [userBalance, setUserBalance] = useState(0);
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [recentlyViewed, setRecentlyViewed] = useState<any[]>([]);
+  const styles = useMemo(() => getStyles(themeColors, isDarkMode), [themeColors, isDarkMode]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -83,7 +84,9 @@ export default function HomeScreen() {
           bidDeadline: product.bidDeadline,
           timeLeft,
           bids: product.bids?.length || 0,
-          product: product, // Keep full product data
+          sold: product.sold,
+          sellType: product.sellType,
+          product: product,
         };
       });
       setProducts(transformedProducts);
@@ -183,17 +186,62 @@ export default function HomeScreen() {
     fetchData();
   }, [fetchData]);
 
+  // Build a childToParent map so we can attribute subcategory products to the parent
+  const childToParent = useMemo(() => {
+    const map: Record<string, string> = {};
+    categories.forEach((c) => {
+      if (c.parent) {
+        const parentId = typeof c.parent === 'object' ? c.parent._id?.toString() : c.parent?.toString();
+        if (parentId) map[(c._id || c.id).toString()] = parentId;
+      }
+    });
+    return map;
+  }, [categories]);
+
+  // Sort parent categories by product count (including subcategory products)
+  const sortedCategories = useMemo(() => {
+    const countMap: Record<string, number> = {};
+    products.forEach((p) => {
+      const cat = p.product?.category;
+      if (!cat) return;
+      const catId = typeof cat === 'object' ? cat._id?.toString() : cat.toString();
+      if (!catId) return;
+      // Credit the direct category
+      countMap[catId] = (countMap[catId] || 0) + 1;
+      // Also credit the parent if this is a subcategory
+      const parentId = childToParent[catId];
+      if (parentId) countMap[parentId] = (countMap[parentId] || 0) + 1;
+    });
+
+    return categories
+      .filter(c => !c.parent)
+      .map(c => {
+        const id = (c._id || c.id || '').toString();
+        const count = countMap[id] || 0;
+        return { ...c, productCount: count };
+      })
+      .sort((a, b) => b.productCount - a.productCount)
+      .slice(0, 8);
+  }, [categories, products, childToParent]);
+
   // Memoize filtered products for better performance
   const filtered = useMemo(() => {
     let result = products;
 
-    // Filter by category
+    // Filter by category — include products in subcategories of the selected parent
     if (selectedCategory) {
-      const selectedCat = categories.find(c => (c._id || c.id) === selectedCategory);
+      // Collect the selected ID plus all child IDs
+      const matchIds = new Set<string>([selectedCategory]);
+      categories.forEach((c) => {
+        const parentId = typeof c.parent === 'object' ? c.parent?._id?.toString() : c.parent?.toString();
+        if (parentId === selectedCategory) matchIds.add((c._id || c.id).toString());
+      });
+
       result = result.filter((p) => {
-        return p.product?.category === selectedCat?.title || 
-               p.product?.category === selectedCat?.titleMn ||
-               (typeof p.product?.category === 'object' && p.product?.category?._id === selectedCategory);
+        const cat = p.product?.category;
+        if (!cat) return false;
+        const catId = typeof cat === 'object' ? cat._id?.toString() : cat.toString();
+        return catId ? matchIds.has(catId) : false;
       });
     }
 
@@ -211,10 +259,10 @@ export default function HomeScreen() {
   if (loading && !refreshing) {
     return (
       <SafeAreaView style={styles.safe}>
-        <StatusBar style="light" />
+        <StatusBar style={isDarkMode ? "light" : "dark"} />
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={theme.brand600} />
-          <Text style={styles.loadingText}>Loading auctions...</Text>
+          <Text style={styles.loadingText}>Ачаалж байна...</Text>
         </View>
       </SafeAreaView>
     );
@@ -223,12 +271,12 @@ export default function HomeScreen() {
   if (error && products.length === 0) {
     return (
       <SafeAreaView style={styles.safe}>
-        <StatusBar style="light" />
+        <StatusBar style={isDarkMode ? "light" : "dark"} />
         <View style={styles.centerContainer}>
           <Ionicons name="alert-circle-outline" size={64} color="#ff6b6b" />
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={fetchData}>
-            <Text style={styles.retryButtonText}>Retry</Text>
+            <Text style={styles.retryButtonText}>Дахин оролдох</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -239,7 +287,7 @@ export default function HomeScreen() {
     <SafeAreaView style={[styles.safe, { backgroundColor: themeColors.background }]}>
       <StatusBar style={isDarkMode ? "light" : "dark"} />
 
-      {/* 🔍 Search bar + icons */}
+      {/* Search bar + icons */}
       <View style={styles.searchBarContainer}>
         <View style={{ flex: 1, position: "relative" }}>
           <View style={[styles.searchBar, dropdownOpen && styles.searchBarFocused, {
@@ -248,7 +296,7 @@ export default function HomeScreen() {
           }]}>
             <Ionicons name="search" size={20} color={dropdownOpen ? theme.brand600 : themeColors.textSecondary} />
             <TextInput
-              placeholder="Хайх..."
+              placeholder="Хайх"
               placeholderTextColor={themeColors.textSecondary}
               style={[styles.input, { color: themeColors.text }]}
               value={query}
@@ -291,6 +339,8 @@ export default function HomeScreen() {
                   setDropdownOpen(false);
                 }}
                 onClearHistory={clearSearchHistory}
+                styles={styles}
+                themeColors={themeColors}
               />
             </View>
           )}
@@ -298,7 +348,7 @@ export default function HomeScreen() {
 
       </View>
 
-      {/* 🛍️ Main Content - FlatList with header (no nested ScrollView) */}
+      {/* Main Content - FlatList with header (no nested ScrollView) */}
       {loading && !refreshing ? (
         <View style={styles.auctionsList}>
           {[1, 2, 3].map((i) => (
@@ -320,14 +370,14 @@ export default function HomeScreen() {
           )}
           ListHeaderComponent={
             <>
-              {/* Categories - Show only parent categories */}
+              {/* Categories - sorted by product count */}
               {!selectedCategory && categories.length > 0 && (
                 <>
                   <Text style={[styles.sectionTitle, { color: themeColors.text }]}>
-                    Категориор хайх
+                    Шилдэг категориуд
                   </Text>
                   <FlatList
-                    data={categories.filter(cat => !cat.parent).slice(0, 8)}
+                    data={sortedCategories}
                     horizontal
                     keyExtractor={(item) => item._id || item.id}
                     showsHorizontalScrollIndicator={false}
@@ -337,6 +387,9 @@ export default function HomeScreen() {
                         image={item.image ? { uri: item.image } : null}
                         icon={item.icon || "cube-outline"}
                         onPress={() => setSelectedCategory(item._id || item.id)}
+                        active={selectedCategory === (item._id || item.id)}
+                        dark={isDarkMode}
+                        count={item.productCount}
                       />
                     )}
                     contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 10 }}
@@ -366,17 +419,17 @@ export default function HomeScreen() {
               <View style={styles.headerSection}>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.sectionTitle, { color: themeColors.text }]}>
-                    {selectedCategory ? "Категорийн зарууд" : "Бүх зарууд"}
+                    {selectedCategory ? "Бүтээгдэхүүн" : "Бүтээгдэхүүн"}
                   </Text>
                   <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>
-                    {filtered.length} {filtered.length === 1 ? "зар" : "зар"} олдлоо
+                    {filtered.length} {filtered.length === 1 ? "" : "Бүтээгдэхүүн"}
                   </Text>
                 </View>
                 <TouchableOpacity
                   style={styles.balanceCard}
                   onPress={() => setPaymentModalVisible(true)}
                 >
-                  <Text style={styles.balanceLabel}>Үлдэгдэл</Text>
+                  <Text style={styles.balanceLabel}>Мөнгө хийх</Text>
                   <Text style={styles.balanceAmount}>₮{userBalance.toLocaleString()}</Text>
                 </TouchableOpacity>
               </View>
@@ -401,12 +454,12 @@ export default function HomeScreen() {
             <View style={styles.emptyContainer}>
               <Ionicons name="infinite-outline" size={48} color={themeColors.textSecondary} />
               <Text style={[styles.emptyText, { color: themeColors.textSecondary }]}>
-                {debouncedQuery ? "No products found matching your search" : "No products available"}
+                {debouncedQuery ? "Хайлтад тохирох бүтээгдэхүүн олдсонгүй" : "Бүтээгдэхүүн байхгүй байна"}
               </Text>
               {debouncedQuery && (
                 <TouchableOpacity onPress={() => setQuery("")}>
                   <Text style={[styles.clearSearchText, { color: theme.brand600 }]}>
-                    Clear search
+                    Хайлт цэвэрлэх
                   </Text>
                 </TouchableOpacity>
               )}
@@ -444,12 +497,16 @@ function SearchHistoryDropdown({
   onSearchSelect,
   onProductSelect,
   onClearHistory,
+  styles,
+  themeColors,
 }: {
   searchHistory: string[];
   recentlyViewed: any[];
   onSearchSelect: (searchTerm: string) => void;
   onProductSelect: (product: any) => void;
   onClearHistory: () => void;
+  styles: ReturnType<typeof getStyles>;
+  themeColors: any;
 }) {
   const hasHistory = searchHistory.length > 0 || recentlyViewed.length > 0;
 
@@ -459,7 +516,7 @@ function SearchHistoryDropdown({
         <View style={{ padding: 20, alignItems: 'center' }}>
           <Ionicons name="time-outline" size={32} color={theme.gray400} />
           <Text style={{ color: theme.gray500, marginTop: 8, fontSize: 14 }}>
-            Хайлтын түүх байхгүй байна
+            Хайлтын түүх байхгүй
           </Text>
         </View>
       </View>
@@ -520,7 +577,7 @@ function SearchHistoryDropdown({
 }
 
 /* ---------- Styles ---------- */
-const styles = StyleSheet.create({
+const getStyles = (_colors: any, _isDark: boolean) => StyleSheet.create({
   safe: { flex: 1 },
   scrollContent: { paddingBottom: 100 },
   sectionTitle: {
@@ -562,6 +619,9 @@ const styles = StyleSheet.create({
   clearButton: {
     padding: 4,
     marginLeft: 8,
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.brand600,
   },
   input: {
     flex: 1,
@@ -662,7 +722,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   errorText: {
-    color: "#ff6b6b",
+    color: theme.danger600,
     marginTop: 16,
     fontSize: 16,
     textAlign: "center",
@@ -724,12 +784,7 @@ const styles = StyleSheet.create({
   historyHeaderText: {
     fontSize: 13,
     fontWeight: '600',
-    color: theme.gray700,
-  },
-  clearButton: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: theme.brand600,
+    color: _colors.textSecondary || theme.gray500,
   },
   historyRow: {
     flexDirection: 'row',
@@ -738,17 +793,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     gap: 10,
     borderBottomWidth: 1,
-    borderBottomColor: theme.gray100,
+    borderBottomColor: _colors.border || theme.gray200,
   },
   historyText: {
     flex: 1,
     fontSize: 15,
-    color: theme.gray900,
+    color: _colors.text || theme.gray900,
   },
   historyPrice: {
     fontSize: 13,
-    color: theme.brand600,
+    color: theme.secondary500,
     fontWeight: '600',
     marginTop: 2,
   },
+  historyClearButton: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.brand600,
+  },
+  
 });
+

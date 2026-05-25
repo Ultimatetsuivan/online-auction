@@ -133,7 +133,7 @@ export const SearchBar = () => {
       <input
         type="text"
         className="form-control form-control-lg"
-        style={{ borderColor: '#FF6A00', borderWidth: '2px' }}
+        style={{ borderColor: 'var(--bn-primary)', borderWidth: '2px' }}
         placeholder="Хайх барааны нэр..."
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
