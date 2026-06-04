@@ -1,5 +1,8 @@
 \xpg@aux {}{english}
-\contentsline {chapter}{Удиртгал}{1}{chapter*.1}%
+\contentsline {chapter}{Зохиогч эрхийн хамгаалал}{i}{chapter*.1}%
+\contentsline {chapter}{Хураангуй}{ii}{chapter*.2}%
+\contentsline {chapter}{Талархал}{iii}{chapter*.3}%
+\contentsline {chapter}{Удиртгал}{1}{chapter*.4}%
 \contentsline {chapter}{\numberline {1}Онолын хэсэг}{4}{chapter.1}%
 \contentsline {section}{\numberline {1.1}Ерөнхий ойлголт}{4}{section.1.1}%
 \contentsline {section}{\numberline {1.2}Дуудлага худалдааны түүхэн товч}{4}{section.1.2}%
@@ -31,57 +34,59 @@
 \contentsline {section}{\numberline {2.2}Системийн функциональ бус шаардлага}{9}{section.2.2}%
 \contentsline {section}{\numberline {2.3}Системийн архитектур}{10}{section.2.3}%
 \contentsline {subsection}{\numberline {2.3.1}Client давхарга (Presentation Layer)}{10}{subsection.2.3.1}%
-\contentsline {subsection}{\numberline {2.3.2}Бизнес логикийн давхарга (Application Layer)}{10}{subsection.2.3.2}%
+\contentsline {subsection}{\numberline {2.3.2}Бизнес логикийн давхарга (Application Layer)}{11}{subsection.2.3.2}%
 \contentsline {subsection}{\numberline {2.3.3}Socket.IO Event загвар}{11}{subsection.2.3.3}%
 \contentsline {section}{\numberline {2.4}Use Case тайлбар}{11}{section.2.4}%
 \contentsline {subsection}{\numberline {2.4.1}Use Case 1: Бараа байршуулах}{11}{subsection.2.4.1}%
 \contentsline {subsection}{\numberline {2.4.2}Use Case 2: Дуудлагад оролцох (place bid)}{11}{subsection.2.4.2}%
-\contentsline {subsection}{\numberline {2.4.3}Use Case 3: Дуудлага дуусах (System)}{11}{subsection.2.4.3}%
+\contentsline {subsection}{\numberline {2.4.3}Use Case 3: Дуудлага дуусах (System)}{12}{subsection.2.4.3}%
 \contentsline {section}{\numberline {2.5}ERD (Entity Relation Diagram)}{12}{section.2.5}%
-\contentsline {section}{\numberline {2.6}Өгөгдлийн загвар дэлгэрэнгүй}{12}{section.2.6}%
-\contentsline {subsection}{\numberline {2.6.1}User Collection}{12}{subsection.2.6.1}%
-\contentsline {subsection}{\numberline {2.6.2}Product Collection}{13}{subsection.2.6.2}%
-\contentsline {subsection}{\numberline {2.6.3}Bidding Collection}{13}{subsection.2.6.3}%
-\contentsline {section}{\numberline {2.7}API дизайны зарчим}{13}{section.2.7}%
-\contentsline {section}{\numberline {2.8}Бүлгийн дүгнэлт}{13}{section.2.8}%
-\contentsline {chapter}{\numberline {3}Системийн хөгжүүлэлт}{14}{chapter.3}%
-\contentsline {section}{\numberline {3.1}Хөгжүүлэлтийн орчин}{14}{section.3.1}%
-\contentsline {section}{\numberline {3.2}Системийн модулиуд}{14}{section.3.2}%
-\contentsline {subsection}{\numberline {3.2.1}User Module}{14}{subsection.3.2.1}%
-\contentsline {subsection}{\numberline {3.2.2}Product Module}{14}{subsection.3.2.2}%
-\contentsline {subsection}{\numberline {3.2.3}Bidding Module}{14}{subsection.3.2.3}%
-\contentsline {subsection}{\numberline {3.2.4}Auction Lifecycle Cron Job}{16}{subsection.3.2.4}%
-\contentsline {section}{\numberline {3.3}API болон өгөгдөл солилцоо}{16}{section.3.3}%
-\contentsline {subsection}{\numberline {3.3.1}Үндсэн endpoint бүлэг}{16}{subsection.3.3.1}%
-\contentsline {subsection}{\numberline {3.3.2}API хариу формат}{16}{subsection.3.3.2}%
-\contentsline {section}{\numberline {3.4}Веб аппликейшны хөгжүүлэлт}{17}{section.3.4}%
-\contentsline {subsection}{\numberline {3.4.1}Folder бүтэц}{17}{subsection.3.4.1}%
-\contentsline {subsection}{\numberline {3.4.2}Socket.IO интеграц веб дээр}{17}{subsection.3.4.2}%
-\contentsline {subsection}{\numberline {3.4.3}Админы dashboard}{17}{subsection.3.4.3}%
-\contentsline {section}{\numberline {3.5}Мобайл аппликейшны хөгжүүлэлт}{17}{section.3.5}%
-\contentsline {subsection}{\numberline {3.5.1}Folder бүтэц (Expo Router)}{17}{subsection.3.5.1}%
-\contentsline {subsection}{\numberline {3.5.2}Мобайл аппликейшны үндсэн функцууд}{18}{subsection.3.5.2}%
-\contentsline {subsection}{\numberline {3.5.3}Performance Optimization}{18}{subsection.3.5.3}%
-\contentsline {section}{\numberline {3.6}Аюулгүй байдал ба нэвтрэлт}{18}{section.3.6}%
-\contentsline {subsection}{\numberline {3.6.1}Хэрэглэгдэх технологи}{18}{subsection.3.6.1}%
-\contentsline {subsection}{\numberline {3.6.2}Алдааны тохиолдолд}{19}{subsection.3.6.2}%
-\contentsline {section}{\numberline {3.7}Гадны интеграцууд}{19}{section.3.7}%
-\contentsline {subsection}{\numberline {3.7.1}Google OAuth 2.0}{19}{subsection.3.7.1}%
-\contentsline {subsection}{\numberline {3.7.2}Cloudinary}{19}{subsection.3.7.2}%
-\contentsline {subsection}{\numberline {3.7.3}QPay}{19}{subsection.3.7.3}%
-\contentsline {section}{\numberline {3.8}Deployment ба DevOps}{19}{section.3.8}%
-\contentsline {section}{\numberline {3.9}Бүлгийн дүгнэлт}{19}{section.3.9}%
-\contentsline {chapter}{\numberline {4}Туршилт, үр дүн}{21}{chapter.4}%
-\contentsline {section}{\numberline {4.1}Системийн ажиллагааны тест}{21}{section.4.1}%
-\contentsline {subsection}{\numberline {4.1.1}API Endpoint тест (Insomnia)}{21}{subsection.4.1.1}%
-\contentsline {subsection}{\numberline {4.1.2}Unit тест (Jest)}{22}{subsection.4.1.2}%
-\contentsline {subsubsection}{BiddingController тест}{22}{subsection.4.1.2}%
-\contentsline {subsection}{\numberline {4.1.3}Integration тест}{23}{subsection.4.1.3}%
-\contentsline {subsection}{\numberline {4.1.4}Мобайл аппликейшны тест}{23}{subsection.4.1.4}%
-\contentsline {section}{\numberline {4.2}Гүйцэтгэлийн (Performance) тест}{23}{section.4.2}%
-\contentsline {section}{\numberline {4.3}Аюулгүй байдлын тест (OWASP Top-10)}{24}{section.4.3}%
-\contentsline {section}{\numberline {4.4}Зорилтын биелэлт}{24}{section.4.4}%
-\contentsline {section}{\numberline {4.5}Хязгаарлалт ба мэдэгдсэн дутагдал}{24}{section.4.5}%
-\contentsline {section}{\numberline {4.6}Бүлгийн дүгнэлт}{25}{section.4.6}%
-\contentsline {chapter}{Дүгнэлт}{26}{chapter*.16}%
-\contentsline {chapter}{Ашигласан эх сурвалж}{28}{chapter*.18}%
+\contentsline {section}{\numberline {2.6}Өгөгдлийн загвар дэлгэрэнгүй}{14}{section.2.6}%
+\contentsline {subsection}{\numberline {2.6.1}User Collection}{14}{subsection.2.6.1}%
+\contentsline {subsection}{\numberline {2.6.2}Product Collection}{14}{subsection.2.6.2}%
+\contentsline {subsection}{\numberline {2.6.3}Bidding Collection}{14}{subsection.2.6.3}%
+\contentsline {section}{\numberline {2.7}API дизайны зарчим}{15}{section.2.7}%
+\contentsline {section}{\numberline {2.8}Бүлгийн дүгнэлт}{15}{section.2.8}%
+\contentsline {chapter}{\numberline {3}Системийн хөгжүүлэлт}{16}{chapter.3}%
+\contentsline {section}{\numberline {3.1}Хөгжүүлэлтийн орчин}{16}{section.3.1}%
+\contentsline {section}{\numberline {3.2}Системийн модулиуд}{16}{section.3.2}%
+\contentsline {subsection}{\numberline {3.2.1}User Module}{16}{subsection.3.2.1}%
+\contentsline {subsection}{\numberline {3.2.2}Product Module}{16}{subsection.3.2.2}%
+\contentsline {subsection}{\numberline {3.2.3}Bidding Module}{16}{subsection.3.2.3}%
+\contentsline {subsection}{\numberline {3.2.4}Auction Lifecycle Cron Job}{18}{subsection.3.2.4}%
+\contentsline {section}{\numberline {3.3}API болон өгөгдөл солилцоо}{18}{section.3.3}%
+\contentsline {subsection}{\numberline {3.3.1}Үндсэн endpoint бүлэг}{18}{subsection.3.3.1}%
+\contentsline {subsection}{\numberline {3.3.2}API хариу формат}{18}{subsection.3.3.2}%
+\contentsline {section}{\numberline {3.4}Веб аппликейшны хөгжүүлэлт}{19}{section.3.4}%
+\contentsline {subsection}{\numberline {3.4.1}Folder бүтэц}{19}{subsection.3.4.1}%
+\contentsline {subsection}{\numberline {3.4.2}Socket.IO интеграц веб дээр}{19}{subsection.3.4.2}%
+\contentsline {subsection}{\numberline {3.4.3}Админы dashboard}{20}{subsection.3.4.3}%
+\contentsline {subsection}{\numberline {3.4.4}Бараа нэмэх форм}{21}{subsection.3.4.4}%
+\contentsline {subsection}{\numberline {3.4.5}Хэрэглэгчийн профайл}{23}{subsection.3.4.5}%
+\contentsline {section}{\numberline {3.5}Мобайл аппликейшны хөгжүүлэлт}{23}{section.3.5}%
+\contentsline {subsection}{\numberline {3.5.1}Folder бүтэц (Expo Router)}{23}{subsection.3.5.1}%
+\contentsline {subsection}{\numberline {3.5.2}Мобайл аппликейшны үндсэн функцууд}{24}{subsection.3.5.2}%
+\contentsline {subsection}{\numberline {3.5.3}Performance Optimization}{29}{subsection.3.5.3}%
+\contentsline {section}{\numberline {3.6}Аюулгүй байдал ба нэвтрэлт}{29}{section.3.6}%
+\contentsline {subsection}{\numberline {3.6.1}Хэрэглэгдэх технологи}{29}{subsection.3.6.1}%
+\contentsline {subsection}{\numberline {3.6.2}Алдааны тохиолдолд}{30}{subsection.3.6.2}%
+\contentsline {section}{\numberline {3.7}Гадны интеграцууд}{30}{section.3.7}%
+\contentsline {subsection}{\numberline {3.7.1}Google OAuth 2.0}{30}{subsection.3.7.1}%
+\contentsline {subsection}{\numberline {3.7.2}Cloudinary}{30}{subsection.3.7.2}%
+\contentsline {subsection}{\numberline {3.7.3}QPay}{30}{subsection.3.7.3}%
+\contentsline {section}{\numberline {3.8}Deployment ба DevOps}{30}{section.3.8}%
+\contentsline {section}{\numberline {3.9}Бүлгийн дүгнэлт}{31}{section.3.9}%
+\contentsline {chapter}{\numberline {4}Туршилт, үр дүн}{32}{chapter.4}%
+\contentsline {section}{\numberline {4.1}Системийн ажиллагааны тест}{32}{section.4.1}%
+\contentsline {subsection}{\numberline {4.1.1}API Endpoint тест (Insomnia)}{32}{subsection.4.1.1}%
+\contentsline {subsection}{\numberline {4.1.2}Unit тест (Jest)}{33}{subsection.4.1.2}%
+\contentsline {subsubsection}{BiddingController тест}{33}{subsection.4.1.2}%
+\contentsline {subsection}{\numberline {4.1.3}Integration тест}{34}{subsection.4.1.3}%
+\contentsline {subsection}{\numberline {4.1.4}Мобайл аппликейшны тест}{34}{subsection.4.1.4}%
+\contentsline {section}{\numberline {4.2}Гүйцэтгэлийн (Performance) тест}{34}{section.4.2}%
+\contentsline {section}{\numberline {4.3}Аюулгүй байдлын тест (OWASP Top-10)}{35}{section.4.3}%
+\contentsline {section}{\numberline {4.4}Зорилтын биелэлт}{35}{section.4.4}%
+\contentsline {section}{\numberline {4.5}Хязгаарлалт ба мэдэгдсэн дутагдал}{35}{section.4.5}%
+\contentsline {section}{\numberline {4.6}Бүлгийн дүгнэлт}{36}{section.4.6}%
+\contentsline {chapter}{Дүгнэлт}{37}{chapter*.31}%
+\contentsline {chapter}{Ашигласан эх сурвалж}{39}{chapter*.33}%

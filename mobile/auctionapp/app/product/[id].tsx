@@ -15,6 +15,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   Dimensions,
+  Modal,
+  StatusBar,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -28,8 +30,9 @@ import {useTheme } from "../../src/contexts/ThemeContext";
 import { SuccessConfetti } from "../components/SuccessConfetti";
 import theme from "../theme";
 import { api } from "../../src/api";
+import socketService from "../../src/services/socket";
 
-const { width } = Dimensions.get("window");
+const { width, height: screenHeight } = Dimensions.get("window");
 
 
 export default function ProductDetail() {
@@ -55,6 +58,8 @@ export default function ProductDetail() {
     depositAmount: number;
   } | null>(null);
   const [placingDeposit, setPlacingDeposit] = useState(false);
+  const [sellingWinner, setSellingWinner] = useState(false);
+  const [imageViewerVisible, setImageViewerVisible] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
   const fetchBidHistory = useCallback(async () => {
@@ -158,6 +163,37 @@ export default function ProductDetail() {
     return () => clearInterval(interval);
   }, [product?.sold, product?.bidDeadline, product?.currentBid, id]);
 
+  // Real-time socket subscriptions for live bid updates
+  useEffect(() => {
+    if (!id) return;
+
+    socketService.connect();
+
+    const unsubBidUpdate = socketService.on("bidUpdate", (updatedProduct: any) => {
+      const pid = updatedProduct._id?.toString() || updatedProduct.id?.toString();
+      if (pid !== id?.toString()) return;
+      setProduct(updatedProduct);
+      const minBid =
+        (updatedProduct.currentBid || updatedProduct.price || 0) +
+        Math.max(updatedProduct.minIncrement || 5000, 5000);
+      setBidAmount(minBid.toString());
+    });
+
+    const unsubNewBid = socketService.on("newBid", (newBid: any) => {
+      const pid = newBid.product?.toString();
+      if (pid !== id?.toString()) return;
+      setBidHistory((prev: any[]) => {
+        if (prev.some((b: any) => b._id === newBid._id)) return prev;
+        return [newBid, ...prev];
+      });
+    });
+
+    return () => {
+      unsubBidUpdate();
+      unsubNewBid();
+    };
+  }, [id]);
+
   const handlePlaceBid = async () => {
     // Check if user is logged in
     const userData = await AsyncStorage.getItem("user");
@@ -232,7 +268,15 @@ export default function ProductDetail() {
               fetchProductDetail(); // Refresh product data
             } catch (err: any) {
               console.error("Error placing bid:", err);
-              const errorMsg = err.response?.data?.message || "Санал өгөхөд алдаа гарлаа";
+              const status = err.response?.status;
+              const data = err.response?.data;
+              let errorMsg = data?.message || data?.error || "Санал өгөхөд алдаа гарлаа";
+              if (status === 409) {
+                errorMsg = "Өөр хэрэглэгч яг одоо санал өгсөн байна. Дахин оролдоно уу";
+                fetchProductDetail();
+              } else if (status === 403 && data?.requiresDeposit) {
+                errorMsg = `Санал өгөхийн тулд ₮${data.depositAmount?.toLocaleString() || ""} дэнчин байршуулна уу`;
+              }
               Alert.alert("Алдаа", errorMsg);
             } finally {
               setSubmitting(false);
@@ -371,6 +415,47 @@ export default function ProductDetail() {
     );
   };
 
+  const handleSellNow = async () => {
+    if (!product || !id) return;
+    const topBidder = bidHistory[0];
+    if (!topBidder) {
+      Alert.alert("Алдаа", "Санал байхгүй байна");
+      return;
+    }
+    const bidderName = topBidder.user?.name || topBidder.user?.username || "Хэрэглэгч";
+    const topPrice = topBidder.price || topBidder.amount || 0;
+
+    Alert.alert(
+      "Худалдан авагчийг сонгох",
+      `${bidderName}-д ₮${topPrice.toLocaleString()} үнэд зарах уу?\n\nЭнэ үйлдлийг буцаах боломжгүй.`,
+      [
+        { text: "Цуцлах", style: "cancel" },
+        {
+          text: "Батлах",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setSellingWinner(true);
+              await api.post(`/api/product/${id}/sell-now`);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Alert.alert(
+                "Амжилттай!",
+                `Бараа ${bidderName}-д амжилттай зарагдлаа!`,
+                [{ text: "OK", onPress: () => fetchProductDetail() }]
+              );
+            } catch (err: any) {
+              const errorMsg =
+                err.response?.data?.message || "Зарахад алдаа гарлаа. Дахин оролдоно уу.";
+              Alert.alert("Алдаа", errorMsg);
+            } finally {
+              setSellingWinner(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchProductDetail();
@@ -413,7 +498,7 @@ export default function ProductDetail() {
   const isOwner = currentUserId && productOwnerId && currentUserId.toString() === productOwnerId.toString();
 
   // Determine if this is a fixed price or auction product
-  const isFixedPrice = product.sellType === 'fixed';
+  const isFixedPrice = product.sellType === 'fixed' || product.sellType === 'buy_now';
   const isAuction = !isFixedPrice;
 
   return (
@@ -452,7 +537,12 @@ export default function ProductDetail() {
 
         {/* Image Gallery */}
         <View style={styles.imageGallery}>
-          <Image source={imageSource} style={styles.mainImage} resizeMode="cover" />
+          <TouchableOpacity
+            activeOpacity={0.92}
+            onPress={() => images.length > 0 && setImageViewerVisible(true)}
+          >
+            <Image source={imageSource} style={styles.mainImage} resizeMode="cover" />
+          </TouchableOpacity>
 
           {/* Image Counter */}
           {images.length > 1 && (
@@ -536,8 +626,8 @@ export default function ProductDetail() {
             </View>
           </View>
 
-          {/* Deposit Required Banner */}
-          {depositInfo?.depositRequired && !isOwner && (
+          {/* Deposit Required Banner — auction products only */}
+          {depositInfo?.depositRequired && !isOwner && isAuction && (
             <View style={[styles.depositBanner, depositInfo.hasDeposit && styles.depositBannerActive]}>
               <Ionicons
                 name={depositInfo.hasDeposit ? "shield-checkmark" : "lock-closed"}
@@ -686,15 +776,18 @@ export default function ProductDetail() {
               )}
 
               {/* General Fields */}
-              {product.brand && (
+              {/* Brand: from itemSpecifics (new system) or legacy brand reference */}
+              {(product.itemSpecifics?.brand || (typeof product.brand === 'string' && product.brand)) && (
                 <View style={styles.specificItem}>
-                  <Text style={styles.specificLabel}>Бренд</Text>
-                  <Text style={styles.specificValue}>{product.brand}</Text>
+                  <Text style={styles.specificLabel}>Брэнд</Text>
+                  <Text style={[styles.specificValue, { fontWeight: '700' }]}>
+                    {product.itemSpecifics?.brand || (typeof product.brand === 'object' ? product.brand?.name : product.brand)}
+                  </Text>
                 </View>
               )}
               {product.condition && (
                 <View style={styles.specificItem}>
-                  <Text style={styles.specificLabel}>Хэрэглэсэн эсэх</Text>
+                  <Text style={styles.specificLabel}>Төлөв</Text>
                   <Text style={styles.specificValue}>{product.condition}</Text>
                 </View>
               )}
@@ -711,47 +804,99 @@ export default function ProductDetail() {
                 </View>
               )}
 
-              {/* Custom Item Specifics */}
-              {product.itemSpecifics && Object.keys(product.itemSpecifics).length > 0 && (
-                Object.entries(product.itemSpecifics).map(([key, value]: [string, any]) => (
-                  <View key={key} style={styles.specificItem}>
-                    <Text style={styles.specificLabel}>{key}</Text>
-                    <Text style={styles.specificValue}>{value}</Text>
-                  </View>
-                ))
-              )}
+              {/* itemSpecifics: use fieldSchema for labels if available, otherwise fallback labels */}
+              {product.itemSpecifics && Object.keys(product.itemSpecifics).length > 0 && (() => {
+                const schema: any[] = product.category?.fieldSchema || [];
+                const fallbackLabels: Record<string, string> = {
+                  brand: 'Брэнд', make: 'Марк', model: 'Загвар', year: 'Он', mileage: 'Гүйлт',
+                  fuelType: 'Түлш', transmission: 'Хурдны хайрцаг', color: 'Өнгө', vin: 'VIN',
+                  area: 'Талбай', rooms: 'Өрөө', floor: 'Давхар', totalFloors: 'Нийт давхар',
+                  district: 'Дүүрэг', furnished: 'Тавилга', parking: 'Зогсоол',
+                  propertyType: 'Хөрөнгийн төрөл', yearBuilt: 'Баригдсан он', bathrooms: 'Угаалгуур',
+                };
+                // Already shown above — skip brand
+                const alreadyShown = new Set(['brand']);
+                return Object.entries(product.itemSpecifics)
+                  .filter(([k]) => !alreadyShown.has(k))
+                  .map(([key, value]: [string, any]) => {
+                    const field = schema.find((f: any) => f.key === key);
+                    const labelText = field?.labelMn || fallbackLabels[key] || key;
+                    const optLabel = field?.options?.find((o: any) => o.value === value)?.labelMn;
+                    const displayVal = optLabel || (field?.unit ? `${Number(value).toLocaleString()} ${field.unit}` : String(value));
+                    return (
+                      <View key={key} style={styles.specificItem}>
+                        <Text style={styles.specificLabel}>{labelText}</Text>
+                        <Text style={styles.specificValue}>{displayVal}</Text>
+                      </View>
+                    );
+                  });
+              })()}
             </View>
           </View>
 
           {/* Bid History */}
           <View style={styles.bidHistorySection}>
             <View style={styles.bidHistoryHeader}>
-              <Ionicons name="time-outline" size={18} color={palette.text} />
-              <Text style={styles.sectionTitle}>Bid History</Text>
+              <Ionicons name="hammer-outline" size={18} color={palette.brand600} />
+              <Text style={styles.sectionTitle}>Саналын түүх</Text>
+              {bidHistory.length > 0 && (
+                <View style={styles.bidCountBadge}>
+                  <Text style={styles.bidCountBadgeText}>{bidHistory.length}</Text>
+                </View>
+              )}
             </View>
             {bidHistory.length > 0 ? (
-              bidHistory.slice(0, 20).map((entry) => {
+              bidHistory.slice(0, 20).map((entry, index) => {
                 const bidderName =
-                  entry.user?.name || entry.user?.username || entry.user?.email || "Anonymous";
+                  entry.user?.name || entry.user?.username || entry.user?.email || "Нэргүй";
+                const initials = bidderName.slice(0, 2).toUpperCase();
                 const created = entry.createdAt
-                  ? new Date(entry.createdAt).toLocaleString("mn-MN")
+                  ? new Date(entry.createdAt).toLocaleString("mn-MN", {
+                      month: "short", day: "numeric",
+                      hour: "2-digit", minute: "2-digit",
+                    })
                   : "";
+                const isTop = index === 0;
 
                 return (
-                  <View key={entry._id} style={styles.bidHistoryItem}>
-                    <View style={styles.bidHistoryRow}>
-                      <Text style={styles.bidHistoryName}>{bidderName}</Text>
-                      <Text style={styles.bidHistoryPrice}>
-                        {formatPrice(entry.price || entry.amount || 0)}
+                  <View
+                    key={entry._id}
+                    style={[
+                      styles.bidHistoryItem,
+                      isTop && {
+                        backgroundColor: isDark ? palette.brand600 + "28" : "#eef2ff",
+                        borderRadius: 10,
+                        borderTopWidth: 0,
+                        marginBottom: 4,
+                        paddingHorizontal: 10,
+                      },
+                    ]}
+                  >
+                    <View style={[styles.bidAvatar, { backgroundColor: isTop ? palette.brand600 : (isDark ? palette.sectionBg : palette.brand50) }]}>
+                      <Text style={[styles.bidAvatarText, { color: isTop ? "#fff" : palette.brand600 }]}>
+                        {initials}
                       </Text>
                     </View>
-                    {created ? (
-                      <Text style={styles.bidHistoryTime}>{created}</Text>
-                    ) : null}
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.bidHistoryName}>{bidderName}</Text>
+                      {created ? <Text style={styles.bidHistoryTime}>{created}</Text> : null}
+                    </View>
+                    <View style={{ alignItems: "flex-end", gap: 4 }}>
+                      <Text style={[styles.bidHistoryPrice, isTop && { fontSize: 16 }]}>
+                        {formatPrice(entry.price || entry.amount || 0)}
+                      </Text>
+                      {isTop && (
+                        <View style={styles.topBidBadge}>
+                          <Text style={styles.topBidBadgeText}>Өндөр санал</Text>
+                        </View>
+                      )}
+                    </View>
                   </View>
                 );
               })
-            ) : null}
+            ) : (
+              <Text style={styles.bidHistoryEmpty}>Санал байхгүй байна</Text>
+            )}
           </View>
 
           {/* Product Statistics */}
@@ -876,7 +1021,7 @@ export default function ProductDetail() {
           <View style={styles.actionBar}>
           {isAuction ? (
             depositInfo?.depositRequired && !depositInfo?.hasDeposit ? (
-              <>
+              <View style={styles.bidRow}>
                 {/* Deposit gate: user must place deposit before bidding */}
                 <View style={styles.depositActionInfo}>
                   <Ionicons name="lock-closed" size={18} color="#f59e0b" />
@@ -898,10 +1043,10 @@ export default function ProductDetail() {
                     </>
                   )}
                 </TouchableOpacity>
-              </>
+              </View>
             ) : (
               <>
-                {/* Auction: Quick increment chips + bid input */}
+                {/* Auction: Quick increment chips row above input+button row */}
                 {(() => {
                   const base = product.currentBid || product.price || 0;
                   const inc = Math.max(product.minIncrement || 5000, 5000);
@@ -925,40 +1070,47 @@ export default function ProductDetail() {
                     </View>
                   );
                 })()}
-                <View style={styles.bidInputContainer}>
-                  <Text style={styles.bidInputLabel}>Таны санал (₮)</Text>
-                  <TextInput
-                    style={styles.bidInput}
-                    value={bidAmount}
-                    onChangeText={setBidAmount}
-                    keyboardType="numeric"
-                    placeholder="Үнийн дүн оруулах"
-                    placeholderTextColor={palette.textSecondary}
-                    onFocus={() => {
-                      setTimeout(() => {
-                        scrollViewRef.current?.scrollToEnd({ animated: true });
-                      }, 100);
-                    }}
-                  />
+                <View style={styles.bidRow}>
+                  <View style={styles.bidInputContainer}>
+                    <View style={styles.bidInputWrapper}>
+                      <Text style={[styles.bidCurrencyPrefix, { backgroundColor: isDark ? palette.brand600 + "33" : "#eef2ff" }]}>₮</Text>
+                      <TextInput
+                        style={styles.bidInputField}
+                        value={bidAmount}
+                        onChangeText={setBidAmount}
+                        keyboardType="numeric"
+                        placeholder="0"
+                        placeholderTextColor={palette.textSecondary}
+                        onFocus={() => {
+                          setTimeout(() => {
+                            scrollViewRef.current?.scrollToEnd({ animated: true });
+                          }, 100);
+                        }}
+                      />
+                    </View>
+                    <Text style={styles.bidMinHint}>
+                      Доод: {formatPrice((product.currentBid || product.price || 0) + Math.max(product.minIncrement || 5000, 5000))}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.bidButton, submitting && styles.bidButtonDisabled]}
+                    onPress={handlePlaceBid}
+                    disabled={submitting}
+                  >
+                    {submitting ? (
+                      <ActivityIndicator color={palette.white} />
+                    ) : (
+                      <>
+                        <Ionicons name="hammer" size={20} color={palette.white} />
+                        <Text style={styles.bidButtonText}>Санал өгөх</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
                 </View>
-                <TouchableOpacity
-                  style={[styles.bidButton, submitting && styles.bidButtonDisabled]}
-                  onPress={handlePlaceBid}
-                  disabled={submitting}
-                >
-                  {submitting ? (
-                    <ActivityIndicator color={palette.white} />
-                  ) : (
-                    <>
-                      <Ionicons name="hammer" size={20} color={palette.white} />
-                      <Text style={styles.bidButtonText}>Санал өгөх</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
               </>
             )
           ) : (
-            <>
+            <View style={styles.bidRow}>
               {/* Fixed Price: Show buy button */}
               <View style={styles.priceDisplayContainer}>
                 <Text style={styles.priceDisplayLabel}>Үнэ:</Text>
@@ -978,7 +1130,7 @@ export default function ProductDetail() {
                   </>
                 )}
               </TouchableOpacity>
-            </>
+            </View>
           )}
         </View>
         </KeyboardAvoidingView>
@@ -1051,32 +1203,141 @@ export default function ProductDetail() {
             {/* Winner Selection (if auction ended) */}
             {isAuctionEnded && bidHistory.length > 0 && (
               <TouchableOpacity
-                style={[styles.selectWinnerButton, { backgroundColor: palette.success600 || palette.brand600 }]}
-                onPress={() => {
-                  const topBidder = bidHistory[0];
-                  const bidderName = topBidder.user?.name || topBidder.user?.username || 'Хэрэглэгч';
-                  Alert.alert(
-                    "Худалдан авагчийг сонгох",
-                    `${bidderName} (${formatPrice(topBidder.price || topBidder.amount || 0)}) -д зарах уу?`,
-                    [
-                      { text: "Цуцлах", style: "cancel" },
-                      {
-                        text: "Батлах",
-                        onPress: () => Alert.alert("Амжилттай", "Худалдаж авагч сонгогдлоо. Админ баталгаажуулна.")
-                      }
-                    ]
-                  );
-                }}
+                style={[
+                  styles.selectWinnerButton,
+                  {
+                    backgroundColor: product.sold
+                      ? (palette.gray500 || "#6b7280")
+                      : (palette.success600 || palette.brand600),
+                  },
+                ]}
+                onPress={product.sold ? undefined : handleSellNow}
+                disabled={sellingWinner || product.sold}
               >
-                <Ionicons name="checkmark-circle" size={20} color={palette.white} />
-                <Text style={styles.selectWinnerText}>
-                  Худалдан авагчийг сонгох
-                </Text>
+                {sellingWinner ? (
+                  <ActivityIndicator color={palette.white} />
+                ) : (
+                  <>
+                    <Ionicons
+                      name={product.sold ? "checkmark-circle" : "trophy"}
+                      size={20}
+                      color={palette.white}
+                    />
+                    <Text style={styles.selectWinnerText}>
+                      {product.sold ? "Зарагдсан" : "Худалдан авагчийг сонгох"}
+                    </Text>
+                  </>
+                )}
               </TouchableOpacity>
             )}
           </View>
         </View>
       )}
+
+      {/* Full-screen Image Viewer */}
+      <Modal
+        visible={imageViewerVisible}
+        transparent={false}
+        animationType="fade"
+        statusBarTranslucent={true}
+        onRequestClose={() => setImageViewerVisible(false)}
+      >
+        <StatusBar hidden />
+        <View style={{ flex: 1, backgroundColor: "#000" }}>
+          {/* Header bar */}
+          <View style={{
+            position: "absolute", top: 0, left: 0, right: 0, zIndex: 20,
+            paddingTop: 50, paddingHorizontal: 16, paddingBottom: 14,
+            flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+            backgroundColor: "rgba(0,0,0,0.55)",
+          }}>
+            {images.length > 1 ? (
+              <Text style={{ color: "#fff", fontSize: 15, fontWeight: "600" }}>
+                {selectedImageIndex + 1} / {images.length}
+              </Text>
+            ) : <View />}
+            <TouchableOpacity
+              onPress={() => setImageViewerVisible(false)}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
+              <Ionicons name="close" size={28} color="#fff" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Zoomable image (pinch-to-zoom on iOS) */}
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+            maximumZoomScale={4}
+            minimumZoomScale={1}
+            centerContent={true}
+            showsHorizontalScrollIndicator={false}
+            showsVerticalScrollIndicator={false}
+          >
+            <Image
+              source={
+                images[selectedImageIndex]?.url
+                  ? { uri: images[selectedImageIndex].url }
+                  : require("../../assets/images/default.png")
+              }
+              style={{ width, height: screenHeight }}
+              resizeMode="contain"
+            />
+          </ScrollView>
+
+          {/* Prev / Next arrow buttons */}
+          {images.length > 1 && (
+            <View
+              pointerEvents="box-none"
+              style={{
+                position: "absolute", top: 0, bottom: 0, left: 0, right: 0,
+                flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+              }}
+            >
+              <TouchableOpacity
+                style={{
+                  marginLeft: 12, backgroundColor: "rgba(0,0,0,0.45)",
+                  borderRadius: 24, padding: 8,
+                  opacity: selectedImageIndex === 0 ? 0 : 1,
+                }}
+                onPress={() => selectedImageIndex > 0 && setSelectedImageIndex(prev => prev - 1)}
+                disabled={selectedImageIndex === 0}
+              >
+                <Ionicons name="chevron-back" size={28} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{
+                  marginRight: 12, backgroundColor: "rgba(0,0,0,0.45)",
+                  borderRadius: 24, padding: 8,
+                  opacity: selectedImageIndex === images.length - 1 ? 0 : 1,
+                }}
+                onPress={() => selectedImageIndex < images.length - 1 && setSelectedImageIndex(prev => prev + 1)}
+                disabled={selectedImageIndex === images.length - 1}
+              >
+                <Ionicons name="chevron-forward" size={28} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Dot indicators */}
+          {images.length > 1 && (
+            <View style={{
+              position: "absolute", bottom: 32, left: 0, right: 0,
+              flexDirection: "row", justifyContent: "center", gap: 8,
+            }}>
+              {images.map((_: any, i: number) => (
+                <TouchableOpacity key={i} onPress={() => setSelectedImageIndex(i)}>
+                  <View style={{
+                    width: i === selectedImageIndex ? 22 : 8,
+                    height: 8, borderRadius: 4,
+                    backgroundColor: i === selectedImageIndex ? "#fff" : "rgba(255,255,255,0.4)",
+                  }} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+      </Modal>
 
       {/* Success Celebration Confetti */}
       {showConfetti && <SuccessConfetti onComplete={() => setShowConfetti(false)} />}
@@ -1355,10 +1616,8 @@ const getStyles = (palette: typeof theme, isDark: boolean) =>
     paddingBottom: 8,
   },
   actionBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
     padding: 16,
+    gap: 10,
     backgroundColor: palette.surface,
     borderTopWidth: 1,
     borderTopColor: palette.border,
@@ -1368,10 +1627,14 @@ const getStyles = (palette: typeof theme, isDark: boolean) =>
     shadowRadius: 4,
     elevation: 5,
   },
+  bidRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
   quickChipsRow: {
     flexDirection: "row",
     gap: 8,
-    marginBottom: 10,
     flexWrap: "wrap",
   },
   quickChip: {
@@ -1386,6 +1649,40 @@ const getStyles = (palette: typeof theme, isDark: boolean) =>
   },
   bidInputContainer: {
     flex: 1,
+  },
+  bidInputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: 50,
+    borderWidth: 1.5,
+    borderColor: palette.brand600,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: palette.inputBg,
+  },
+  bidCurrencyPrefix: {
+    width: 40,
+    height: 50,
+    textAlign: "center",
+    textAlignVertical: "center",
+    lineHeight: 50,
+    fontSize: 18,
+    fontWeight: "800",
+    color: palette.brand600,
+  },
+  bidInputField: {
+    flex: 1,
+    height: 50,
+    paddingHorizontal: 10,
+    fontSize: 20,
+    fontWeight: "700",
+    color: palette.text,
+  },
+  bidMinHint: {
+    fontSize: 11,
+    color: palette.textSecondary,
+    marginTop: 5,
+    paddingLeft: 2,
   },
   bidInputLabel: {
     fontSize: 11,
@@ -1575,27 +1872,49 @@ const getStyles = (palette: typeof theme, isDark: boolean) =>
   },
   bidHistorySection: {
     backgroundColor: palette.card,
-    padding: 12,
-    borderRadius: 12,
+    padding: 14,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: palette.border,
-    marginBottom: 4,
-    gap: 10,
+    marginBottom: 12,
+    gap: 4,
   },
   bidHistoryHeader: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    marginBottom: 8,
+  },
+  bidCountBadge: {
+    backgroundColor: palette.brand600,
+    borderRadius: 10,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    marginLeft: "auto" as any,
+  },
+  bidCountBadgeText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "700",
   },
   bidHistoryItem: {
-    paddingVertical: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 10,
     borderTopWidth: 1,
     borderTopColor: palette.border,
   },
-  bidHistoryRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  bidAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: "center",
+    justifyContent: "center",
+  },
+  bidAvatarText: {
+    fontSize: 13,
+    fontWeight: "800",
   },
   bidHistoryName: {
     fontSize: 14,
@@ -1608,13 +1927,25 @@ const getStyles = (palette: typeof theme, isDark: boolean) =>
     color: palette.brand600,
   },
   bidHistoryTime: {
-    fontSize: 12,
+    fontSize: 11,
     color: palette.textSecondary,
     marginTop: 2,
   },
   bidHistoryEmpty: {
     fontSize: 14,
     color: palette.textSecondary,
+    paddingVertical: 8,
+  },
+  topBidBadge: {
+    backgroundColor: palette.brand600,
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  topBidBadgeText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "700",
   },
   // Product Statistics Styles
   productStatsContainer: {

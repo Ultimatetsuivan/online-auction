@@ -10,8 +10,8 @@ const errorHandler = (err, req, res, next) => {
   error.message = err.message;
   error.statusCode = err.statusCode;
 
-  // Default to 500 if no status code
-  let statusCode = error.statusCode || 500;
+  // Use err.statusCode, then fall back to res.statusCode if it was explicitly set (not the default 200), then 500
+  let statusCode = error.statusCode || (res.statusCode !== 200 ? res.statusCode : 500);
 
   // Handle Mongoose validation errors
   if (err.name === 'ValidationError') {

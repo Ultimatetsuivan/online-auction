@@ -48,7 +48,26 @@ const categorySchema = mongoose.Schema({
     productCount: {
         type: Number,
         default: 0
-    }
+    },
+    // ── Category-specific field definitions ──────────────────────────────────
+    // Each entry defines one extra field sellers fill in when listing in this category.
+    // The same schema drives: add-product form, product detail display, AND search filters.
+    fieldSchema: [{
+        key:        { type: String, required: true, trim: true },   // stored as itemSpecifics key
+        labelMn:    { type: String, required: true, trim: true },   // Mongolian label shown in UI
+        type:       { type: String, enum: ['text','number','select','boolean'], default: 'text' },
+        required:   { type: Boolean, default: false },
+        unit:       { type: String, trim: true },                   // e.g. "км", "м²"
+        options:    [{                                              // for select type
+            value:   { type: String },
+            labelMn: { type: String },
+            _id: false
+        }],
+        filterable:  { type: Boolean, default: false },            // show in search filter bar
+        filterType:  { type: String, enum: ['range','select','text','boolean'], default: 'text' },
+        filterOrder: { type: Number, default: 0 },                 // order in filter bar
+        _id: false
+    }]
 },
     {
         timestamps: true,

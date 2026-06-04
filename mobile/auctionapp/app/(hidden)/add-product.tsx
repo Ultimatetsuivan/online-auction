@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   SafeAreaView,
   View,
@@ -91,9 +91,13 @@ export default function AddProductScreen() {
     basic: true,
     automotive: false,
     phone: false,
+    specs: true,   // dynamic category-specific fields
     auction: false,
     images: true,
   });
+
+  // Dynamic category-specific extra fields (from fieldSchema)
+  const [specs, setSpecs] = useState<Record<string, string>>({});
 
   const [formData, setFormData] = useState<FormData>({
     title: '',
@@ -290,16 +294,23 @@ export default function AddProductScreen() {
 
   const handleParentCategoryChange = (parentId: string) => {
     setParentCategory(parentId);
-    setFormData({ ...formData, category: '' });
+    setSpecs({});  // reset specs when category changes
 
     if (parentId) {
-      const subs = categories.filter((cat) => {
+      const subs = categories.filter((cat: any) => {
         const catParent = cat.parent?._id || cat.parent;
         return catParent === parentId;
       });
       setSubcategories(subs);
+      // If no subcategories, select the parent directly
+      if (subs.length === 0) {
+        setFormData({ ...formData, category: parentId });
+      } else {
+        setFormData({ ...formData, category: '' });
+      }
     } else {
       setSubcategories([]);
+      setFormData({ ...formData, category: '' });
     }
   };
 
@@ -408,6 +419,39 @@ export default function AddProductScreen() {
   const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections({ ...expandedSections, [section]: !expandedSections[section] });
   };
+
+  // Dynamic fieldSchema for the selected category (or its parent)
+  const selectedCategorySchema = useMemo(() => {
+    if (!formData.category || !categories.length) return [];
+    const cat = categories.find((c: any) => c._id === formData.category);
+    if (!cat) return [];
+    if (cat.fieldSchema?.length) return cat.fieldSchema;
+    // Fallback to parent schema
+    const parentId = cat.parent?._id || cat.parent;
+    if (parentId) {
+      const parent = categories.find((c: any) => c._id === parentId);
+      return parent?.fieldSchema || [];
+    }
+    return [];
+  }, [formData.category, categories]);
+
+  // Auto-populate specs whose value can be inferred from the subcategory name
+  useEffect(() => {
+    if (!formData.category || !selectedCategorySchema.length) return;
+    const cat = categories.find((c: any) => c._id === formData.category);
+    if (!cat) return;
+    const catName = ((cat.titleMn || '') + ' ' + (cat.title || '')).toLowerCase();
+    const auto: Record<string, string> = {};
+    for (const field of selectedCategorySchema) {
+      if (field.type !== 'select' || !field.options?.length) continue;
+      const match = field.options.find((opt: any) =>
+        catName.includes((opt.labelMn || '').toLowerCase()) ||
+        catName.includes((opt.value || '').toLowerCase())
+      );
+      if (match && !specs[field.key]) auto[field.key] = match.value;
+    }
+    if (Object.keys(auto).length > 0) setSpecs(prev => ({ ...auto, ...prev }));
+  }, [formData.category, selectedCategorySchema]);
 
   // Auto-fill car details from common patterns
   const autoFillCarDetails = (titleText: string) => {
@@ -915,6 +959,14 @@ export default function AddProductScreen() {
         if (formData.transmission) formDataToSend.append('transmission', formData.transmission);
         if (formData.color) formDataToSend.append('color', formData.color);
         if (formData.condition) formDataToSend.append('condition', formData.condition);
+      }
+
+      // Dynamic category-specific specs as JSON
+      const specsToSend = Object.fromEntries(
+        Object.entries(specs).filter(([, v]) => v !== '' && v !== null && v !== undefined)
+      );
+      if (Object.keys(specsToSend).length > 0) {
+        formDataToSend.append('itemSpecificsJson', JSON.stringify(specsToSend));
       }
 
       // Add images with proper MIME types
@@ -1598,6 +1650,94 @@ export default function AddProductScreen() {
             )}
           </View>
         )}
+
+        {/* SECTION: Dynamic category-specific fields from fieldSchema */}
+        {(() => {
+          // For automotive categories, skip fields already in the automotive section
+          const automotiveHandled = new Set(['make', 'model', 'year', 'mileage', 'fuelType', 'transmission', 'color', 'condition', 'vin']);
+          const fieldsToShow = selectedCategorySchema.filter((f: any) =>
+            showAutomotiveFields ? !automotiveHandled.has(f.key) : true
+          );
+          if (fieldsToShow.length === 0) return null;
+          const catLabel = (() => {
+            const cat = categories.find((c: any) => c._id === formData.category);
+            return cat?.titleMn || cat?.title || 'Нэмэлт мэдээлэл';
+          })();
+          return (
+            <View style={[styles.section, { backgroundColor: themeColors.card }]}>
+              <CollapsibleSectionHeader
+                icon="information-circle"
+                title={catLabel}
+                iconColor={theme.primary500}
+                isExpanded={expandedSections.specs}
+                onToggle={() => toggleSection('specs')}
+                themeColors={themeColors}
+              />
+              {expandedSections.specs && (
+                <View>
+                  {fieldsToShow.map((field: any) => {
+                    const val = specs[field.key] || '';
+                    const setVal = (v: string) => setSpecs(prev => ({ ...prev, [field.key]: v }));
+                    const labelText = `${field.labelMn}${field.unit ? ` (${field.unit})` : ''}${field.required ? ' *' : ''}`;
+                    if (field.type === 'select' && field.options?.length) {
+                      return (
+                        <View key={field.key}>
+                          <Text style={[styles.label, { color: themeColors.textSecondary }]}>{labelText}</Text>
+                          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+                            <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 2 }}>
+                              {field.options.map((opt: any) => (
+                                <TouchableOpacity
+                                  key={opt.value}
+                                  onPress={() => setVal(val === opt.value ? '' : opt.value)}
+                                  style={{
+                                    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+                                    borderWidth: 1.5,
+                                    borderColor: val === opt.value ? theme.brand600 : themeColors.border,
+                                    backgroundColor: val === opt.value ? theme.brand50 || '#eff6ff' : themeColors.inputBg,
+                                  }}
+                                >
+                                  <Text style={{ fontSize: 13, fontWeight: val === opt.value ? '700' : '400', color: val === opt.value ? theme.brand600 : themeColors.textSecondary }}>
+                                    {opt.labelMn}
+                                  </Text>
+                                </TouchableOpacity>
+                              ))}
+                            </View>
+                          </ScrollView>
+                        </View>
+                      );
+                    }
+                    if (field.type === 'boolean') {
+                      return (
+                        <View key={field.key} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                          <Text style={[styles.label, { color: themeColors.textSecondary, marginBottom: 0 }]}>{labelText}</Text>
+                          <TouchableOpacity
+                            onPress={() => setVal(val === 'true' ? 'false' : 'true')}
+                            style={{ width: 44, height: 24, borderRadius: 12, backgroundColor: val === 'true' ? theme.brand600 : themeColors.border, justifyContent: 'center', paddingHorizontal: 2 }}
+                          >
+                            <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff', alignSelf: val === 'true' ? 'flex-end' : 'flex-start' }} />
+                          </TouchableOpacity>
+                        </View>
+                      );
+                    }
+                    return (
+                      <View key={field.key}>
+                        <Text style={[styles.label, { color: themeColors.textSecondary }]}>{labelText}</Text>
+                        <TextInput
+                          style={[styles.input, { backgroundColor: themeColors.inputBg, borderColor: themeColors.border, color: themeColors.text, marginBottom: 12 }]}
+                          placeholder={field.labelMn}
+                          placeholderTextColor={themeColors.textSecondary}
+                          value={val}
+                          onChangeText={setVal}
+                          keyboardType={field.type === 'number' ? 'numeric' : 'default'}
+                        />
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          );
+        })()}
 
         {/* SECTION: Selling Options */}
         <View style={[styles.section, { backgroundColor: themeColors.card }]}>

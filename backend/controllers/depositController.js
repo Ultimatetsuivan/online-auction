@@ -16,6 +16,11 @@ exports.checkDepositStatus = async (req, res) => {
             return res.status(404).json({ error: 'Бараа олдсонгүй' });
         }
 
+        // Deposit is never required for fixed-price or buy-now products
+        if (product.sellType === 'fixed' || product.sellType === 'buy_now') {
+            return res.json({ depositRequired: false, hasDeposit: true, depositAmount: 0 });
+        }
+
         const depositRequired = product.price >= DEPOSIT_THRESHOLD;
         const depositAmount = depositRequired ? Math.floor(product.price * DEPOSIT_PERCENTAGE) : 0;
 

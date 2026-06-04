@@ -1,4 +1,13 @@
 const asyncHandler = require("express-async-handler");
+
+function calcMinIncrement(startingPrice) {
+    if (startingPrice < 10000)    return 100;
+    if (startingPrice < 100000)   return 1000;
+    if (startingPrice < 1000000)  return 5000;
+    if (startingPrice < 10000000) return 50000;
+    if (startingPrice < 100000000) return 100000;
+    return 500000;
+}
 const Product = require("../models/product");
 const Transaction = require("../models/transaction");
 const BiddingProduct = require("../models/bidding");
@@ -46,7 +55,6 @@ const postProduct = asyncHandler(async (req, res) => {
             bidThreshold,
             reservePrice,
             buyNowPrice,
-            minIncrement,
             // New Yahoo Auctions-style fields
             startMode,           // 'immediate' or 'scheduled'
             scheduledDate,       // Date string (YYYY-MM-DD) for scheduled auctions
@@ -199,6 +207,30 @@ if(req.files && req.files.length > 0) {
     }
   }
 }
+        // Parse category-specific fields from itemSpecificsJson (sent as JSON string via multipart)
+        const itemSpecifics = new Map();
+        try {
+            const raw = req.body.itemSpecificsJson ? JSON.parse(req.body.itemSpecificsJson) : {};
+            for (const [k, v] of Object.entries(raw)) {
+                if (v !== '' && v !== null && v !== undefined) itemSpecifics.set(k, String(v));
+            }
+        } catch (e) {
+            console.warn('[postProduct] Failed to parse itemSpecificsJson:', e.message);
+        }
+
+        // Also handle legacy top-level vehicle fields for backward compat
+        const { manufacturer, model: vehicleModel, year, mileage, fuelType, transmission, color, condition, vin } = req.body;
+        const vehicleFields = {};
+        if (manufacturer) vehicleFields.make = manufacturer;
+        if (vehicleModel) vehicleFields.model = vehicleModel;
+        if (year) vehicleFields.year = parseInt(year);
+        if (mileage) vehicleFields.mileage = parseInt(mileage);
+        if (fuelType) vehicleFields.fuelType = fuelType;
+        if (transmission) vehicleFields.transmission = transmission;
+        if (vin) vehicleFields.vin = vin.toUpperCase();
+        if (color) vehicleFields.color = color;
+        if (condition) vehicleFields.condition = condition;
+
         // Create product with new Yahoo Auctions-style fields
         const product = await Product.create({
             user: userId,
@@ -215,15 +247,17 @@ if(req.files && req.files.length > 0) {
             bidThreshold: bidThreshold || null,
             reservePrice: reservePrice || null,
             buyNowPrice: buyNowPrice || null,
-            minIncrement: minIncrement || 5000,
+            minIncrement: calcMinIncrement(price),
             // New start system fields
             startMode: productSellType === 'auction' ? (startMode || 'immediate') : 'immediate',
             auctionStart: auctionStart,
             auctionDuration: productSellType === 'auction' ? parseInt(auctionDuration) : null,
             bidDeadline: bidDeadline,
             auctionStatus: auctionStatus,
-            available: auctionStatus === 'active', // Only active auctions/products are available
+            available: auctionStatus === 'active',
             images: fileData,
+            itemSpecifics: itemSpecifics.size > 0 ? itemSpecifics : undefined,
+            ...vehicleFields,
         });
 
         console.log('Product created successfully:', product._id);
@@ -306,18 +340,38 @@ const getAllAvailableProducts = asyncHandler(async (req, res) => {
         if (filter === 'ending') {
             const now = new Date();
             const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-            query.bidDeadline = {
-                $gte: now,
-                $lte: tomorrow
-            };
+            query.bidDeadline = { $gte: now, $lte: tomorrow };
         } else if (filter === 'new') {
             const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
             query.createdAt = { $gte: weekAgo };
         }
-        
+
+        // ── Dynamic category-specific filters ─────────────────────────────────
+        // Accepts ?filters[make]=Toyota  or  ?filters[year_min]=2010&filters[year_max]=2020
+        const { filters } = req.query;
+        if (filters && typeof filters === 'object') {
+            const exprConditions = [];
+            for (const [key, value] of Object.entries(filters)) {
+                if (!value || value === '') continue;
+                if (key.endsWith('_min')) {
+                    const field = key.slice(0, -4);
+                    exprConditions.push({ $gte: [{ $toDouble: `$itemSpecifics.${field}` }, parseFloat(value)] });
+                } else if (key.endsWith('_max')) {
+                    const field = key.slice(0, -4);
+                    exprConditions.push({ $lte: [{ $toDouble: `$itemSpecifics.${field}` }, parseFloat(value)] });
+                } else {
+                    // Exact match (case-insensitive for text, exact for select)
+                    query[`itemSpecifics.${key}`] = { $regex: new RegExp(`^${value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') };
+                }
+            }
+            if (exprConditions.length > 0) {
+                query.$expr = exprConditions.length === 1 ? exprConditions[0] : { $and: exprConditions };
+            }
+        }
+
         const products = await Product.find(query)
             .populate('user', 'name email')
-            .populate('category', 'title _id')
+            .populate('category', 'title titleMn _id fieldSchema')
             .sort({ createdAt: -1 });
         
         // Return array directly for frontend compatibility
@@ -405,13 +459,27 @@ const updateProduct = asyncHandler(async (req, res) => {
             model,
             year,
             mileage,
-            engineSize,
             fuelType,
             transmission,
             color,
             condition,
-            existingImages // JSON string of existing image URLs
+            vin,
+            existingImages,
         } = req.body;
+
+        // Parse category-specific fields from itemSpecificsJson
+        const newItemSpecifics = new Map(product.itemSpecifics || []);
+        try {
+            const raw = req.body.itemSpecificsJson ? JSON.parse(req.body.itemSpecificsJson) : null;
+            if (raw) {
+                for (const [k, v] of Object.entries(raw)) {
+                    if (v !== '' && v !== null && v !== undefined) newItemSpecifics.set(k, String(v));
+                    else newItemSpecifics.delete(k);
+                }
+            }
+        } catch (e) {
+            console.warn('[updateProduct] Failed to parse itemSpecificsJson:', e.message);
+        }
 
         // Handle images: combine existing + new uploads
         let finalImages = [];
@@ -472,16 +540,19 @@ const updateProduct = asyncHandler(async (req, res) => {
         if (weight) updateData.weight = weight;
         if (bidThreshold) updateData.bidThreshold = bidThreshold;
 
-        // Automotive fields
-        if (manufacturer) updateData.manufacturer = manufacturer;
+        // Legacy top-level vehicle fields
+        if (manufacturer) updateData.make = manufacturer;
         if (model) updateData.model = model;
-        if (year) updateData.year = year;
-        if (mileage) updateData.mileage = mileage;
-        if (engineSize) updateData.engineSize = engineSize;
+        if (year) updateData.year = parseInt(year);
+        if (mileage) updateData.mileage = parseInt(mileage);
         if (fuelType) updateData.fuelType = fuelType;
         if (transmission) updateData.transmission = transmission;
+        if (vin) updateData.vin = vin.toUpperCase();
         if (color) updateData.color = color;
         if (condition) updateData.condition = condition;
+
+        // Category-specific fields via itemSpecifics
+        if (newItemSpecifics.size > 0) updateData.itemSpecifics = newItemSpecifics;
 
         // Update auction timing if provided
         if (auctionDuration) {
@@ -1009,7 +1080,10 @@ const getAllProductsAdmin = async (req, res) => {
 
 const getProduct = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const product = await Product.findById(id).populate("user").populate("category");
+    const product = await Product.findById(id)
+        .populate("user")
+        .populate("category")
+        .populate("brand", "name title titleMn");
 
     if(!product){
         res.status(400);
@@ -1502,6 +1576,62 @@ const suggestCategory = asyncHandler(async (req, res) => {
 
 // ===== End AI Category Suggestion =====
 
+// ── Delivery endpoints ────────────────────────────────────────────────────────
+
+// PUT /api/product/:id/delivery  (seller: set delivery method + info)
+const updateDelivery = asyncHandler(async (req, res) => {
+    const product = await Product.findById(req.params.id);
+    if (!product) { res.status(404); throw new Error('Бараа олдсонгүй'); }
+    if (!product.sold) { res.status(400); throw new Error('Бараа зарагдаагүй байна'); }
+    if (product.user?.toString() !== req.user.id) { res.status(403); throw new Error('Эрх байхгүй'); }
+
+    const { method, trackingNumber, address, sellerNote } = req.body;
+    product.deliveryInfo = {
+        ...product.deliveryInfo?.toObject?.() || product.deliveryInfo || {},
+        ...(method && { method }),
+        ...(trackingNumber !== undefined && { trackingNumber }),
+        ...(address !== undefined && { address }),
+        ...(sellerNote !== undefined && { sellerNote }),
+    };
+    if (method && product.deliveryStatus === 'pending') product.deliveryStatus = 'arranging';
+    await product.save();
+    res.json({ success: true, deliveryStatus: product.deliveryStatus, deliveryInfo: product.deliveryInfo });
+});
+
+// PUT /api/product/:id/delivery/ship  (seller: mark shipped)
+const markShipped = asyncHandler(async (req, res) => {
+    const product = await Product.findById(req.params.id);
+    if (!product) { res.status(404); throw new Error('Бараа олдсонгүй'); }
+    if (!product.sold) { res.status(400); throw new Error('Бараа зарагдаагүй байна'); }
+    if (product.user?.toString() !== req.user.id) { res.status(403); throw new Error('Эрх байхгүй'); }
+
+    product.deliveryStatus = 'shipped';
+    product.deliveryInfo = { ...product.deliveryInfo?.toObject?.() || {}, shippedAt: new Date() };
+    await product.save();
+    res.json({ success: true, deliveryStatus: product.deliveryStatus, deliveryInfo: product.deliveryInfo });
+});
+
+// PUT /api/product/:id/delivery/confirm  (buyer: confirm received)
+const confirmDelivery = asyncHandler(async (req, res) => {
+    const product = await Product.findById(req.params.id);
+    if (!product) { res.status(404); throw new Error('Бараа олдсонгүй'); }
+    if (!product.sold) { res.status(400); throw new Error('Бараа зарагдаагүй байна'); }
+
+    const buyerId = product.soldTo?.toString();
+    if (buyerId !== req.user.id) { res.status(403); throw new Error('Та энэ барааны худалдан авагч биш'); }
+    if (product.deliveryStatus === 'delivered') { res.status(400); throw new Error('Аль хэдийн баталгаажсан'); }
+
+    const { buyerNote } = req.body;
+    product.deliveryStatus = 'delivered';
+    product.deliveryInfo = {
+        ...product.deliveryInfo?.toObject?.() || {},
+        deliveredAt: new Date(),
+        ...(buyerNote && { buyerNote }),
+    };
+    await product.save();
+    res.json({ success: true, deliveryStatus: product.deliveryStatus, deliveryInfo: product.deliveryInfo });
+});
+
 module.exports = {
     postProduct,
     getAllProducts,
@@ -1526,5 +1656,9 @@ module.exports = {
     decodeVIN,
     requestVehicleHistory,
     // AI category suggestion
-    suggestCategory
+    suggestCategory,
+    // Delivery
+    updateDelivery,
+    markShipped,
+    confirmDelivery,
 }

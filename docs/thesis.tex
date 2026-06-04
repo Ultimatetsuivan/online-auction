@@ -1,6 +1,6 @@
 % =====================================================================
 % Online Auction System — Diploma Thesis
-% Compile with: xelatex thesis.tex
+% MUST Format — Compile with: xelatex thesis.tex
 % =====================================================================
 \documentclass[12pt, a4paper]{report}
 
@@ -19,7 +19,7 @@
 % ── Language ──────────────────────────────────────────────────────────
 \usepackage{polyglossia}
 \setdefaultlanguage{english}
-\setotherlanguage{russian}   % fallback; Mongolian uses Latin/Cyrillic script
+\setotherlanguage{russian}
 
 % ── Typography ────────────────────────────────────────────────────────
 \usepackage{setspace}
@@ -27,6 +27,18 @@
 \usepackage{parskip}
 \setlength{\parindent}{1.25cm}
 \setlength{\parskip}{0pt}
+
+% ── Color & page color ────────────────────────────────────────────────
+\usepackage[table]{xcolor}
+\definecolor{Cover}{RGB}{102,255,255}    % MUST cyan-blue cover
+\definecolor{OliveGreen}{cmyk}{0.64,0,0.95,0.40}
+\definecolor{CadetBlue}{cmyk}{0.62,0.57,0.23,0}
+\definecolor{lightlightgray}{gray}{0.9}
+\definecolor{codebg}{rgb}{0.97,0.97,0.97}
+\definecolor{codeframe}{rgb}{0.85,0.85,0.85}
+\definecolor{codecomment}{rgb}{0.40,0.40,0.40}
+\definecolor{codestring}{rgb}{0.16,0.51,0.20}
+\definecolor{codekeyword}{rgb}{0.08,0.22,0.72}
 
 % ── Tables ────────────────────────────────────────────────────────────
 \usepackage{booktabs}
@@ -38,18 +50,26 @@
 
 % ── Figures ───────────────────────────────────────────────────────────
 \usepackage{graphicx}
+\graphicspath{{./}}
 \usepackage{float}
 \usepackage{caption}
 \captionsetup{font=small, labelfont=bf}
+\usepackage{tikz}
 
 % ── Code listings ─────────────────────────────────────────────────────
 \usepackage{listings}
-\usepackage{xcolor}
-\definecolor{codebg}{rgb}{0.97,0.97,0.97}
-\definecolor{codeframe}{rgb}{0.85,0.85,0.85}
-\definecolor{codecomment}{rgb}{0.40,0.40,0.40}
-\definecolor{codestring}{rgb}{0.16,0.51,0.20}
-\definecolor{codekeyword}{rgb}{0.08,0.22,0.72}
+
+% JavaScript is not built-in to listings — define it here
+\lstdefinelanguage{JavaScript}{
+  keywords={break,case,catch,continue,debugger,default,delete,do,else,
+             false,finally,for,function,if,in,instanceof,new,null,return,
+             switch,this,throw,true,try,typeof,var,void,while,with,
+             let,const,async,await,of,class,extends,import,export,from},
+  morecomment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  morestring=[b]',
+  morestring=[b]"
+}
 
 \lstset{
   backgroundcolor=\color{codebg},
@@ -84,6 +104,7 @@
 \usepackage{fancyhdr}
 \usepackage{tocloft}
 \usepackage{pifont}
+\usepackage{afterpage}
 
 % ── Chapter / section titles ──────────────────────────────────────────
 \titleformat{\chapter}[block]
@@ -96,6 +117,7 @@
   {\normalfont\normalsize\bfseries}{\thesubsection}{1em}{}
 
 % ── Headers / footers ─────────────────────────────────────────────────
+\setlength{\headheight}{14pt}
 \pagestyle{fancy}
 \fancyhf{}
 \fancyhead[R]{\small\leftmark}
@@ -111,38 +133,317 @@
   \end{center}
 }
 
+% ── Thesis metadata ───────────────────────────────────────────────────
+\newcommand{\thesistitle}{Дуудлага худалдааны систем /мобайл вэб хамт/}
+\newcommand{\thesistype}{Бакалаврын төгсөлтийн ажил}
+\newcommand{\authorlong}{Түвшинзаяа Бөхбилэгт}
+\newcommand{\authorshort}{Т.Бөхбилэгт}
+\newcommand{\supervisor}{Доктор (Ph.D), П.Энхтайван}
+\newcommand{\deptchair}{Доктор (Ph.D), Дэд профессор, А.Алтангэрэл}
+\newcommand{\universityname}{Шинжлэх Ухаан Технологийн Их Сургууль}
+\newcommand{\facultyname}{Мэдээлэл, Холбооны Технологийн Сургууль}
+\newcommand{\deptname}{Мэдээллийн технологийн тэнхим}
+\newcommand{\degreeid}{D061304}
+\newcommand{\degreename}{Мэдээллийн технологи}
+\newcommand{\authormail}{buhuu1125@gmail.com}
+
 % =====================================================================
 \begin{document}
 
-% ── Title page ────────────────────────────────────────────────────────
+% ── Front matter numbering ────────────────────────────────────────────
+\pagenumbering{roman}
+\pagestyle{plain}
+
+% =====================================================================
+%  PAGE 1 — BLUE COVER (MUST FORMAT)
+% =====================================================================
 \begin{titlepage}
-  \centering
-  \vspace*{1cm}
-  {\Large\bfseries МОНГОЛ УЛСЫН ШИНЖЛЭХ УХААН ТЕХНОЛОГИЙН ИХ СУРГУУЛЬ}\\[0.5cm]
-  {\large Мэдээллийн технологийн сургууль}\\[0.5cm]
-  {\large Програм хангамжийн инженерийн тэнхим}\\[2cm]
+% Full-page cyan background (tikz — reliable across all engines)
+\begin{tikzpicture}[remember picture, overlay]
+  \fill[Cover] (current page.south west) rectangle (current page.north east);
+\end{tikzpicture}
+\begin{center}
 
-  \rule{\linewidth}{0.5pt}\\[0.5cm]
-  {\LARGE\bfseries ОНЛАЙН ДУУДЛАГА ХУДАЛДААНЫ\\[0.3cm] ЦОГЦ СИСТЕМИЙН ХӨГЖҮҮЛЭЛТ}\\[0.3cm]
-  \rule{\linewidth}{0.5pt}\\[1.5cm]
+{\scshape\LARGE \universityname}\\[0.3cm]
+{\scshape\Large \facultyname}\\[0.5cm]
 
-  {\large\bfseries ДИПЛОМЫН АЖИЛ}\\[2cm]
+% Logo — no float wrapper inside titlepage
+\includegraphics[scale=0.2]{MUST_logo}\\[0.8cm]
 
-  \begin{flushleft}
-    \large
-    \textbf{Гүйцэтгэсэн:} \hfill Оюутан\\[0.3cm]
-    \textbf{Удирдагч:} \hfill Багш\\[0.3cm]
-    \textbf{Тэнхим:} \hfill Програм хангамжийн инженер\\[0.3cm]
-  \end{flushleft}
+\hfill{\large \authorlong}
 
-  \vfill
-  {\large Улаанбаатар хот, 2025 он}
+\vspace{0.8cm}
+{\huge\bfseries \thesistitle}
+
+\vspace{3cm}
+{\Large\textsc{\thesistype}}
+
+\vfill
+{\large Улаанбаатар хот}
+
+\end{center}
 \end{titlepage}
 
-% ── Front matter ──────────────────────────────────────────────────────
-\pagenumbering{roman}
-\setcounter{page}{2}
+% =====================================================================
+%  PAGE 2 — SUBTITLE / INFO PAGE
+% =====================================================================
+\begin{titlepage}
+\begin{center}
 
+{\scshape\LARGE \universityname}\\[0.3cm]
+{\scshape\Large \facultyname}\\[0.5cm]
+
+\vspace{1.5cm}
+\hfill{\large \deptname}
+
+\vspace{1.5cm}
+{\huge\bfseries \thesistitle}
+
+\vspace{1.5cm}
+
+\begin{minipage}[t]{0.9\textwidth}
+\begin{flushleft}
+\normalsize
+Мэргэжлийн индекс: \degreeid \\
+Мэргэжил: \degreename \\[2cm]
+
+\emph{Удирдагч:} \supervisor \\
+\emph{Гүйцэтгэгч:} \authorshort \\
+\end{flushleft}
+\end{minipage}
+
+\vfill
+{\large Улаанбаатар хот} \\
+{\large 2026 он 1 сар}
+
+\end{center}
+\end{titlepage}
+
+% =====================================================================
+%  PAGE 3–4 — WORK PLAN, PROGRESS & REVIEW FORM
+% =====================================================================
+\begin{titlepage}
+
+\vspace*{0.5cm}
+Батлав. \deptname-ийн эрхлэгч:
+\begin{flushright}
+\makebox[4cm]{\dotfill} /\deptchair/
+\end{flushright}
+
+Удирдагч:
+\begin{flushright}
+\makebox[4cm]{\dotfill} /\supervisor/
+\end{flushright}
+
+\begin{center}
+
+\vspace*{1.5cm}
+\textbf{{\large ТӨГСӨЛТИЙН АЖЛЫН ТӨЛӨВЛӨГӨӨ}}\\[0.5cm]
+
+\textsc{\large Сэдэв: ``\thesistitle''}\\[0.5cm]
+
+\begin{tabular}{|c|p{7cm}|c|c|}
+\hline
+№ & \makebox[7cm][c]{Ажлын бүлэг, хэсгийн нэр} & Эзлэх хувь & Дуусах хугацаа \\ \hline
+1 & Удиртгал         &  5\% & 2025-03-05 \\ \hline
+2 & Онолын хэсэг     & 20\% & 2025-03-30 \\ \hline
+3 & Судалгааны хэсэг & 30\% & 2025-04-15 \\ \hline
+4 & Төслийн хэсэг    & 35\% & 2025-05-20 \\ \hline
+5 & Дүгнэлт          & 10\% & 2025-05-24 \\ \hline
+\end{tabular}
+
+\vspace{1.5cm}
+Төлөвлөгөөг боловсруулсан оюутан: \makebox[3cm]{\dotfill} /\authorshort/
+
+\end{center}
+
+\newpage
+
+\begin{center}
+
+\vspace*{1.5cm}
+\textbf{{\large ТӨГСӨЛТИЙН АЖЛЫН ЯВЦ}}\\[0.5cm]
+
+\begin{tabular}{|c|p{7cm}|c|c|}
+\hline
+№ & \makebox[7cm][c]{Хийж гүйцэтгэсэн ажил} & Биелсэн хугацаа & Удирдагчийн гарын үсэг \\ \hline
+1 & Удиртгал         & 2025-03-05 & \\ \hline
+2 & Онолын хэсэг     & 2025-03-30 & \\ \hline
+3 & Судалгааны хэсэг & 2025-04-15 & \\ \hline
+4 & Төслийн хэсэг    & 2025-05-20 & \\ \hline
+5 & Дүгнэлт          & 2025-05-24 & \\ \hline
+\end{tabular}
+
+\vspace{0.8cm}
+Ажлын товч дүгнэлт \\[0.4cm]
+\dotfill \\[0.2cm]
+\dotfill \\[0.2cm]
+\dotfill \\[0.2cm]
+\dotfill \\[0.2cm]
+\dotfill \\[0.2cm]
+\dotfill \\[0.4cm]
+Удирдагч: \makebox[3cm]{\dotfill} /\supervisor/ \\
+
+\vspace{1.5cm}
+ЗӨВШӨӨРӨЛ \\[0.4cm]
+Оюутан \authorshort-ийн бичсэн төгсөлтийн ажлыг УШК-д хамгаалуулахаар тодорхойлов.\\[0.4cm]
+Салбарын эрхлэгч: \makebox[3cm]{\dotfill} /\deptchair/
+
+\end{center}
+
+\end{titlepage}
+
+\newpage
+
+% =====================================================================
+%  REVIEW FORM (ШҮҮМЖИЙН ХУУДАС)
+% =====================================================================
+\begin{titlepage}
+\begin{center}
+
+{\scshape\Large \universityname}\\[0.3cm]
+{\scshape\large \facultyname}\\[1cm]
+
+\textbf{{\Large ШҮҮМЖИЙН ХУУДАС}}\\[1cm]
+
+\end{center}
+
+\normalsize
+
+\deptname-ийн салбарын төгсөх курсийн оюутан \authorshort-н ``\thesistitle'' сэдэвт
+төгсөлтийн ажлын шүүмж.
+
+\begin{enumerate}
+\item Төслөөр дэвшүүлсэн асуудал, үүнтэй холбоотой онолын материал уншиж судалсан байдал.
+Энэ талаар хүмүүсийн хийсэн судалгаа, түүний үр дүнг уншиж тусгасан эсэх.
+\begin{center}
+\dotfill \\[0.1cm] \dotfill \\[0.1cm] \dotfill \\[0.1cm]
+\dotfill \\[0.1cm] \dotfill \\[0.1cm] \dotfill \\[0.4cm]
+\end{center}
+
+\item Төслийн ерөнхий агуулга. Шийдсэн зүйлүүд, хүрсэн үр дүн. Өөрийн санааг гарган,
+харьцуулалт хийн, дүгнэж байгаа чадвар.
+\begin{center}
+\dotfill \\[0.1cm] \dotfill \\[0.1cm] \dotfill \\[0.1cm]
+\dotfill \\[0.1cm] \dotfill \\[0.1cm] \dotfill \\[0.4cm]
+\end{center}
+
+\item Эмх цэгцтэй, стандарт хангасан байдал. Диплом бичих шаардлагуудыг биелүүлсэн эсэх.
+\begin{center}
+\dotfill \\[0.1cm] \dotfill \\[0.1cm] \dotfill \\[0.1cm]
+\dotfill \\[0.1cm] \dotfill \\[0.1cm] \dotfill \\[0.4cm]
+\end{center}
+
+\item Төслөөр орхигдуулсан болон дутуу болсон зүйлүүд. Цаашид анхаарах хэрэгтэй зүйлүүд.
+\begin{center}
+\dotfill \\[0.1cm] \dotfill \\[0.1cm] \dotfill \\[0.1cm]
+\dotfill \\[0.1cm] \dotfill \\[0.1cm] \dotfill \\[0.4cm]
+\end{center}
+
+\item Төслийн талаар онцолж тэмдэглэх зүйлүүд.
+\begin{center}
+\dotfill \\[0.1cm] \dotfill \\[0.1cm] \dotfill \\[0.1cm]
+\dotfill \\[0.1cm] \dotfill \\[0.1cm] \dotfill \\[0.4cm]
+\end{center}
+
+\item Ерөнхий оноо. (5 оноо)
+\begin{center}
+\dotfill \\[1cm]
+\end{center}
+\end{enumerate}
+
+Шүүмж бичсэн: \makebox[3cm]{\dotfill} \hspace{1cm} Ажлын газар: \dotfill \\[0.5cm]
+Хаяг (Утас): \makebox[5cm]{\dotfill}
+
+\end{titlepage}
+
+% =====================================================================
+%  DECLARATION (ЗОХИОГЧ ЭРХИЙН ХАМГААЛАЛ)
+% =====================================================================
+\chapter*{Зохиогч эрхийн хамгаалал}
+\addcontentsline{toc}{chapter}{Зохиогч эрхийн хамгаалал}
+\thispagestyle{plain}
+
+\noindent Миний бие \authorshort, ``{\thesistitle}'' сэдэвт энэ ажил нь минийх бөгөөд
+дараахыг нотолж байна. Үүнд:
+
+\begin{itemize}
+\item Горилогч энэ ажлыг тус сургуулиас боловсролын зэрэг авахаар бүхэлд нь буюу голлон хийсэн болно.
+\item Энэ ажлын аль нэг хэсгийг тус сургуульд эсвэл өөр байгууллагад боловсролын зэрэг, мэргэшил авахаар өмнө нь илгээсэн бол түүнийгээ тодорхой заасан болно.
+\item Бусад хүмүүсийн хэвлүүлсэн ажлаас зөвлөгөө авсан бол түүнийгээ үндэслэсэн болно.
+\item Бусад хүмүүсийн ажлаас ишлэл хийхдээ гол эх үүсвэрийг нь заасан болно.
+\item Миний ажилд тусалсан голлох бүх эх үүсвэрт талархаж байна.
+\item Ажлыг бусадтай хамтарсан бол алийг нь бусад хүмүүс хийсэн болохыг тодорхой заасан болно.
+\end{itemize}
+\bigskip
+
+\noindent Гарын үсэг:\rule[-0.5em]{12.7em}{0.5pt}
+\bigskip
+
+\noindent Огноо:\rule[-0.5em]{15em}{0.5pt}
+
+\clearpage
+
+% =====================================================================
+%  ABSTRACT (ХУРААНГУЙ)
+% =====================================================================
+\chapter*{Хураангуй}
+\addcontentsline{toc}{chapter}{Хураангуй}
+\thispagestyle{plain}
+
+\begin{center}
+{\scshape\Large \universityname}\\[0.2cm]
+{\scshape\large \facultyname}\\[0.5cm]
+{\huge\textbf{Хураангуй}}\\[0.4cm]
+{\Large \thesistitle}\\[0.3cm]
+{\normalsize \authorshort\ \texttt{(\authormail)}}
+\end{center}
+
+\bigskip
+
+Энэхүү төгсөлтийн ажилд онлайн дуудлага худалдааны бүрэн цогц систем (full-stack system)
+хөгжүүлсэн бөгөөд үүнд веб апликейшн (React.js + Vite), мобайл апликейшн
+(React Native + Expo), мөн RESTful API backend сервер (Node.js + Express.js + MongoDB)
+багтана. Төслийн гол зорилго нь уламжлалт дуудлага худалдааны аргуудын орон зай, цаг
+хугацааны хязгаарлалтыг арилгаж, олон платформ дээр ажилладаг (multi-platform), бодит
+цагийн технологи (real-time) бүхий цахим дуудлага худалдааны орчин бүрдүүлэх явдал юм.
+
+Мобайл апликейшн нь React Native болон Expo framework ашиглан хөгжүүлсэн бөгөөд iOS
+болон Android төхөөрөмжүүд дээр ажиллах чадвартай. Систем нь бодит цагийн харилцаа
+(Socket.IO), олон төрлийн нэвтрэх арга (Google OAuth, Firebase Phone Auth), AI-р
+дэмжигдсэн категори санал болгох, мөн Монгол зах зээлд тохирсон 66 төрлийн категоритой.
+WebSocket технологийг ашигласнаар мэдээлэл харилцан солилцох хурд сайжирч, хэрэглэгчийн
+туршлага (UX) өндөр түвшинд хүрсэн.
+
+Хөгжүүлсэн систем нь 3 үндсэн бүрэлдэхүүн хэсэгтэй: (1) Backend API систем —
+хэрэглэгч, бараа, дуудлага худалдаа, гүйлгээний удирдлага, RESTful API endpoint-үүд,
+MongoDB өгөгдлийн сан, бодит цагийн Socket.IO холболт; (2) Веб аппликейшн — админы
+удирдлагын хэсэг, бүрэн функционал бүхий дуудлага худалдааны интерфэйс; (3) Мобайл
+аппликейшн — iOS болон Android дээр ажилладаг хэрэглэгчийн програм.
+
+Систем нь хуучин эд зүйлсийг дахин ашиглах, хэн нэгэнд хэрэгцээтэй барааг дамжуулан
+худалдах нөхцөлийг бүрдүүлдэг тул хог хаягдлыг бууруулах, нөөцийг үр ашигтай ашиглах,
+байгаль орчинд ээлтэй шийдлийг дэмжиж байгаа.
+
+\clearpage
+
+% =====================================================================
+%  ACKNOWLEDGEMENTS (ТАЛАРХАЛ)
+% =====================================================================
+\chapter*{Талархал}
+\addcontentsline{toc}{chapter}{Талархал}
+\thispagestyle{plain}
+
+Энэхүү онлайн дуудлага худалдааны системийг бүтээх, хөгжүүлэхэд үнэтэй хувь нэмрээ
+оруулсан бүх хүмүүст чин сэтгэлийн талархал илэрхийлье.
+
+Мөн энэхүү ажлыг амжилттай хэрэгжүүлэхэд чиглэл өгч, мэргэн зөвлөгөө, дэмжлэг
+үзүүлсэн эрхэм удирдагч багш, доктор (Ph.D) П.Энхтайван танд гүн талархал илэрхийлье.
+Таны тусламж, дэмжлэггүйгээр энэхүү төслийг амжилттай дуусгах боломжгүй байсан билээ.
+
+\clearpage
+
+% ── Contents / Figures ────────────────────────────────────────────────
 \tableofcontents
 \newpage
 \listoftables
@@ -153,6 +454,7 @@
 % ── Main matter ───────────────────────────────────────────────────────
 \pagenumbering{arabic}
 \setcounter{page}{1}
+\pagestyle{fancy}
 
 % =====================================================================
 %  INTRODUCTION
@@ -456,7 +758,7 @@ eBay (1995) — 190+ оронд үйл ажиллагаа явуулдаг дэ�
 
 \begin{figure}[H]
   \centering
-  \imgplaceholder{3-tier Architecture}{Client Layer → Application Layer → Data Layer}
+  \includegraphics[width=0.85\textwidth]{3tier.pdf}
   \caption{3-tier архитектурын ерөнхий зураг}
   \label{fig:3tier}
 \end{figure}
@@ -529,9 +831,16 @@ Backend API нь дараах функцүүдийг агуулна:
 
 \begin{figure}[H]
   \centering
-  \imgplaceholder{ERD Diagram}{User, Product, Bidding, Category, Watchlist, Review, Transaction, Notification холбоос}
-  \caption{Өгөгдлийн хамаарлын диаграм}
-  \label{fig:erd}
+  \includegraphics[width=\textwidth]{erd_core.pdf}
+  \caption{Үндсэн entity-үүдийн хамаарал: User, Product, Category, Bidding}
+  \label{fig:erd-core}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth, height=0.82\textheight, keepaspectratio]{erd_support.pdf}
+  \caption{Туслах entity-үүдийн хамаарал: Watchlist, Transaction, Review, Notification}
+  \label{fig:erd-support}
 \end{figure}
 
 Системийн өгөгдлийн сан нь MongoDB ашигладаг бөгөөд 11 үндсэн collection-той.
@@ -756,6 +1065,20 @@ frontend/
 
 \texttt{SocketContext} нь app-аас глобал socket connection-ийг хэвээр барина. ProductDetail хуудас mount үед \texttt{joinAuction(productId)} event илгээж, unmount үед \texttt{leaveAuction} ажиллана. \texttt{bidUpdate} event-д тулгуурлан \texttt{currentBid} state шинэчлэгдэж UI шууд update хийгддэг.
 
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{web_home.png}
+  \caption{Веб аппликейшны нүүр хуудас — дуудлага худалдааны жагсаалт}
+  \label{fig:web-home}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.85\textwidth]{web_product.png}
+  \caption{Бараан дэлгэрэнгүй хуудас — шууд авах үнэ, дуудлагын мэдээлэл}
+  \label{fig:web-product}
+\end{figure}
+
 \subsection{Админы dashboard}
 
 \begin{itemize}
@@ -764,6 +1087,42 @@ frontend/
   \item \textbf{Ангилал} — CRUD + hierarchy editor.
   \item \textbf{Статистик} — Recharts ашиглан line/bar chart.
 \end{itemize}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{web_admin.png}
+  \caption{Админы хянах самбар — хэрэглэгч, ангилал, баталгаажуулалтын статистик}
+  \label{fig:web-admin}
+\end{figure}
+
+\subsection{Бараа нэмэх форм}
+
+Хэрэглэгч бараа байршуулахдаа гарчиг, тайлбар, ангилал, зураг, үнэ, дуудлагын
+хугацаа болон шууд зарагдах үнийг тохируулна. AI ангилал санал болгох, ноорог
+автомат хадгалах функцуудтай.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{web_add_product1.png}
+  \caption{Бараа нэмэх форм — зургийн upload, үнэ, хугацааны тохиргоо}
+  \label{fig:web-add1}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{web_add_product2.png}
+  \caption{Бараа нэмэх форм — ангилал сонгох, тайлбар, байрлал}
+  \label{fig:web-add2}
+\end{figure}
+
+\subsection{Хэрэглэгчийн профайл}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{web_profile.png}
+  \caption{Хэрэглэгчийн профайл — зарлагуud, баланс, тохиргоо}
+  \label{fig:web-profile}
+\end{figure}
 
 \section{Мобайл аппликейшны хөгжүүлэлт}
 
@@ -797,6 +1156,94 @@ mobile/auctionapp/
   \item \textbf{Дуудлага худалдаа} — Socket.IO real-time, countdown таймер, үнийн түүхийн график.
   \item \textbf{QPay} — Дансны цэнэглэлтийн хуудас: дүн оруулах → QR харуулах → банкны апп deep link → 3 секунд тутам polling.
 \end{itemize}
+
+% ── Main screens ──────────────────────────────────────────────────────
+\begin{figure}[H]
+  \centering
+  \begin{minipage}{0.45\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{mobile_home.jpg}
+    \caption{Нүүр хуудас — категори, бараан жагсаалт}
+    \label{fig:mobile-home}
+  \end{minipage}
+  \hfill
+  \begin{minipage}{0.45\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{mobile_product.jpg}
+    \caption{Бараан дэлгэрэнгүй — countdown таймер, дуудлагын мэдээлэл}
+    \label{fig:mobile-product}
+  \end{minipage}
+\end{figure}
+
+% ── Authentication flow ───────────────────────────────────────────────
+\begin{figure}[H]
+  \centering
+  \begin{minipage}{0.45\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{mobile_login.jpg}
+    \caption{Нэвтрэх — имэйл, утас, Google OAuth}
+    \label{fig:mobile-login}
+  \end{minipage}
+  \hfill
+  \begin{minipage}{0.45\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{mobile_email.jpg}
+    \caption{Бүртгэл — имэйл баталгаажуулах (1-р алхам)}
+    \label{fig:mobile-email}
+  \end{minipage}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \begin{minipage}{0.45\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{mobile_verification.jpg}
+    \caption{Бүртгэл — баталгаажуулах код (2-р алхам)}
+    \label{fig:mobile-verification}
+  \end{minipage}
+  \hfill
+  \begin{minipage}{0.45\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{mobile_registration.jpg}
+    \caption{Бүртгэл — регистрийн дугаар сонгогч (4-р алхам)}
+    \label{fig:mobile-registration}
+  \end{minipage}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \begin{minipage}{0.45\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{mobile_eula.jpg}
+    \caption{Үйлчилгээний нөхцөл зөвшөөрөх (3-р алхам)}
+    \label{fig:mobile-eula}
+  \end{minipage}
+  \hfill
+  \begin{minipage}{0.45\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{mobile_agreement.jpg}
+    \caption{Гэрээний нөхцөл}
+    \label{fig:mobile-agreement}
+  \end{minipage}
+\end{figure}
+
+% ── Add product ───────────────────────────────────────────────────────
+\begin{figure}[H]
+  \centering
+  \begin{minipage}{0.45\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{mobile_add_product1.jpg}
+    \caption{Бараа нэмэх — категори, үндсэн мэдээлэл}
+    \label{fig:mobile-add1}
+  \end{minipage}
+  \hfill
+  \begin{minipage}{0.45\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{mobile_add_product2.jpg}
+    \caption{Бараа нэмэх — үнэ, хугацааны тохиргоо}
+    \label{fig:mobile-add2}
+  \end{minipage}
+\end{figure}
 
 \subsection{Performance Optimization}
 
@@ -1118,7 +1565,7 @@ Vickrey-Myerson-ы аукшины теорийн revenue equivalence зарчм�
   \item Mozilla Developer Network. (2024). \textit{WebSocket API}. Retrieved from https://developer.mozilla.org/en-US/docs/Web/API/WebSocket
   \item Node.js Foundation. (2024). \textit{Node.js Documentation v20 LTS}. Retrieved from https://nodejs.org/docs
   \item MongoDB, Inc. (2024). \textit{MongoDB Manual 7.0}. Retrieved from https://www.mongodb.com/docs
-  \item Expo. (2024). \textit{Expo Documentation — SDK 54}. Retrieved from https://docs.expo.dev
+  \item Expo. (2024). \textit{Expo Documentation --- SDK 54}. Retrieved from https://docs.expo.dev
   \item React Native. (2024). \textit{React Native Docs 0.74}. Retrieved from https://reactnative.dev/docs
   \item Socket.IO. (2024). \textit{Socket.IO Documentation v4}. Retrieved from https://socket.io/docs/v4
   \item QPay Mongolia. (2024). \textit{QPay Merchant API Documentation}. Улаанбаатар: QPay ХХК.

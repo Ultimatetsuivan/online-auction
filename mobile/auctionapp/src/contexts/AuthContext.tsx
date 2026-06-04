@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '../api';
 import ErrorHandler, { ErrorType } from '../utils/errorHandler';
 import { User } from '../types';
+import { registerPushToken, unregisterPushToken, configureForegroundNotifications } from '../utils/pushNotifications';
 
 interface AuthContextType {
   user: User | null;
@@ -24,6 +25,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Load user and token from storage on mount
   useEffect(() => {
+    configureForegroundNotifications();
     loadAuthData();
   }, []);
 
@@ -48,6 +50,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(userData);
             // Update storage with fresh user data
             await AsyncStorage.setItem('user', JSON.stringify(userData));
+            // Register push token for already-authenticated users
+            registerPushToken().catch(() => {});
           } else {
             throw new Error('No user data returned');
           }
@@ -84,6 +88,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setToken(newToken);
       setUser(userData);
+      // Register push token after login
+      registerPushToken().catch(() => {});
     } catch (error) {
       await ErrorHandler.handleError(error, true);
       throw error;
@@ -92,7 +98,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     try {
-      // Clear storage
+      // Remove push token from backend before clearing session
+      await unregisterPushToken().catch(() => {});
+
       await Promise.all([
         AsyncStorage.removeItem('token'),
         AsyncStorage.removeItem('user'),

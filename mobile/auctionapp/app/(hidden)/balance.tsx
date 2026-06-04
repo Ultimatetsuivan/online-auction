@@ -20,7 +20,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import theme from "../theme";
 import { api } from "../../src/api";
 
-type Tab = "topup" | "history";
+type Tab = "topup" | "history" | "transactions";
 type TopUpStep = "amount" | "qr";
 
 interface PaymentRequest {
@@ -64,6 +64,10 @@ export default function BalanceScreen() {
   // History state
   const [history, setHistory] = useState<PaymentRequest[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+
+  // Transactions state
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [txLoading, setTxLoading] = useState(false);
 
   // Polling ref
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -122,9 +126,22 @@ export default function BalanceScreen() {
     }
   };
 
+  const fetchTransactions = async () => {
+    setTxLoading(true);
+    try {
+      const res = await api.get("/api/transaction/my");
+      setTransactions(Array.isArray(res.data) ? res.data : []);
+    } catch (e) {
+      console.error("fetchTransactions:", e);
+    } finally {
+      setTxLoading(false);
+    }
+  };
+
   const handleTabChange = (t: Tab) => {
     setTab(t);
     if (t === "history") fetchHistory();
+    if (t === "transactions") fetchTransactions();
   };
 
   // ── Create QPay invoice ──────────────────────────────────────────────────────
@@ -229,6 +246,7 @@ export default function BalanceScreen() {
     setRefreshing(true);
     loadInitial();
     if (tab === "history") fetchHistory();
+    if (tab === "transactions") fetchTransactions();
   };
 
   // ── Render helpers ──────────────────────────────────────────────────────────
@@ -415,6 +433,61 @@ export default function BalanceScreen() {
     );
   };
 
+  const renderTransactions = () => {
+    if (txLoading) {
+      return (
+        <View style={styles.centerPad}>
+          <ActivityIndicator size="large" color={theme.brand600} />
+        </View>
+      );
+    }
+    if (transactions.length === 0) {
+      return (
+        <View style={styles.emptyBox}>
+          <Ionicons name="swap-horizontal-outline" size={48} color={theme.gray300} />
+          <Text style={styles.emptyTitle}>Гүйлгээ байхгүй</Text>
+          <Text style={styles.emptyHint}>Худалдах эсвэл худалдан авах үед энд харагдана</Text>
+        </View>
+      );
+    }
+    const userId = user?._id?.toString() || user?.id?.toString();
+    return (
+      <View style={styles.card}>
+        {transactions.map((tx: any, i: number) => {
+          const isBuyer = (tx.buyer?._id?.toString() || tx.buyer?.toString()) === userId;
+          const counterparty = isBuyer
+            ? (tx.seller?.name || tx.seller?.email || "Борлуулагч")
+            : (tx.buyer?.name || tx.buyer?.email || "Худалдан авагч");
+          const productTitle = tx.product?.title || "Бараа";
+          const sign = isBuyer ? "-" : "+";
+          const color = isBuyer ? theme.danger600 : theme.success500;
+          const icon = isBuyer ? "cart-outline" : "cash-outline";
+          const label = isBuyer ? "Худалдан авсан" : "Борлуулсан";
+          return (
+            <View key={tx._id} style={[styles.historyItem, i < transactions.length - 1 && styles.historyItemBorder]}>
+              <View style={[styles.historyIcon, { backgroundColor: `${color}18` }]}>
+                <Ionicons name={icon as any} size={22} color={color} />
+              </View>
+              <View style={styles.historyInfo}>
+                <Text style={styles.historyTitle} numberOfLines={1}>{productTitle}</Text>
+                <Text style={styles.historyMeta}>{label} · {counterparty}</Text>
+                <Text style={styles.historyMeta}>
+                  {new Date(tx.createdAt).toLocaleDateString("mn-MN", {
+                    year: "numeric", month: "short", day: "numeric",
+                    hour: "2-digit", minute: "2-digit",
+                  })}
+                </Text>
+              </View>
+              <Text style={[styles.historyAmount, { color }]}>
+                {sign}₮{tx.amount.toLocaleString()}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+    );
+  };
+
   // ── Loading / Guest ─────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -496,7 +569,20 @@ export default function BalanceScreen() {
             color={tab === "history" ? theme.brand600 : theme.gray500}
           />
           <Text style={[styles.tabText, tab === "history" && styles.tabTextActive]}>
-            Түүх
+            Цэнэглэлт
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabItem, tab === "transactions" && styles.tabItemActive]}
+          onPress={() => handleTabChange("transactions")}
+        >
+          <Ionicons
+            name="swap-horizontal-outline"
+            size={18}
+            color={tab === "transactions" ? theme.brand600 : theme.gray500}
+          />
+          <Text style={[styles.tabText, tab === "transactions" && styles.tabTextActive]}>
+            Гүйлгээ
           </Text>
         </TouchableOpacity>
       </View>
@@ -510,7 +596,9 @@ export default function BalanceScreen() {
           ? topUpStep === "amount"
             ? renderAmountStep()
             : renderQrStep()
-          : renderHistory()}
+          : tab === "history"
+            ? renderHistory()
+            : renderTransactions()}
       </ScrollView>
     </SafeAreaView>
   );
@@ -718,6 +806,8 @@ const styles = StyleSheet.create({
 
   centerPad: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32, gap: 16 },
   emptyState: { alignItems: "center", paddingVertical: 40, gap: 8 },
+  emptyBox: { alignItems: "center", paddingVertical: 48, gap: 10 },
   emptyTitle: { fontSize: 16, fontWeight: "700", color: theme.gray800 },
+  emptyHint: { fontSize: 13, color: theme.gray500, textAlign: "center", paddingHorizontal: 24 },
   emptySubtitle: { fontSize: 13, color: theme.gray500, textAlign: "center" },
 });

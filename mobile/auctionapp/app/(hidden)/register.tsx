@@ -18,6 +18,7 @@ import { router, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api } from "../../src/api";
 import theme from "../theme";
+import { RegistrationNumberInput } from "../../src/components/RegistrationNumberInput";
 
 export default function RegisterScreen() {
   const nameInputRef = useRef<TextInput>(null);
@@ -142,7 +143,7 @@ export default function RegisterScreen() {
       await AsyncStorage.setItem('currentRegistrationStep', '2'); // Now on verification step
     } catch (error: any) {
       const errorMessage =
-        error.response?.data?.message || "Код илгээхэд алдаа гарлаа";
+        error.response?.data?.error || error.response?.data?.message || "Код илгээхэд алдаа гарлаа";
       Alert.alert("Алдаа", errorMessage);
     } finally {
       setLoading(false);
@@ -160,7 +161,7 @@ export default function RegisterScreen() {
       setCanResend(false);
     } catch (error: any) {
       const errorMessage =
-        error.response?.data?.message || "Код илгээхэд алдаа гарлаа";
+        error.response?.data?.error || error.response?.data?.message || "Код илгээхэд алдаа гарлаа";
       Alert.alert("Алдаа", errorMessage);
     } finally {
       setLoading(false);
@@ -190,7 +191,7 @@ export default function RegisterScreen() {
       router.push('/(hidden)/eula-acceptance');
     } catch (error: any) {
       const errorMessage =
-        error.response?.data?.message || "Код баталгаажуулахад алдаа гарлаа";
+        error.response?.data?.error || error.response?.data?.message || "Код баталгаажуулахад алдаа гарлаа";
       Alert.alert("Алдаа", errorMessage);
     } finally {
       setIsVerifying(false);
@@ -203,10 +204,10 @@ export default function RegisterScreen() {
       return;
     }
 
-    // Validate registration number format (2 Cyrillic letters + 8 digits)
+    // Validate: 2 Cyrillic letters + 8 digits — any letter combination is valid
     const regNumberRegex = /^[А-ЯӨҮЁа-яөүё]{2}\d{8}$/;
     if (!regNumberRegex.test(registrationNumber)) {
-      Alert.alert("Алдаа", "Регистрийн дугаар буруу байна. Жишээ: УГ99999999, УК99999999, ОЛ99999999");
+      Alert.alert("Алдаа", "Регистрийн дугаар буруу байна. 2 үсэг + 8 тоо байх ёстой");
       return;
     }
 
@@ -249,7 +250,7 @@ export default function RegisterScreen() {
 
       // Save token
       if (loginResponse.data?.token) {
-        await AsyncStorage.setItem('authToken', loginResponse.data.token);
+        await AsyncStorage.setItem('token', loginResponse.data.token);
         await AsyncStorage.setItem('user', JSON.stringify(loginResponse.data));
 
         // Show success screen first
@@ -274,7 +275,7 @@ export default function RegisterScreen() {
       console.error("Registration error:", error);
       console.error("Error response:", error.response?.data);
       const errorMessage =
-        error.response?.data?.message || "Бүртгэл үүсгэхэд алдаа гарлаа";
+        error.response?.data?.error || error.response?.data?.message || "Бүртгэл үүсгэхэд алдаа гарлаа";
       Alert.alert("Алдаа", errorMessage);
     } finally {
       setIsVerifying(false);
@@ -510,37 +511,10 @@ export default function RegisterScreen() {
 
                 <View style={styles.inputContainer}>
                   <Text style={styles.label}>Регистрийн дугаар</Text>
-                  <View style={styles.inputWrapper}>
-                    <Ionicons
-                      name="card-outline"
-                      size={20}
-                      color={theme.gray500}
-                      style={styles.inputIcon}
-                    />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="УГ99999999, УК99999999, ОЛ99999999"
-                      placeholderTextColor={theme.gray400}
-                      value={registrationNumber}
-                      onChangeText={(text) => {
-                        // Auto-format: convert to uppercase only
-                        let formatted = text.toUpperCase();
-                        // Limit to 2 letters + 8 digits (10 characters total)
-                        if (formatted.length > 10) {
-                          formatted = formatted.substring(0, 10);
-                        }
-                        setRegistrationNumber(formatted);
-                      }}
-                      editable={true}
-                      keyboardType="default"
-                      maxLength={10}
-                      autoComplete="off"
-                      textContentType="none"
-                      importantForAutofill="no"
-                      autoCorrect={false}
-                      spellCheck={false}
-                    />
-                  </View>
+                  <RegistrationNumberInput
+                    value={registrationNumber}
+                    onChange={setRegistrationNumber}
+                  />
                 </View>
 
                 <View style={styles.inputContainer}>

@@ -42,6 +42,14 @@ export const Product = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const currentUserId = useMemo(() => {
+    try {
+      const stored = localStorage.getItem("user");
+      const u = stored ? JSON.parse(stored) : null;
+      return u?._id || u?.id || null;
+    } catch { return null; }
+  }, []);
+
   const [products, setProducts] = useState([]);
   const [filtered, setFiltered] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -60,9 +68,40 @@ export const Product = () => {
   const [showFilters, setShowFilters] = useState(true);
   const [viewMode, setViewMode] = useState("grid");
   const [openSections, setOpenSections] = useState({
-    saved: false, categories: true, brands: true, price: true,
+    saved: false, categories: true, brand: true, price: true, specs: true,
   });
+  const [specFilters, setSpecFilters] = useState({});
+  const [expandedParent, setExpandedParent] = useState(null); // which parent category is open
   const productsPerPage = 24;
+
+  // Parent categories (no parent field)
+  const parentCategories = useMemo(() =>
+    categories.filter(c => !c.parent),
+  [categories]);
+
+  // Children of a given parent ID
+  const getChildren = (parentId) =>
+    categories.filter(c => {
+      const pid = typeof c.parent === "object" ? c.parent?._id?.toString() : c.parent?.toString();
+      return pid === parentId;
+    });
+
+  // fieldSchema for the active category (selected cat or its parent if child selected)
+  const activeCategorySchema = useMemo(() => {
+    const id = selectedCategories[0];
+    if (!id) return [];
+    const cat = categories.find(c => c._id === id);
+    if (!cat) return [];
+    // If it's a child with no schema, check parent
+    const schema = cat.fieldSchema?.filter(f => f.filterable) || [];
+    if (schema.length > 0) return schema;
+    const parentId = typeof cat.parent === "object" ? cat.parent?._id?.toString() : cat.parent?.toString();
+    if (parentId) {
+      const parent = categories.find(c => c._id === parentId);
+      return parent?.fieldSchema?.filter(f => f.filterable) || [];
+    }
+    return [];
+  }, [selectedCategories, categories]);
 
   // ── Data fetching ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -85,11 +124,13 @@ export const Product = () => {
         const params = new URLSearchParams(location.search);
         const searchParam = params.get("search");
         const categoryParam = params.get("category");
+        const brandParam = params.get("brand");
         if (searchParam) setSearchQuery(searchParam);
         if (categoryParam) {
           setSelectedCategory(categoryParam);
           setSelectedCategories([categoryParam]);
         }
+        if (brandParam) setSpecFilters(prev => ({ ...prev, brand: brandParam }));
       } catch (err) {
         setError(err.message || "Бүтээгдэхүүн ачаалахад алдаа гарлаа");
       } finally {
@@ -100,25 +141,59 @@ export const Product = () => {
   }, [location.search]);
 
   // ── Filter + sort logic ───────────────────────────────────────────────────
+
+  // Read a spec value from itemSpecifics first, then fall back to legacy top-level field.
+  // Handles products created before and after the itemSpecifics migration.
+  const getSpec = (p, key) => {
+    const fromSpecs = p.itemSpecifics?.[key];
+    if (fromSpecs != null && fromSpecs !== "") return String(fromSpecs);
+    const fromTop = p[key];
+    if (fromTop != null && fromTop !== "") return String(fromTop);
+    return null;
+  };
+
   useEffect(() => {
     let result = [...products];
+
+    // Never show the logged-in user's own listings in the browse feed
+    if (currentUserId) {
+      result = result.filter((p) => {
+        const ownerId = typeof p.user === "object" && p.user !== null ? p.user._id : p.user;
+        return ownerId?.toString() !== currentUserId.toString();
+      });
+    }
+
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
         (p) => p.title?.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q)
       );
     }
-    if (selectedCategories.length > 0) {
-      result = result.filter((p) => {
-        const cat = typeof p.category === "object" && p.category !== null ? p.category._id : p.category;
-        return selectedCategories.includes(cat?.toString());
-      });
-    } else if (selectedCategory !== "all") {
-      result = result.filter((p) => {
-        const cat = typeof p.category === "object" && p.category !== null ? p.category._id : p.category;
-        return cat?.toString() === selectedCategory.toString();
+
+    // Category filter — expand selected IDs to include their subcategories
+    const activeCatIds = new Set();
+    if (selectedCategories.length > 0 || selectedCategory !== "all") {
+      const rootIds = selectedCategories.length > 0
+        ? selectedCategories
+        : [selectedCategory];
+      rootIds.forEach(id => activeCatIds.add(id));
+      // Add subcategories of each selected ID
+      categories.forEach(cat => {
+        const parentId = typeof cat.parent === "object"
+          ? cat.parent?._id?.toString()
+          : cat.parent?.toString();
+        if (parentId && activeCatIds.has(parentId)) activeCatIds.add(cat._id?.toString());
       });
     }
+    if (activeCatIds.size > 0) {
+      result = result.filter((p) => {
+        const catId = typeof p.category === "object" && p.category !== null
+          ? p.category._id?.toString()
+          : p.category?.toString();
+        return activeCatIds.has(catId);
+      });
+    }
+
     if (selectedBrands.length > 0) {
       result = result.filter((p) => {
         const brandId = typeof p.brand === "object" && p.brand !== null ? p.brand._id : p.brand;
@@ -130,11 +205,35 @@ export const Product = () => {
         return brandId?.toString() === selectedBrand.toString();
       });
     }
+
     if (priceRange.min !== "") {
       result = result.filter((p) => (p.currentBid || p.price || 0) >= Number(priceRange.min));
     }
     if (priceRange.max !== "") {
       result = result.filter((p) => (p.currentBid || p.price || 0) <= Number(priceRange.max));
+    }
+
+    // Category-specific spec filters — check itemSpecifics AND legacy top-level fields
+    for (const [key, value] of Object.entries(specFilters)) {
+      if (!value || value === "") continue;
+      if (key.endsWith("_min")) {
+        const field = key.slice(0, -4);
+        result = result.filter(p => {
+          const v = getSpec(p, field);
+          return v != null && parseFloat(v) >= parseFloat(value);
+        });
+      } else if (key.endsWith("_max")) {
+        const field = key.slice(0, -4);
+        result = result.filter(p => {
+          const v = getSpec(p, field);
+          return v != null && parseFloat(v) <= parseFloat(value);
+        });
+      } else {
+        result = result.filter(p => {
+          const v = getSpec(p, key);
+          return v != null && v.toLowerCase().includes(value.toLowerCase());
+        });
+      }
     }
     result.sort((a, b) => {
       switch (sortOption) {
@@ -148,7 +247,7 @@ export const Product = () => {
     });
     setFiltered(result);
     setCurrentPage(1);
-  }, [products, searchQuery, selectedCategory, selectedCategories, selectedBrand, selectedBrands, priceRange, sortOption]);
+  }, [products, categories, searchQuery, selectedCategory, selectedCategories, selectedBrand, selectedBrands, priceRange, specFilters, sortOption, currentUserId]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleLoadFilter = (loaded) => {
@@ -195,7 +294,20 @@ export const Product = () => {
   const handleClearFilters = () => {
     setSearchQuery(""); setSelectedCategory("all"); setSelectedCategories([]);
     setSelectedBrand("all"); setSelectedBrands([]);
-    setPriceRange({ min: "", max: "" }); setCurrentPage(1);
+    setPriceRange({ min: "", max: "" }); setSpecFilters({});
+    setExpandedParent(null); setCurrentPage(1);
+  };
+
+  const setSpecFilter = (key, value) =>
+    setSpecFilters(prev => ({ ...prev, [key]: value }));
+
+  // Single-select a category and reset spec filters
+  const selectCategory = (id) => {
+    setSelectedCategory(id === "all" ? "all" : id);
+    setSelectedCategories(id === "all" ? [] : [id]);
+    setSpecFilters({});
+    setCurrentPage(1);
+    setSearchQuery("");
   };
 
   const toggleSection = (key) =>
@@ -224,7 +336,8 @@ export const Product = () => {
 
   const activeFilterCount =
     selectedCategories.length + selectedBrands.length +
-    (priceRange.min ? 1 : 0) + (priceRange.max ? 1 : 0);
+    (priceRange.min ? 1 : 0) + (priceRange.max ? 1 : 0) +
+    Object.values(specFilters).filter(v => v !== "").length;
 
   const pageTitle = searchQuery
     ? `"${searchQuery}"`
@@ -437,6 +550,18 @@ export const Product = () => {
                   </button>
                 ) : null;
               })}
+              {specFilters.brand && (
+                <button onClick={() => setSpecFilter("brand", "")}
+                  style={{ ...s.tag("rgba(245,158,11,0.1)", "#b45309"), border: "1px solid rgba(245,158,11,0.2)", cursor: "pointer" }}>
+                  Брэнд: {specFilters.brand} <FiX size={11} />
+                </button>
+              )}
+              {Object.entries(specFilters).filter(([k, v]) => k !== "brand" && v !== "").map(([key, val]) => (
+                <button key={key} onClick={() => setSpecFilter(key, "")}
+                  style={{ ...s.tag("rgba(245,158,11,0.1)", "#b45309"), border: "1px solid rgba(245,158,11,0.2)", cursor: "pointer" }}>
+                  {key}: {val} <FiX size={11} />
+                </button>
+              ))}
               {(priceRange.min || priceRange.max) && (
                 <button
                   onClick={() => setPriceRange({ min: "", max: "" })}
@@ -485,39 +610,61 @@ export const Product = () => {
                 />
               </SidebarSection>
 
-              {/* Categories */}
+              {/* Categories — hierarchical accordion */}
               <SidebarSection title="Ангилал" sectionKey="categories">
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  <button
-                    onClick={() => toggleCategory("all")}
-                    style={{
-                      padding: "5px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600,
-                      cursor: "pointer", border: "1.5px solid",
-                      background: selectedCategories.length === 0 ? "var(--bn-primary)" : "transparent",
-                      color: selectedCategories.length === 0 ? "#fff" : "#64748b",
-                      borderColor: selectedCategories.length === 0 ? "var(--bn-primary)" : "#e2e8f0",
-                      transition: "all 0.15s",
-                    }}
-                  >
+                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+
+                  {/* All */}
+                  <button onClick={() => { selectCategory("all"); setExpandedParent(null); }}
+                    style={{ textAlign: "left", padding: "7px 10px", borderRadius: 8, fontSize: 13, fontWeight: selectedCategories.length === 0 ? 700 : 500, cursor: "pointer", border: "none", background: selectedCategories.length === 0 ? "#eff6ff" : "transparent", color: selectedCategories.length === 0 ? "var(--bn-primary)" : "#475569" }}>
                     Бүгд
                   </button>
-                  {categories.map((cat) => {
-                    const isActive = selectedCategories.includes(cat._id) || selectedCategory === cat._id;
+
+                  {parentCategories.map(parent => {
+                    const children = getChildren(parent._id);
+                    const isParentSelected = selectedCategories.includes(parent._id);
+                    const isChildSelected = children.some(c => selectedCategories.includes(c._id));
+                    const isExpanded = expandedParent === parent._id;
+                    const isHighlighted = isParentSelected || isChildSelected;
+
                     return (
-                      <button
-                        key={cat._id}
-                        onClick={() => toggleCategory(cat._id)}
-                        style={{
-                          padding: "5px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600,
-                          cursor: "pointer", border: "1.5px solid",
-                          background: isActive ? "var(--bn-primary)" : "transparent",
-                          color: isActive ? "#fff" : "#64748b",
-                          borderColor: isActive ? "var(--bn-primary)" : "#e2e8f0",
-                          transition: "all 0.15s",
-                        }}
-                      >
-                        {cat.titleMn || cat.title}
-                      </button>
+                      <div key={parent._id}>
+                        {/* Parent row */}
+                        <button
+                          onClick={() => {
+                            if (isExpanded) {
+                              setExpandedParent(null);
+                            } else {
+                              setExpandedParent(parent._id);
+                              selectCategory(parent._id);
+                            }
+                          }}
+                          style={{ width: "100%", textAlign: "left", padding: "7px 10px", borderRadius: 8, fontSize: 13, fontWeight: isHighlighted ? 700 : 500, cursor: "pointer", border: "none", background: isParentSelected ? "#eff6ff" : "transparent", color: isHighlighted ? "var(--bn-primary)" : "#475569", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                        >
+                          <span>{parent.titleMn || parent.title}</span>
+                          {children.length > 0 && (
+                            <span style={{ fontSize: 10, color: "#94a3b8", marginLeft: 4, flexShrink: 0 }}>
+                              {isExpanded ? "▲" : "▼"}
+                            </span>
+                          )}
+                        </button>
+
+                        {/* Children */}
+                        {isExpanded && children.length > 0 && (
+                          <div style={{ paddingLeft: 14, display: "flex", flexDirection: "column", gap: 1, marginBottom: 4 }}>
+                            {children.map(child => {
+                              const isSelected = selectedCategories.includes(child._id);
+                              return (
+                                <button key={child._id}
+                                  onClick={() => selectCategory(child._id)}
+                                  style={{ textAlign: "left", padding: "6px 10px", borderRadius: 8, fontSize: 12, fontWeight: isSelected ? 700 : 400, cursor: "pointer", border: "none", background: isSelected ? "#eff6ff" : "transparent", color: isSelected ? "var(--bn-primary)" : "#64748b" }}>
+                                  {child.titleMn || child.title}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
@@ -564,6 +711,30 @@ export const Product = () => {
               )}
 
               {/* Price Range */}
+              {/* Brand — always visible, works across all categories */}
+              <SidebarSection title="Брэнд" sectionKey="brand">
+                <input
+                  type="text"
+                  placeholder="Брэнд хайх..."
+                  value={specFilters.brand || ""}
+                  onChange={e => setSpecFilter("brand", e.target.value)}
+                  style={{
+                    width: "100%", padding: "8px 10px",
+                    border: "1.5px solid #e2e8f0", borderRadius: 8,
+                    background: "#f8fafc", outline: "none",
+                    fontSize: 13, color: "#0f172a", boxSizing: "border-box",
+                  }}
+                />
+                {specFilters.brand && (
+                  <button
+                    onClick={() => setSpecFilter("brand", "")}
+                    style={{ marginTop: 6, fontSize: 11, color: "#94a3b8", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                  >
+                    ✕ Арилгах
+                  </button>
+                )}
+              </SidebarSection>
+
               <SidebarSection title="Үнийн хязгаар" sectionKey="price">
                 <div style={{ display: "flex", gap: 8 }}>
                   {[
@@ -588,6 +759,42 @@ export const Product = () => {
                   ))}
                 </div>
               </SidebarSection>
+
+              {/* Category-specific filters — appear automatically when a category with fieldSchema is selected */}
+              {activeCategorySchema.length > 0 && (
+                <SidebarSection title="Дэлгэрэнгүй шүүлтүүр" sectionKey="specs">
+                  <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                    {activeCategorySchema.map(field => {
+                      const inputBase = { width: "100%", padding: "8px 10px", border: "1.5px solid #e2e8f0", borderRadius: 8, background: "#f8fafc", outline: "none", fontSize: 13, color: "#0f172a", boxSizing: "border-box" };
+                      return (
+                        <div key={field.key}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>{field.labelMn}{field.unit && ` (${field.unit})`}</div>
+                          {field.filterType === "range" ? (
+                            <div style={{ display: "flex", gap: 6 }}>
+                              <input type="number" placeholder="Доод" value={specFilters[`${field.key}_min`] || ""}
+                                onChange={e => setSpecFilter(`${field.key}_min`, e.target.value)}
+                                style={{ ...inputBase, flex: 1 }} />
+                              <input type="number" placeholder="Дээд" value={specFilters[`${field.key}_max`] || ""}
+                                onChange={e => setSpecFilter(`${field.key}_max`, e.target.value)}
+                                style={{ ...inputBase, flex: 1 }} />
+                            </div>
+                          ) : field.filterType === "select" ? (
+                            <select value={specFilters[field.key] || ""} onChange={e => setSpecFilter(field.key, e.target.value)} style={inputBase}>
+                              <option value="">Бүгд</option>
+                              {(field.options || []).map(opt => (
+                                <option key={opt.value} value={opt.value}>{opt.labelMn}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <input type="text" placeholder={field.labelMn} value={specFilters[field.key] || ""}
+                              onChange={e => setSpecFilter(field.key, e.target.value)} style={inputBase} />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </SidebarSection>
+              )}
 
               <button
                 onClick={handleClearFilters}

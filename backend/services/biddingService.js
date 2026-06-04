@@ -3,6 +3,16 @@
  * Handles bid placement with transaction safety and race condition prevention
  */
 
+// Tiered minimum bid increment based on starting price
+function calcMinIncrement(startingPrice) {
+    if (startingPrice < 10000)   return 100;
+    if (startingPrice < 100000)  return 1000;
+    if (startingPrice < 1000000) return 5000;
+    if (startingPrice < 10000000) return 50000;
+    if (startingPrice < 100000000) return 100000;
+    return 500000;
+}
+
 const BiddingProduct = require('../models/bidding');
 const Product = require('../models/product');
 const User = require('../models/User');
@@ -90,7 +100,7 @@ async function placeBid(productId, userId, bidAmount) {
 
         // 5. Validate bid amount
         const minBidAmount = highestBid
-            ? highestBid.price + Math.max(product.minIncrement || 5000, 5000)
+            ? highestBid.price + calcMinIncrement(product.price)
             : product.price;
 
         if (bidAmount < minBidAmount) {

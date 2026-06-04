@@ -64,12 +64,33 @@ const deleteCategory = asyncHandler(async (req, res) => {
         res.status(200).json({message:"амжилттай устгагдлаа"});
     }catch(error){
         res.json(error);
-
     }
 });
+
+// PUT /api/category/:id/schema  (admin only)
+// Replace the entire fieldSchema array for a category.
+const updateFieldSchema = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { fieldSchema } = req.body;
+
+    if (!Array.isArray(fieldSchema)) {
+        return res.status(400).json({ message: 'fieldSchema must be an array' });
+    }
+
+    const category = await Category.findByIdAndUpdate(
+        id,
+        { $set: { fieldSchema } },
+        { new: true, runValidators: true }
+    );
+
+    if (!category) return res.status(404).json({ message: 'Category not found' });
+    res.json(category);
+});
+
 module.exports = {
     createCategory,
     getAllCategories,
     getCategory,
-    deleteCategory
+    deleteCategory,
+    updateFieldSchema,
 }

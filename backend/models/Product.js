@@ -156,6 +156,8 @@ const productSchema = mongoose.Schema({
     // ===== End Vehicle Fields =====
 
     // ===== Enhanced Item Specifics (flexible key-value pairs) =====
+    // All category-specific fields (cars, real estate, electronics, etc.) are stored here.
+    // The Category.fieldSchema defines what fields exist and how to display/filter them.
     itemSpecifics: {
         type: Map,
         of: String,
@@ -273,6 +275,23 @@ const productSchema = mongoose.Schema({
             sparse: true
         }
     },
+
+    // ===== Delivery / Fulfillment =====
+    deliveryStatus: {
+        type: String,
+        enum: ['pending', 'arranging', 'shipped', 'delivered'],
+        default: 'pending'
+    },
+    deliveryInfo: {
+        method:         { type: String, enum: ['meetup', 'courier', 'ubcab', 'mail', 'other'] },
+        trackingNumber: { type: String, trim: true },
+        address:        { type: String, trim: true },
+        sellerNote:     { type: String, trim: true },
+        shippedAt:      { type: Date },
+        buyerNote:      { type: String, trim: true },
+        deliveredAt:    { type: Date },
+    },
+    // ===== End Delivery =====
 
     sold: {
         type: Boolean,

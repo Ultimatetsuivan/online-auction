@@ -1,0 +1,107 @@
+digraph ERD_Core {
+  graph [
+    rankdir=LR,
+    fontname="Arial",
+    fontsize=18,
+    nodesep=1.2,
+    ranksep=2.0,
+    bgcolor="white"
+  ];
+
+  node [
+    shape=none,
+    fontname="Arial",
+    fontsize=16,
+    margin=0
+  ];
+
+  edge [
+    fontname="Arial Bold",
+    fontsize=16,
+    color="#333333",
+    arrowsize=1.3,
+    arrowhead=vee,
+    penwidth=2.2
+  ];
+
+  // Left column
+  { rank=same; User; Category; }
+
+  User [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="12" BGCOLOR="#E8F4FD">
+      <TR><TD BGCOLOR="#2E86AB" ALIGN="CENTER" COLSPAN="2">
+        <FONT COLOR="white" POINT-SIZE="18"><B>User</B></FONT>
+      </TD></TR>
+      <TR><TD ALIGN="LEFT"><U><B>_id</B></U></TD><TD ALIGN="LEFT">ObjectId (PK)</TD></TR>
+      <TR><TD ALIGN="LEFT">name</TD><TD ALIGN="LEFT">String</TD></TR>
+      <TR><TD ALIGN="LEFT">email</TD><TD ALIGN="LEFT">String</TD></TR>
+      <TR><TD ALIGN="LEFT">password</TD><TD ALIGN="LEFT">String (bcrypt)</TD></TR>
+      <TR><TD ALIGN="LEFT">role</TD><TD ALIGN="LEFT">admin | buyer</TD></TR>
+      <TR><TD ALIGN="LEFT">balance</TD><TD ALIGN="LEFT">Number</TD></TR>
+      <TR><TD ALIGN="LEFT">trustScore</TD><TD ALIGN="LEFT">Number</TD></TR>
+      <TR><TD ALIGN="LEFT">googleId</TD><TD ALIGN="LEFT">String</TD></TR>
+      <TR><TD ALIGN="LEFT">fcmTokens</TD><TD ALIGN="LEFT">[String]</TD></TR>
+    </TABLE>
+  >];
+
+  Category [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="12" BGCOLOR="#FEF9E7">
+      <TR><TD BGCOLOR="#D4A017" ALIGN="CENTER" COLSPAN="2">
+        <FONT COLOR="white" POINT-SIZE="18"><B>Category</B></FONT>
+      </TD></TR>
+      <TR><TD ALIGN="LEFT"><U><B>_id</B></U></TD><TD ALIGN="LEFT">ObjectId (PK)</TD></TR>
+      <TR><TD ALIGN="LEFT">parent</TD><TD ALIGN="LEFT">→ Category (self)</TD></TR>
+      <TR><TD ALIGN="LEFT">title / titleMn</TD><TD ALIGN="LEFT">String</TD></TR>
+      <TR><TD ALIGN="LEFT">slug</TD><TD ALIGN="LEFT">String (unique)</TD></TR>
+      <TR><TD ALIGN="LEFT">isActive</TD><TD ALIGN="LEFT">Boolean</TD></TR>
+      <TR><TD ALIGN="LEFT">fieldSchema</TD><TD ALIGN="LEFT">[{key, labelMn, type}]</TD></TR>
+    </TABLE>
+  >];
+
+  // Middle column
+  { rank=same; Product; }
+
+  Product [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="12" BGCOLOR="#E8F8F5">
+      <TR><TD BGCOLOR="#1A9E6A" ALIGN="CENTER" COLSPAN="2">
+        <FONT COLOR="white" POINT-SIZE="18"><B>Product</B></FONT>
+      </TD></TR>
+      <TR><TD ALIGN="LEFT"><U><B>_id</B></U></TD><TD ALIGN="LEFT">ObjectId (PK)</TD></TR>
+      <TR><TD ALIGN="LEFT">user</TD><TD ALIGN="LEFT">→ User (seller)</TD></TR>
+      <TR><TD ALIGN="LEFT">category</TD><TD ALIGN="LEFT">→ Category</TD></TR>
+      <TR><TD ALIGN="LEFT">highestBidder</TD><TD ALIGN="LEFT">→ User</TD></TR>
+      <TR><TD ALIGN="LEFT">soldTo</TD><TD ALIGN="LEFT">→ User</TD></TR>
+      <TR><TD ALIGN="LEFT">title</TD><TD ALIGN="LEFT">String</TD></TR>
+      <TR><TD ALIGN="LEFT">price / currentBid</TD><TD ALIGN="LEFT">Number</TD></TR>
+      <TR><TD ALIGN="LEFT">buyNowPrice</TD><TD ALIGN="LEFT">Number</TD></TR>
+      <TR><TD ALIGN="LEFT">minIncrement</TD><TD ALIGN="LEFT">Number</TD></TR>
+      <TR><TD ALIGN="LEFT">sellType</TD><TD ALIGN="LEFT">auction | fixed</TD></TR>
+      <TR><TD ALIGN="LEFT">auctionStatus</TD><TD ALIGN="LEFT">scheduled|active|ended</TD></TR>
+      <TR><TD ALIGN="LEFT">bidDeadline</TD><TD ALIGN="LEFT">Date</TD></TR>
+      <TR><TD ALIGN="LEFT">condition</TD><TD ALIGN="LEFT">new|used|refurbished</TD></TR>
+    </TABLE>
+  >];
+
+  // Right column
+  { rank=same; Bidding; }
+
+  Bidding [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="12" BGCOLOR="#FDF2F8">
+      <TR><TD BGCOLOR="#884EA0" ALIGN="CENTER" COLSPAN="2">
+        <FONT COLOR="white" POINT-SIZE="18"><B>Bidding</B></FONT>
+      </TD></TR>
+      <TR><TD ALIGN="LEFT"><U><B>_id</B></U></TD><TD ALIGN="LEFT">ObjectId (PK)</TD></TR>
+      <TR><TD ALIGN="LEFT">user</TD><TD ALIGN="LEFT">→ User</TD></TR>
+      <TR><TD ALIGN="LEFT">product</TD><TD ALIGN="LEFT">→ Product</TD></TR>
+      <TR><TD ALIGN="LEFT">price</TD><TD ALIGN="LEFT">Number</TD></TR>
+      <TR><TD ALIGN="LEFT">createdAt</TD><TD ALIGN="LEFT">Date</TD></TR>
+    </TABLE>
+  >];
+
+  // Relationships
+  User     -> Product [label="  1:N (seller)  "];
+  Category -> Product [label="  1:N  "];
+  Category -> Category [label="  self-ref  ", style=dashed];
+  User     -> Bidding  [label="  1:N  "];
+  Product  -> Bidding  [label="  1:N  "];
+}

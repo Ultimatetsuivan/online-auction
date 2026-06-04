@@ -16,6 +16,13 @@ export const Home = () => {
 
   const [selectedCategory, setSelectedCategory] = useState("all");
 
+  const currentUserId = useMemo(() => {
+    try {
+      const stored = localStorage.getItem("user");
+      const u = stored ? JSON.parse(stored) : null;
+      return u?._id || u?.id || null;
+    } catch { return null; }
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -45,6 +52,14 @@ export const Home = () => {
   const filtered = useMemo(() => {
     let result = products.filter(Boolean);
 
+    // Never show the logged-in user's own listings in the home feed
+    if (currentUserId) {
+      result = result.filter((p) => {
+        const ownerId = typeof p.user === "object" && p.user !== null ? p.user._id : p.user;
+        return ownerId?.toString() !== currentUserId.toString();
+      });
+    }
+
     if (selectedCategory !== "all") {
       result = result.filter((p) => {
         const catId = typeof p.category === "object" && p.category !== null ? p.category._id : p.category;
@@ -54,7 +69,7 @@ export const Home = () => {
 
     result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     return result;
-  }, [products, selectedCategory]);
+  }, [products, selectedCategory, currentUserId]);
 
   const sortedCategories = useMemo(() => {
     const countMap = {};

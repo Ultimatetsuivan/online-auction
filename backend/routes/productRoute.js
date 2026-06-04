@@ -23,7 +23,10 @@ const {
   decodeVIN,
   requestVehicleHistory,
   // AI category suggestion
-  suggestCategory
+  suggestCategory,
+  updateDelivery,
+  markShipped,
+  confirmDelivery,
 } = require("../controllers/productController");
 const { protect, admin } = require("../middleware/authMiddleware");
 const { upload } = require("../utils/fileUpload");
@@ -73,6 +76,11 @@ router.put("/:id/vehicle-info", protect, updateVehicleInfo);
 router.put("/:id/seller-description", protect, updateSellerDescription);
 router.post("/:id/vehicle-history", protect, requestVehicleHistory);
 router.get("/vin/decode/:vin", decodeVIN);
+
+// ===== Delivery =====
+router.put("/:id/delivery", protect, updateDelivery);
+router.put("/:id/delivery/ship", protect, markShipped);
+router.put("/:id/delivery/confirm", protect, confirmDelivery);
 
 // ===== AI Category Suggestion =====
 router.post("/suggest-category", suggestCategory);

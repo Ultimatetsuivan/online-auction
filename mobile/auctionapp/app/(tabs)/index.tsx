@@ -40,6 +40,7 @@ export default function HomeScreen() {
   const [error, setError] = useState<string | null>(null);
   const [categories, setCategories] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   const [userBalance, setUserBalance] = useState(0);
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
@@ -116,6 +117,9 @@ export default function HomeScreen() {
     fetchData();
     loadSearchHistory();
     loadRecentlyViewed();
+    AsyncStorage.getItem("user").then(u => {
+      if (u) setCurrentUserId(JSON.parse(u)?._id || null);
+    }).catch(() => {});
   }, [fetchData]);
 
   // Load search history from AsyncStorage
@@ -228,6 +232,16 @@ export default function HomeScreen() {
   const filtered = useMemo(() => {
     let result = products;
 
+    // Never show the logged-in user's own listings in the feed
+    if (currentUserId) {
+      result = result.filter((p) => {
+        const ownerId = typeof p.product?.user === "object"
+          ? p.product.user?._id?.toString()
+          : p.product?.user?.toString();
+        return ownerId !== currentUserId;
+      });
+    }
+
     // Filter by category — include products in subcategories of the selected parent
     if (selectedCategory) {
       // Collect the selected ID plus all child IDs
@@ -254,7 +268,7 @@ export default function HomeScreen() {
     }
 
     return result;
-  }, [products, selectedCategory, debouncedQuery, categories]);
+  }, [products, selectedCategory, debouncedQuery, categories, currentUserId]);
 
   if (loading && !refreshing) {
     return (

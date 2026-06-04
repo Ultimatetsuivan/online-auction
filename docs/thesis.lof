@@ -1,6 +1,23 @@
 \addvspace {10\p@ }
 \addvspace {10\p@ }
-\contentsline {figure}{\numberline {2.1}{\ignorespaces \xpg@aux {}{english}\ignorespaces 3-tier архитектурын ерөнхий зураг}}{10}{figure.caption.5}%
-\contentsline {figure}{\numberline {2.2}{\ignorespaces \xpg@aux {}{english}\ignorespaces Өгөгдлийн хамаарлын диаграм}}{12}{figure.caption.7}%
+\contentsline {figure}{\numberline {2.1}{\ignorespaces \xpg@aux {}{english}\ignorespaces 3-tier архитектурын ерөнхий зураг}}{10}{figure.caption.8}%
+\contentsline {figure}{\numberline {2.2}{\ignorespaces \xpg@aux {}{english}\ignorespaces Үндсэн entity-үүдийн хамаарал: User, Product, Category, Bidding}}{12}{figure.caption.10}%
+\contentsline {figure}{\numberline {2.3}{\ignorespaces \xpg@aux {}{english}\ignorespaces Туслах entity-үүдийн хамаарал: Watchlist, Transaction, Review, Notification}}{13}{figure.caption.11}%
 \addvspace {10\p@ }
+\contentsline {figure}{\numberline {3.1}{\ignorespaces \xpg@aux {}{english}\ignorespaces Веб аппликейшны нүүр хуудас — дуудлага худалдааны жагсаалт}}{20}{figure.caption.14}%
+\contentsline {figure}{\numberline {3.2}{\ignorespaces \xpg@aux {}{english}\ignorespaces Бараан дэлгэрэнгүй хуудас — шууд авах үнэ, дуудлагын мэдээлэл}}{20}{figure.caption.15}%
+\contentsline {figure}{\numberline {3.3}{\ignorespaces \xpg@aux {}{english}\ignorespaces Админы хянах самбар — хэрэглэгч, ангилал, баталгаажуулалтын статистик}}{21}{figure.caption.16}%
+\contentsline {figure}{\numberline {3.4}{\ignorespaces \xpg@aux {}{english}\ignorespaces Бараа нэмэх форм — зургийн upload, үнэ, хугацааны тохиргоо}}{22}{figure.caption.17}%
+\contentsline {figure}{\numberline {3.5}{\ignorespaces \xpg@aux {}{english}\ignorespaces Бараа нэмэх форм — ангилал сонгох, тайлбар, байрлал}}{22}{figure.caption.18}%
+\contentsline {figure}{\numberline {3.6}{\ignorespaces \xpg@aux {}{english}\ignorespaces Хэрэглэгчийн профайл — зарлагуud, баланс, тохиргоо}}{23}{figure.caption.19}%
+\contentsline {figure}{\numberline {3.7}{\ignorespaces \xpg@aux {}{english}\ignorespaces Нүүр хуудас — категори, бараан жагсаалт}}{25}{figure.caption.20}%
+\contentsline {figure}{\numberline {3.8}{\ignorespaces \xpg@aux {}{english}\ignorespaces Бараан дэлгэрэнгүй — countdown таймер, дуудлагын мэдээлэл}}{25}{figure.caption.20}%
+\contentsline {figure}{\numberline {3.9}{\ignorespaces \xpg@aux {}{english}\ignorespaces Нэвтрэх — имэйл, утас, Google OAuth}}{26}{figure.caption.21}%
+\contentsline {figure}{\numberline {3.10}{\ignorespaces \xpg@aux {}{english}\ignorespaces Бүртгэл — имэйл баталгаажуулах (1-р алхам)}}{26}{figure.caption.21}%
+\contentsline {figure}{\numberline {3.11}{\ignorespaces \xpg@aux {}{english}\ignorespaces Бүртгэл — баталгаажуулах код (2-р алхам)}}{27}{figure.caption.22}%
+\contentsline {figure}{\numberline {3.12}{\ignorespaces \xpg@aux {}{english}\ignorespaces Бүртгэл — регистрийн дугаар сонгогч (4-р алхам)}}{27}{figure.caption.22}%
+\contentsline {figure}{\numberline {3.13}{\ignorespaces \xpg@aux {}{english}\ignorespaces Үйлчилгээний нөхцөл зөвшөөрөх (3-р алхам)}}{28}{figure.caption.23}%
+\contentsline {figure}{\numberline {3.14}{\ignorespaces \xpg@aux {}{english}\ignorespaces Гэрээний нөхцөл}}{28}{figure.caption.23}%
+\contentsline {figure}{\numberline {3.15}{\ignorespaces \xpg@aux {}{english}\ignorespaces Бараа нэмэх — категори, үндсэн мэдээлэл}}{29}{figure.caption.24}%
+\contentsline {figure}{\numberline {3.16}{\ignorespaces \xpg@aux {}{english}\ignorespaces Бараа нэмэх — үнэ, хугацааны тохиргоо}}{29}{figure.caption.24}%
 \addvspace {10\p@ }

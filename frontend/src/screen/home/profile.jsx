@@ -62,6 +62,7 @@ export const Profile = () => {
   const [editingProductId, setEditingProductId] = useState(null);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [extendModal, setExtendModal] = useState(null); // { product, days }
+  const [ubCabModal, setUbCabModal] = useState(null); // { product, deliveryChoice, address, pickupTime, dispatched }
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
   const [showAiInput, setShowAiInput] = useState(false);
@@ -72,6 +73,7 @@ export const Profile = () => {
     description: '',
     price: '',
     startingBid: '',
+    buyNowPrice: '',
     sellType: 'auction',
     category: '',
     // General fields
@@ -88,17 +90,9 @@ export const Profile = () => {
     scheduledTime: '',      // Time for scheduled start (HH:MM)
     duration: '7',           // Auction duration in days
     endTime: '',           // Legacy field (kept for compatibility)
-    // Automotive-specific fields
-    manufacturer: '',
-    model: '',
-    year: '',
-    mileage: '',
-    engineSize: '',
-    fuelType: '',
-    transmission: '',
-    color: '',
     condition: '',
-    shippingOrigin: ''
+    shippingOrigin: '',
+    specs: {},   // category-specific extra fields keyed by fieldSchema.key
   });
 
   const navigate = useNavigate();
@@ -506,51 +500,79 @@ const handleChange = (e) => {
 
 };
 
-// Helper function to check if category is automotive
+// Returns the fieldSchema of the currently selected category (empty array if none)
+const selectedCategorySchema = useMemo(() => {
+  if (!formData.category || !categories.length) return [];
+  const cat = categories.find(c => c._id === formData.category);
+  return cat?.fieldSchema || [];
+}, [formData.category, categories]);
+
+// Keys that are auto-determined by the subcategory name itself — hide these from the form
+const autoFilledKeys = useMemo(() => {
+  if (!formData.category || !selectedCategorySchema.length) return {};
+  const cat = categories.find(c => c._id === formData.category);
+  if (!cat) return {};
+  const catName = ((cat.titleMn || '') + ' ' + (cat.title || '')).toLowerCase();
+  const result = {};
+  for (const field of selectedCategorySchema) {
+    if (field.type !== 'select' || !field.options?.length) continue;
+    const match = field.options.find(opt =>
+      catName.includes((opt.labelMn || '').toLowerCase()) ||
+      catName.includes((opt.value || '').toLowerCase())
+    );
+    if (match) result[field.key] = match.value;
+  }
+  return result;
+}, [formData.category, selectedCategorySchema, categories]);
+
+// Auto-populate specs when category changes and a field can be inferred from the category name
+useEffect(() => {
+  if (!Object.keys(autoFilledKeys).length) return;
+  setFormData(prev => ({
+    ...prev,
+    specs: { ...autoFilledKeys, ...prev.specs }
+  }));
+}, [formData.category]);
+
+// Keep for auto-title on car categories (backward compat)
 const isAutomotiveCategory = (categoryId) => {
   if (!categoryId || !categories.length) return false;
-  const selectedCat = categories.find(c => c._id === categoryId);
-  if (!selectedCat) return false;
-  const titleMn = (selectedCat?.titleMn || '').toLowerCase();
-  const titleEn = (selectedCat?.title || '').toLowerCase();
-  return titleMn.includes('автомашин') ||
-    titleMn.includes('машин') ||
-    titleMn.includes('авто') ||
-    titleEn.includes('car') ||
-    titleEn.includes('vehicle') ||
-    titleEn.includes('auto');
+  const cat = categories.find(c => c._id === categoryId);
+  if (!cat) return false;
+  const t = ((cat.titleMn || '') + ' ' + (cat.title || '')).toLowerCase();
+  return t.includes('машин') || t.includes('авто') || t.includes('car') || t.includes('vehicle') || t.includes('auto');
 };
 
-// Auto-generate title for cars when year, manufacturer, and model are filled
+// Auto-generate title for cars when year, make, and model specs are filled
 useEffect(() => {
-  if (isAutomotiveCategory(formData.category) && formData.year && formData.manufacturer && formData.model) {
-    const autoTitle = `${formData.year} ${formData.manufacturer} ${formData.model}`;
+  const { make, model, year } = formData.specs;
+  if (isAutomotiveCategory(formData.category) && year && make && model) {
+    const autoTitle = `${year} ${make} ${model}`;
     if (formData.title !== autoTitle) {
       setFormData(prev => ({ ...prev, title: autoTitle }));
     }
   }
-}, [formData.year, formData.manufacturer, formData.model, formData.category]);
+}, [formData.specs, formData.category]);
 
 // Handle parent category change
 const handleParentCategoryChange = (e) => {
   const parentId = e.target.value;
   setParentCategory(parentId);
 
-  // Clear subcategory selection
-  setFormData(prev => ({ ...prev, category: '' }));
+  if (!parentId) { setSubcategories([]); setFormData(prev => ({ ...prev, category: '' })); return; }
 
-  // Find subcategories for this parent
-  if (parentId) {
-    const subs = categories.filter(cat => {
-      if (!cat.parent) return false;
-      const parentCategoryId = typeof cat.parent === 'object' && cat.parent !== null
-        ? cat.parent._id?.toString()
-        : cat.parent?.toString();
-      return parentCategoryId === parentId;
-    });
-    setSubcategories(subs);
+  const subs = categories.filter(cat => {
+    if (!cat.parent) return false;
+    const pid = typeof cat.parent === 'object' ? cat.parent._id?.toString() : cat.parent?.toString();
+    return pid === parentId;
+  });
+  setSubcategories(subs);
+
+  // If no subcategories, select the parent itself directly
+  if (subs.length === 0) {
+    setFormData(prev => ({ ...prev, category: parentId }));
   } else {
-    setSubcategories([]);
+    setFormData(prev => ({ ...prev, category: '' }));
   }
 };
 
@@ -661,6 +683,7 @@ useEffect(() => {
       description: product.description || '',
       price: sellType === 'fixed' ? (product.price || '') : '',
       startingBid: sellType === 'auction' ? (product.price || product.currentBid || '') : '',
+      buyNowPrice: product.buyNowPrice || '',
       sellType: sellType,
       category: categoryId,
       height: product.height || '',
@@ -679,16 +702,20 @@ useEffect(() => {
       startMode: 'immediate',
       scheduledDate: '',
       scheduledTime: '',
-      manufacturer: product.manufacturer || '',
-      model: product.model || '',
-      year: product.year || '',
-      mileage: product.mileage || '',
-      engineSize: product.engineSize || '',
-      fuelType: product.fuelType || '',
-      transmission: product.transmission || '',
-      color: product.color || '',
       condition: product.condition || '',
-      shippingOrigin: product.shippingOrigin || ''
+      shippingOrigin: product.shippingOrigin || '',
+      // Load itemSpecifics for category-specific fields; fall back to legacy top-level fields
+      specs: {
+        ...(product.itemSpecifics || {}),
+        // Legacy vehicle field fallbacks
+        ...(product.make && !product.itemSpecifics?.make ? { make: product.make } : {}),
+        ...(product.model && !product.itemSpecifics?.model ? { model: product.model } : {}),
+        ...(product.year && !product.itemSpecifics?.year ? { year: String(product.year) } : {}),
+        ...(product.mileage && !product.itemSpecifics?.mileage ? { mileage: String(product.mileage) } : {}),
+        ...(product.fuelType && !product.itemSpecifics?.fuelType ? { fuelType: product.fuelType } : {}),
+        ...(product.transmission && !product.itemSpecifics?.transmission ? { transmission: product.transmission } : {}),
+        ...(product.color && !product.itemSpecifics?.color ? { color: product.color } : {}),
+      },
     });
 
     setEditingProductId(product._id);
@@ -1019,6 +1046,9 @@ useEffect(() => {
       formDataToSend.append('startingBid', startPrice);
       formDataToSend.append('startMode', formData.startMode);
       formDataToSend.append('auctionDuration', String(formData.duration || '7'));
+      if (formData.buyNowPrice && unformatNumber(formData.buyNowPrice) > 0) {
+        formDataToSend.append('buyNowPrice', String(unformatNumber(formData.buyNowPrice)));
+      }
       if (formData.startMode === 'scheduled') {
         formDataToSend.append('scheduledDate', formData.scheduledDate);
         formDataToSend.append('scheduledTime', formData.scheduledTime);
@@ -1040,14 +1070,11 @@ useEffect(() => {
       }
     });
 
-    // Optional automotive fields
-    ['manufacturer','model','year','mileage','engineSize','fuelType','transmission','color','condition'].forEach(f => {
-      if (formData[f] !== '' && formData[f] !== null && formData[f] !== undefined) {
-        // Unformat numeric fields (year, mileage) before sending
-        const value = (f === 'year' || f === 'mileage') ? unformatNumber(formData[f]) : formData[f];
-        formDataToSend.append(f, String(value));
-      }
-    });
+    // Category-specific extra fields — sent as a single JSON string (reliable through multipart)
+    const specsToSend = Object.fromEntries(
+      Object.entries(formData.specs || {}).filter(([, v]) => v !== '' && v !== null && v !== undefined)
+    );
+    formDataToSend.append('itemSpecificsJson', JSON.stringify(specsToSend));
     
     // Handle images: new uploads and existing URLs
     const existingImageUrls = [];
@@ -1125,19 +1152,11 @@ useEffect(() => {
       scheduledTime: '',
       duration: '7',
       endTime: '',
-      // Automotive fields
-      manufacturer: '',
-      model: '',
-      year: '',
-      mileage: '',
-      engineSize: '',
-      fuelType: '',
-      transmission: '',
-      color: '',
       condition: '',
-      shippingOrigin: ''
+      shippingOrigin: '',
+      specs: {},
     });
-    
+
     // Refresh products list
     const productsResponse = await axios.get(buildApiUrl('/api/product/my'), {
       headers: { Authorization: `Bearer ${token}` }
@@ -1290,7 +1309,7 @@ useEffect(() => {
           <>
             <DraftStatusIndicator />
             {/* Page header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <div>
                 <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: isDarkMode ? '#f1f5f9' : '#1e293b', display: 'flex', alignItems: 'center', gap: 8 }}>
                   <FiPlusCircle size={20} color="var(--bn-primary)" />
@@ -1303,6 +1322,33 @@ useEffect(() => {
                 ← My Listings
               </button>
             </div>
+            {/* Form completion progress bar */}
+            {(() => {
+              const reqFields = [
+                formData.title.trim(),
+                formData.description.trim(),
+                formData.category,
+                formData.images.length > 0 ? '1' : '',
+                formData.sellType === 'auction' ? formData.startingBid : formData.price,
+                formData.sellType === 'auction' ? formData.duration : '1',
+              ];
+              const filled = reqFields.filter(Boolean).length;
+              const pct = Math.round((filled / reqFields.length) * 100);
+              const color = pct === 100 ? '#22c55e' : pct >= 50 ? 'var(--bn-primary)' : '#f59e0b';
+              return (
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: isDarkMode ? '#64748b' : '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      {pct === 100 ? '✓ Бүрэн бөглөгдсөн' : `Бөглөлт — ${filled}/${reqFields.length} заавал талбар`}
+                    </span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color }}>{pct}%</span>
+                  </div>
+                  <div style={{ height: 5, background: isDarkMode ? '#1e293b' : '#e2e8f0', borderRadius: 99, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 99, transition: 'width 0.4s ease, background 0.3s ease' }} />
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Draft resume */}
             {previousDrafts.length > 0 && (
@@ -1349,36 +1395,55 @@ useEffect(() => {
                     </div>
                     <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
                       <div>
-                        <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: isDarkMode ? '#94a3b8' : '#475569', marginBottom: 6 }}>Title *</label>
-                        <input type="text" name="title" value={formData.title} onChange={handleChange} placeholder="Example: iPhone 13 Pro 128GB" required
-                          style={{ width: '100%', padding: '10px 14px', border: `1.5px solid ${isDarkMode ? '#475569' : '#e2e8f0'}`, borderRadius: 8, background: isDarkMode ? '#0f172a' : '#f8fafc', color: isDarkMode ? '#f1f5f9' : '#1e293b', fontSize: 14, boxSizing: 'border-box', outline: 'none' }} />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                          <label style={{ fontSize: 13, fontWeight: 600, color: isDarkMode ? '#94a3b8' : '#475569' }}>Гарчиг *</label>
+                          <span style={{ fontSize: 11, color: formData.title.length > 72 ? '#ef4444' : (isDarkMode ? '#475569' : '#94a3b8') }}>{formData.title.length}/80</span>
+                        </div>
+                        <input type="text" name="title" value={formData.title} onChange={handleChange} placeholder="Жишээ: iPhone 13 Pro 128GB" required maxLength={80}
+                          style={{ width: '100%', padding: '10px 14px', border: `1.5px solid ${formData.title.length > 72 ? '#ef4444' : (isDarkMode ? '#475569' : '#e2e8f0')}`, borderRadius: 8, background: isDarkMode ? '#0f172a' : '#f8fafc', color: isDarkMode ? '#f1f5f9' : '#1e293b', fontSize: 14, boxSizing: 'border-box', outline: 'none' }} />
                       </div>
                       <div>
                         <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: isDarkMode ? '#94a3b8' : '#475569', marginBottom: 6 }}>Category *</label>
                         <div style={{ border: `1.5px solid ${isDarkMode ? '#475569' : '#e2e8f0'}`, borderRadius: 10, overflow: 'hidden', background: isDarkMode ? '#0f172a' : '#f8fafc' }}>
+                          <div style={{ padding: '8px 12px', borderBottom: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}` }}>
+                            <input
+                              type="text"
+                              placeholder="Ангилал хайх..."
+                              value={categoryKeyword}
+                              onChange={e => setCategoryKeyword(e.target.value)}
+                              style={{ width: '100%', padding: '6px 10px', border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`, borderRadius: 6, background: isDarkMode ? '#1e293b' : '#fff', color: isDarkMode ? '#f1f5f9' : '#1e293b', fontSize: 13, boxSizing: 'border-box', outline: 'none' }}
+                            />
+                          </div>
                           <div style={{ display: 'flex' }}>
                             <div style={{ flex: 1, borderRight: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`, padding: '10px 12px', maxHeight: 180, overflowY: 'auto' }}>
-                              <div style={{ fontSize: 10, fontWeight: 700, color: isDarkMode ? '#475569' : '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Category</div>
+                              <div style={{ fontSize: 10, fontWeight: 700, color: isDarkMode ? '#475569' : '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Ангилал</div>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                                {categories.filter(cat => !cat.parent || (typeof cat.parent === 'object' && cat.parent === null)).map(cat => (
-                                  <button key={cat._id} type="button" onClick={() => handleParentCategoryChange({ target: { value: cat._id } })}
-                                    style={{ textAlign: 'left', background: parentCategory === cat._id ? '#eff6ff' : 'transparent', color: parentCategory === cat._id ? 'var(--bn-primary)' : (isDarkMode ? '#cbd5e1' : '#475569'), border: 'none', borderRadius: 5, padding: '6px 10px', fontSize: 13, cursor: 'pointer', fontWeight: parentCategory === cat._id ? 700 : 400 }}>
-                                    {getCategoryLabel(cat)}
-                                  </button>
-                                ))}
+                                {categories
+                                  .filter(cat => !cat.parent || (typeof cat.parent === 'object' && cat.parent === null))
+                                  .filter(cat => !categoryKeyword.trim() || getCategoryLabel(cat).toLowerCase().includes(categoryKeyword.toLowerCase()))
+                                  .map(cat => (
+                                    <button key={cat._id} type="button" onClick={() => handleParentCategoryChange({ target: { value: cat._id } })}
+                                      style={{ textAlign: 'left', background: parentCategory === cat._id ? '#eff6ff' : 'transparent', color: parentCategory === cat._id ? 'var(--bn-primary)' : (isDarkMode ? '#cbd5e1' : '#475569'), border: 'none', borderRadius: 5, padding: '6px 10px', fontSize: 13, cursor: 'pointer', fontWeight: parentCategory === cat._id ? 700 : 400 }}>
+                                      {getCategoryLabel(cat)}
+                                    </button>
+                                  ))}
                               </div>
                             </div>
                             <div style={{ flex: 1, borderRight: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`, padding: '10px 12px', maxHeight: 180, overflowY: 'auto' }}>
-                              <div style={{ fontSize: 10, fontWeight: 700, color: isDarkMode ? '#475569' : '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Subcategory</div>
+                              <div style={{ fontSize: 10, fontWeight: 700, color: isDarkMode ? '#475569' : '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Дэд ангилал</div>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                                 {subcategories.length === 0
-                                  ? <div style={{ fontSize: 12, color: isDarkMode ? '#64748b' : '#94a3b8', padding: '6px 10px' }}>Эхлээд ангилал сонгоно уу</div>
-                                  : subcategories.map(sub => (
-                                    <button key={sub._id} type="button" onClick={() => setFormData(prev => ({ ...prev, category: sub._id }))}
-                                      style={{ textAlign: 'left', background: formData.category === sub._id ? '#eff6ff' : 'transparent', color: formData.category === sub._id ? 'var(--bn-primary)' : (isDarkMode ? '#cbd5e1' : '#475569'), border: 'none', borderRadius: 5, padding: '6px 10px', fontSize: 13, cursor: 'pointer', fontWeight: formData.category === sub._id ? 700 : 400 }}>
-                                      {getCategoryLabel(sub)}
-                                    </button>
-                                  ))}
+                                  ? <div style={{ fontSize: 12, color: isDarkMode ? '#64748b' : '#94a3b8', padding: '6px 10px' }}>
+                                      {parentCategory ? '✓ Ангилал сонгогдсон' : 'Эхлээд ангилал сонгоно уу'}
+                                    </div>
+                                  : subcategories
+                                      .filter(sub => !categoryKeyword.trim() || getCategoryLabel(sub).toLowerCase().includes(categoryKeyword.toLowerCase()))
+                                      .map(sub => (
+                                        <button key={sub._id} type="button" onClick={() => setFormData(prev => ({ ...prev, category: sub._id }))}
+                                          style={{ textAlign: 'left', background: formData.category === sub._id ? '#eff6ff' : 'transparent', color: formData.category === sub._id ? 'var(--bn-primary)' : (isDarkMode ? '#cbd5e1' : '#475569'), border: 'none', borderRadius: 5, padding: '6px 10px', fontSize: 13, cursor: 'pointer', fontWeight: formData.category === sub._id ? 700 : 400 }}>
+                                          {getCategoryLabel(sub)}
+                                        </button>
+                                      ))}
                               </div>
                             </div>
                             <div style={{ flex: '0 0 130px', padding: '10px 12px' }}>
@@ -1392,13 +1457,16 @@ useEffect(() => {
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                         <div>
-                          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: isDarkMode ? '#94a3b8' : '#475569', marginBottom: 6 }}>Condition</label>
-                          <select name="condition" value={formData.condition} onChange={handleChange}
-                            style={{ width: '100%', padding: '10px 14px', border: `1.5px solid ${isDarkMode ? '#475569' : '#e2e8f0'}`, borderRadius: 8, background: isDarkMode ? '#0f172a' : '#f8fafc', color: isDarkMode ? '#f1f5f9' : '#1e293b', fontSize: 14, outline: 'none' }}>
-                            <option value="">Төлөв сонгоно уу</option>
-                            <option value="new">New</option>
-                            <option value="used">Used</option>
-                          </select>
+                          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: isDarkMode ? '#94a3b8' : '#475569', marginBottom: 6 }}>Төлөв</label>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+                            {[{ value: '', label: '—' }, { value: 'new', label: '✨ Шинэ' }, { value: 'used', label: '🔄 Хэрэглэсэн' }].map(opt => (
+                              <button key={opt.value} type="button"
+                                onClick={() => setFormData(prev => ({ ...prev, condition: opt.value }))}
+                                style={{ padding: '8px 6px', border: `2px solid ${formData.condition === opt.value ? 'var(--bn-primary)' : (isDarkMode ? '#475569' : '#e2e8f0')}`, borderRadius: 8, background: formData.condition === opt.value ? '#eff6ff' : 'transparent', color: formData.condition === opt.value ? 'var(--bn-primary)' : (isDarkMode ? '#94a3b8' : '#64748b'), fontWeight: formData.condition === opt.value ? 700 : 500, fontSize: 12, cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s' }}>
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                         <div>
                           <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: isDarkMode ? '#94a3b8' : '#475569', marginBottom: 6 }}>Хаанаас хүргэх</label>
@@ -1441,11 +1509,62 @@ useEffect(() => {
                             </button>
                           </div>
                         )}
-                        <textarea rows={5} name="description" value={formData.description} onChange={handleChange} placeholder="Барааны төлөв, брэнд, хэмжээ болон бусад мэдээллийг тайлбарлана уу." required
+                        <textarea rows={5} name="description" value={formData.description} onChange={handleChange} placeholder="Барааны төлөв, брэнд, хэмжээ болон бусад мэдээллийг тайлбарлана уу." required maxLength={2000}
                           style={{ width: '100%', padding: '10px 14px', border: `1.5px solid ${isDarkMode ? '#475569' : '#e2e8f0'}`, borderRadius: 8, background: isDarkMode ? '#0f172a' : '#f8fafc', color: isDarkMode ? '#f1f5f9' : '#1e293b', fontSize: 14, boxSizing: 'border-box', outline: 'none', resize: 'vertical' }} />
+                        <div style={{ textAlign: 'right', marginTop: 4, fontSize: 11, color: formData.description.length > 1800 ? '#ef4444' : (isDarkMode ? '#475569' : '#94a3b8') }}>{formData.description.length}/2000</div>
                       </div>
                     </div>
                   </div>
+
+                  {/* Dynamic category-specific fields — driven by category.fieldSchema */}
+                  {selectedCategorySchema.length > 0 && (
+                    <div style={{ background: isDarkMode ? '#1e293b' : '#fff', borderRadius: 14, border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`, overflow: 'hidden' }}>
+                      <div style={{ padding: '14px 20px', borderBottom: `1px solid ${isDarkMode ? '#334155' : '#f1f5f9'}` }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--bn-primary)', textTransform: 'uppercase', letterSpacing: 1 }}>
+                          {categories.find(c => c._id === formData.category)?.titleMn || 'Нэмэлт мэдээлэл'}
+                        </div>
+                      </div>
+                      <div style={{ padding: 20, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                        {selectedCategorySchema.filter(field => !(field.key in autoFilledKeys)).map(field => {
+                          const val = formData.specs[field.key] ?? '';
+                          const setVal = (v) => setFormData(prev => ({ ...prev, specs: { ...prev.specs, [field.key]: v } }));
+                          const inputStyle = { width: '100%', padding: '10px 14px', border: `1.5px solid ${isDarkMode ? '#475569' : '#e2e8f0'}`, borderRadius: 8, background: isDarkMode ? '#0f172a' : '#f8fafc', color: isDarkMode ? '#f1f5f9' : '#1e293b', fontSize: 14, boxSizing: 'border-box', outline: 'none' };
+                          return (
+                            <div key={field.key} style={field.type === 'boolean' ? { gridColumn: 'span 1' } : {}}>
+                              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: isDarkMode ? '#94a3b8' : '#475569', marginBottom: 6 }}>
+                                {field.labelMn}{field.required && ' *'}{field.unit && ` (${field.unit})`}
+                              </label>
+                              {field.type === 'select' ? (
+                                <select value={val} onChange={e => setVal(e.target.value)} style={inputStyle}>
+                                  <option value="">Сонгох...</option>
+                                  {(field.options || []).map(opt => (
+                                    <option key={opt.value} value={opt.value}>{opt.labelMn}</option>
+                                  ))}
+                                </select>
+                              ) : field.type === 'boolean' ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', border: `1.5px solid ${isDarkMode ? '#475569' : '#e2e8f0'}`, borderRadius: 8, background: isDarkMode ? '#0f172a' : '#f8fafc', cursor: 'pointer' }}
+                                  onClick={() => setVal(val === 'true' ? 'false' : 'true')}>
+                                  <div style={{ width: 18, height: 18, borderRadius: 4, border: `2px solid ${val === 'true' ? 'var(--bn-primary)' : (isDarkMode ? '#475569' : '#cbd5e1')}`, background: val === 'true' ? 'var(--bn-primary)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                    {val === 'true' && <span style={{ color: '#fff', fontSize: 11, fontWeight: 700 }}>✓</span>}
+                                  </div>
+                                  <span style={{ fontSize: 13, color: isDarkMode ? '#94a3b8' : '#475569' }}>{field.labelMn}</span>
+                                </div>
+                              ) : (
+                                <input
+                                  type={field.type === 'number' ? 'number' : 'text'}
+                                  value={val}
+                                  onChange={e => setVal(e.target.value)}
+                                  required={field.required}
+                                  style={inputStyle}
+                                />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                 </div>
 
                 {/* RIGHT COLUMN */}
@@ -1468,17 +1587,40 @@ useEffect(() => {
                       {formData.sellType === 'auction' ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                           <div>
-                            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: isDarkMode ? '#94a3b8' : '#475569', marginBottom: 6 }}>Эхлэх үнэ (MNT) *</label>
-                            <input type="text" name="startingBid" value={formData.startingBid} onChange={handleChange} placeholder="0" required
-                              style={{ width: '100%', padding: '10px 14px', border: `1.5px solid ${isDarkMode ? '#475569' : '#e2e8f0'}`, borderRadius: 8, background: isDarkMode ? '#0f172a' : '#f8fafc', color: isDarkMode ? '#f1f5f9' : '#1e293b', fontSize: 14, boxSizing: 'border-box', outline: 'none' }} />
+                            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: isDarkMode ? '#94a3b8' : '#475569', marginBottom: 6 }}>Эхлэх үнэ *</label>
+                            <div style={{ position: 'relative' }}>
+                              <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 14, fontWeight: 700, color: isDarkMode ? '#64748b' : '#94a3b8', pointerEvents: 'none' }}>₮</span>
+                              <input type="text" name="startingBid" value={formData.startingBid} onChange={handleChange} placeholder="0" required
+                                style={{ width: '100%', padding: '10px 14px 10px 28px', border: `1.5px solid ${isDarkMode ? '#475569' : '#e2e8f0'}`, borderRadius: 8, background: isDarkMode ? '#0f172a' : '#f8fafc', color: isDarkMode ? '#f1f5f9' : '#1e293b', fontSize: 14, boxSizing: 'border-box', outline: 'none' }} />
+                            </div>
                           </div>
                           <div>
-                            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: isDarkMode ? '#94a3b8' : '#475569', marginBottom: 6 }}>Хугацаа *</label>
-                            <select name="duration" value={formData.duration || ''} onChange={handleChange} required
-                              style={{ width: '100%', padding: '10px 14px', border: `1.5px solid ${isDarkMode ? '#475569' : '#e2e8f0'}`, borderRadius: 8, background: isDarkMode ? '#0f172a' : '#f8fafc', color: isDarkMode ? '#f1f5f9' : '#1e293b', fontSize: 14, outline: 'none' }}>
-                              <option value="">Сонгоно уу</option>
-                              {['1','3','5','7','10','14'].map(d => <option key={d} value={d}>{d} өдөр</option>)}
-                            </select>
+                            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: isDarkMode ? '#94a3b8' : '#475569', marginBottom: 6 }}>
+                              Шууд зарагдах үнэ <span style={{ fontWeight: 400, color: isDarkMode ? '#64748b' : '#94a3b8' }}>(заавал биш)</span>
+                            </label>
+                            <div style={{ position: 'relative' }}>
+                              <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 14, fontWeight: 700, color: isDarkMode ? '#64748b' : '#94a3b8', pointerEvents: 'none' }}>₮</span>
+                              <input type="text" name="buyNowPrice" value={formData.buyNowPrice} onChange={handleChange} placeholder="0 — орхивол идэвхгүй"
+                                style={{ width: '100%', padding: '10px 14px 10px 28px', border: `1.5px solid ${isDarkMode ? '#475569' : '#e2e8f0'}`, borderRadius: 8, background: isDarkMode ? '#0f172a' : '#f8fafc', color: isDarkMode ? '#f1f5f9' : '#1e293b', fontSize: 14, boxSizing: 'border-box', outline: 'none' }} />
+                            </div>
+                            <div style={{ fontSize: 11, color: isDarkMode ? '#64748b' : '#94a3b8', marginTop: 4 }}>
+                              Энэ үнэ тавьсан хэрэглэгч дуудлагыг нэн даруй дуусгана
+                            </div>
+                          </div>
+                          <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                              <label style={{ fontSize: 13, fontWeight: 600, color: isDarkMode ? '#94a3b8' : '#475569' }}>Хугацаа *</label>
+                              {formData.duration && <span style={{ fontSize: 11, color: 'var(--bn-primary)', fontWeight: 600 }}>{formData.duration} өдөр</span>}
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 5 }}>
+                              {['1','3','5','7','10','14'].map(d => (
+                                <button key={d} type="button"
+                                  onClick={() => setFormData(prev => ({ ...prev, duration: d }))}
+                                  style={{ padding: '8px 4px', border: `2px solid ${formData.duration === d ? 'var(--bn-primary)' : (isDarkMode ? '#475569' : '#e2e8f0')}`, borderRadius: 8, background: formData.duration === d ? '#eff6ff' : 'transparent', color: formData.duration === d ? 'var(--bn-primary)' : (isDarkMode ? '#94a3b8' : '#64748b'), fontWeight: formData.duration === d ? 700 : 500, fontSize: 12, cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s', lineHeight: 1.2 }}>
+                                  {d}<br /><span style={{ fontSize: 9, opacity: 0.7 }}>өдөр</span>
+                                </button>
+                              ))}
+                            </div>
                           </div>
                           <div>
                             <div style={{ fontSize: 13, fontWeight: 600, color: isDarkMode ? '#94a3b8' : '#475569', marginBottom: 8 }}>Эхлэх цаг</div>
@@ -1515,9 +1657,12 @@ useEffect(() => {
                         </div>
                       ) : (
                         <div>
-                          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: isDarkMode ? '#94a3b8' : '#475569', marginBottom: 6 }}>Тогтмол үнэ (MNT) *</label>
-                          <input type="text" name="price" value={formData.price} onChange={handleChange} placeholder="0" required
-                            style={{ width: '100%', padding: '10px 14px', border: `1.5px solid ${isDarkMode ? '#475569' : '#e2e8f0'}`, borderRadius: 8, background: isDarkMode ? '#0f172a' : '#f8fafc', color: isDarkMode ? '#f1f5f9' : '#1e293b', fontSize: 14, boxSizing: 'border-box', outline: 'none' }} />
+                          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: isDarkMode ? '#94a3b8' : '#475569', marginBottom: 6 }}>Тогтмол үнэ *</label>
+                          <div style={{ position: 'relative' }}>
+                            <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 14, fontWeight: 700, color: isDarkMode ? '#64748b' : '#94a3b8', pointerEvents: 'none' }}>₮</span>
+                            <input type="text" name="price" value={formData.price} onChange={handleChange} placeholder="0" required
+                              style={{ width: '100%', padding: '10px 14px 10px 28px', border: `1.5px solid ${isDarkMode ? '#475569' : '#e2e8f0'}`, borderRadius: 8, background: isDarkMode ? '#0f172a' : '#f8fafc', color: isDarkMode ? '#f1f5f9' : '#1e293b', fontSize: 14, boxSizing: 'border-box', outline: 'none' }} />
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1535,7 +1680,7 @@ useEffect(() => {
                     </button>
                     {editingProductId && (
                       <button type="button"
-                        onClick={() => { setEditingProductId(null); setFormData({ title: '', description: '', price: '', startingBid: '', sellType: 'auction', category: '', height: '', length: '', width: '', weight: '', bidThreshold: '', bidDeadline: '', images: [], duration: '', endTime: '', manufacturer: '', model: '', year: '', mileage: '', engineSize: '', fuelType: '', transmission: '', color: '', condition: '', startMode: 'immediate', scheduledDate: '', scheduledTime: '', shippingOrigin: '' }); toast.info('Засвар цуцлагдлаа'); }}
+                        onClick={() => { setEditingProductId(null); setFormData({ title: '', description: '', price: '', startingBid: '', buyNowPrice: '', sellType: 'auction', category: '', height: '', length: '', width: '', weight: '', bidThreshold: '', bidDeadline: '', images: [], duration: '', endTime: '', condition: '', startMode: 'immediate', scheduledDate: '', scheduledTime: '', shippingOrigin: '', specs: {} }); toast.info('Засвар цуцлагдлаа'); }}
                         style={{ width: '100%', padding: 11, background: 'transparent', color: '#64748b', border: '1.5px solid #e2e8f0', borderRadius: 10, fontSize: 14, cursor: 'pointer' }}>
                         {t('cancel')}
                       </button>
@@ -1628,6 +1773,12 @@ useEffect(() => {
                             <button onClick={() => { const np = { ...product }; delete np._id; np.sold = false; np.auctionStatus = 'active'; np.currentBid = 0; handleEditProduct(np); setEditingProductId(null); toast.info('Шинэ зар үүсгэж байна'); }} style={{ flex: '1 0 auto', padding: '5px 8px', background: '#f0fdf4', border: 'none', borderRadius: 5, fontSize: 11, color: '#16a34a', fontWeight: 600, cursor: 'pointer' }}>Дахин зарах</button>
                           </>)}
                           {!product.sold && <button onClick={() => handleDeleteProduct(product._id)} style={{ flex: '1 0 auto', padding: '5px 8px', background: '#fef2f2', border: 'none', borderRadius: 5, fontSize: 11, color: '#dc2626', fontWeight: 600, cursor: 'pointer' }}>Устгах</button>}
+                          {product.sold && (
+                            <button onClick={() => setUbCabModal({ product, deliveryChoice: null, address: '', pickupTime: 'now', dispatched: false })}
+                              style={{ flex: '1 0 auto', padding: '5px 8px', background: '#fef9c3', border: 'none', borderRadius: 5, fontSize: 11, color: '#854d0e', fontWeight: 700, cursor: 'pointer' }}>
+                              🚕 Хүргэх
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -2002,6 +2153,134 @@ useEffect(() => {
               Болих
             </button>
           </div>
+        </div>
+      </div>
+    )}
+
+    {/* UB Cab dispatch modal */}
+    {ubCabModal && (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+        onClick={e => { if (e.target === e.currentTarget) setUbCabModal(null); }}>
+        <div style={{ background: isDarkMode ? '#1e293b' : '#fff', borderRadius: 20, width: '100%', maxWidth: 420, boxShadow: '0 24px 64px rgba(0,0,0,0.35)', overflow: 'hidden' }}>
+
+          {ubCabModal.dispatched ? (
+            /* ── Success state ── */
+            <div style={{ padding: 32, textAlign: 'center' }}>
+              <div style={{ fontSize: 52, marginBottom: 12 }}>🚕</div>
+              <h3 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 800, color: isDarkMode ? '#f1f5f9' : '#1e293b' }}>Cab захиалагдлаа!</h3>
+              <p style={{ margin: '0 0 6px', fontSize: 14, color: isDarkMode ? '#94a3b8' : '#64748b' }}>Жолооч таны байршил руу явж байна.</p>
+              <div style={{ margin: '20px 0', background: isDarkMode ? '#0f172a' : '#f8fafc', borderRadius: 12, padding: '14px 18px', textAlign: 'left', border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <span style={{ fontSize: 12, color: isDarkMode ? '#64748b' : '#94a3b8' }}>Авах хаяг</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: isDarkMode ? '#f1f5f9' : '#1e293b' }}>{ubCabModal.address || 'Одоогийн байршил'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <span style={{ fontSize: 12, color: isDarkMode ? '#64748b' : '#94a3b8' }}>Авах цаг</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: isDarkMode ? '#f1f5f9' : '#1e293b' }}>
+                    {ubCabModal.pickupTime === 'now' ? 'Одоо' : ubCabModal.pickupTime === '15' ? '15 минутын дараа' : '30 минутын дараа'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 12, color: isDarkMode ? '#64748b' : '#94a3b8' }}>Тооцоолсон хөлс</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#16a34a' }}>₮ 6,500</span>
+                </div>
+              </div>
+              <button onClick={() => setUbCabModal(null)}
+                style={{ width: '100%', padding: '12px 0', background: 'var(--bn-primary)', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                Хаах
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* ── Header ── */}
+              <div style={{ background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)', padding: '20px 24px' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>✅ Зарагдлаа</div>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ubCabModal.product.title}</h3>
+                <div style={{ marginTop: 4, fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>
+                  ₮ {(ubCabModal.product.currentBid || ubCabModal.product.price || 0).toLocaleString()} · Худалдан авагч хүлээж байна
+                </div>
+              </div>
+
+              <div style={{ padding: 24 }}>
+                {/* ── Delivery choice ── */}
+                <div style={{ fontSize: 13, fontWeight: 700, color: isDarkMode ? '#94a3b8' : '#475569', marginBottom: 10 }}>Хэрхэн хүргэх вэ?</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
+                  {[
+                    { id: 'self', icon: '🚶', label: 'Өөрөө хүргэх', sub: 'Үнэгүй' },
+                    { id: 'cab',  icon: '🚕', label: 'UB Cab дуудах', sub: '₮ 5,000–9,000' },
+                  ].map(opt => (
+                    <button key={opt.id} type="button"
+                      onClick={() => setUbCabModal(m => ({ ...m, deliveryChoice: opt.id }))}
+                      style={{ padding: '14px 10px', border: `2px solid ${ubCabModal.deliveryChoice === opt.id ? (opt.id === 'cab' ? '#f59e0b' : 'var(--bn-primary)') : (isDarkMode ? '#475569' : '#e2e8f0')}`, borderRadius: 12, background: ubCabModal.deliveryChoice === opt.id ? (opt.id === 'cab' ? '#fef9c3' : '#eff6ff') : 'transparent', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s' }}>
+                      <div style={{ fontSize: 22, marginBottom: 4 }}>{opt.icon}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: isDarkMode ? '#f1f5f9' : '#1e293b' }}>{opt.label}</div>
+                      <div style={{ fontSize: 11, color: isDarkMode ? '#64748b' : '#94a3b8', marginTop: 2 }}>{opt.sub}</div>
+                    </button>
+                  ))}
+                </div>
+
+                {/* ── Cab options (only when cab selected) ── */}
+                {ubCabModal.deliveryChoice === 'cab' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: isDarkMode ? '#94a3b8' : '#475569', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Авах хаяг</label>
+                      <div style={{ position: 'relative' }}>
+                        <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 14 }}>📍</span>
+                        <input
+                          type="text"
+                          placeholder="Одоогийн байршил ашиглах..."
+                          value={ubCabModal.address}
+                          onChange={e => setUbCabModal(m => ({ ...m, address: e.target.value }))}
+                          style={{ width: '100%', padding: '10px 14px 10px 34px', border: `1.5px solid ${isDarkMode ? '#475569' : '#e2e8f0'}`, borderRadius: 8, background: isDarkMode ? '#0f172a' : '#f8fafc', color: isDarkMode ? '#f1f5f9' : '#1e293b', fontSize: 13, boxSizing: 'border-box', outline: 'none' }}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: isDarkMode ? '#94a3b8' : '#475569', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Cab авах цаг</label>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                        {[{ id: 'now', label: 'Одоо', sub: '~5 мин' }, { id: '15', label: '15 мин', sub: 'дараа' }, { id: '30', label: '30 мин', sub: 'дараа' }].map(opt => (
+                          <button key={opt.id} type="button"
+                            onClick={() => setUbCabModal(m => ({ ...m, pickupTime: opt.id }))}
+                            style={{ padding: '9px 6px', border: `2px solid ${ubCabModal.pickupTime === opt.id ? '#f59e0b' : (isDarkMode ? '#475569' : '#e2e8f0')}`, borderRadius: 8, background: ubCabModal.pickupTime === opt.id ? '#fef9c3' : 'transparent', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s' }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: ubCabModal.pickupTime === opt.id ? '#854d0e' : (isDarkMode ? '#f1f5f9' : '#1e293b') }}>{opt.label}</div>
+                            <div style={{ fontSize: 10, color: isDarkMode ? '#64748b' : '#94a3b8' }}>{opt.sub}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div style={{ background: isDarkMode ? '#0f172a' : '#fef9c3', border: `1px solid ${isDarkMode ? '#334155' : '#fde68a'}`, borderRadius: 8, padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 13, color: isDarkMode ? '#fde68a' : '#854d0e' }}>Тооцоолсон хөлс</span>
+                      <span style={{ fontSize: 15, fontWeight: 800, color: isDarkMode ? '#fde68a' : '#854d0e' }}>₮ 5,000 – ₮ 9,000</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Actions ── */}
+                <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+                  {ubCabModal.deliveryChoice === 'cab' && (
+                    <button
+                      onClick={() => setUbCabModal(m => ({ ...m, dispatched: true }))}
+                      style={{ flex: 1, padding: '12px 0', background: '#f59e0b', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                      🚕 Cab захиалах
+                    </button>
+                  )}
+                  {ubCabModal.deliveryChoice === 'self' && (
+                    <button
+                      onClick={() => { toast.success('Өөрөө хүргэнэ гэж тэмдэглэгдлээ.'); setUbCabModal(null); }}
+                      style={{ flex: 1, padding: '12px 0', background: 'var(--bn-primary)', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                      Баталгаажуулах
+                    </button>
+                  )}
+                  <button onClick={() => setUbCabModal(null)}
+                    style={{ padding: '12px 16px', background: 'transparent', border: `1.5px solid ${isDarkMode ? '#475569' : '#e2e8f0'}`, borderRadius: 10, fontSize: 14, color: isDarkMode ? '#94a3b8' : '#64748b', cursor: 'pointer' }}>
+                    Болих
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     )}

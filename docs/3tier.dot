@@ -1,0 +1,101 @@
+digraph ThreeTier {
+  graph [
+    rankdir=TB,
+    fontname="Arial",
+    fontsize=16,
+    nodesep=0.6,
+    ranksep=0.8,
+    bgcolor="white",
+    splines=polyline
+  ];
+
+  node [
+    shape=none,
+    fontname="Arial",
+    fontsize=15,
+    margin=0
+  ];
+
+  edge [
+    fontname="Arial Bold",
+    fontsize=14,
+    color="#555555",
+    arrowsize=1.2,
+    penwidth=2.0,
+    arrowhead=vee
+  ];
+
+  // ── CLIENT LAYER ─────────────────────────────────────────────────────
+  Client [label=<
+    <TABLE BORDER="2" CELLBORDER="0" CELLSPACING="6" CELLPADDING="10"
+           BGCOLOR="#EBF5FB" COLOR="#2E86AB" STYLE="rounded">
+      <TR>
+        <TD COLSPAN="2" BGCOLOR="#2E86AB" ALIGN="CENTER">
+          <FONT COLOR="white" POINT-SIZE="17"><B>CLIENT LAYER (Presentation)</B></FONT>
+        </TD>
+      </TR>
+      <TR>
+        <TD ALIGN="CENTER" BGCOLOR="#D6EAF8" STYLE="rounded">
+          <FONT POINT-SIZE="15">🌐 <B>React Web</B><BR/>
+          Vite · Tailwind CSS<BR/>
+          Socket.io-client</FONT>
+        </TD>
+        <TD ALIGN="CENTER" BGCOLOR="#D6EAF8" STYLE="rounded">
+          <FONT POINT-SIZE="15">📱 <B>React Native</B><BR/>
+          Expo SDK 54<BR/>
+          Expo Router v6</FONT>
+        </TD>
+      </TR>
+    </TABLE>
+  >];
+
+  // ── APPLICATION LAYER ────────────────────────────────────────────────
+  App [label=<
+    <TABLE BORDER="2" CELLBORDER="0" CELLSPACING="6" CELLPADDING="10"
+           BGCOLOR="#E9F7EF" COLOR="#1E8449" STYLE="rounded">
+      <TR>
+        <TD COLSPAN="3" BGCOLOR="#1E8449" ALIGN="CENTER">
+          <FONT COLOR="white" POINT-SIZE="17"><B>APPLICATION LAYER (Business Logic)</B></FONT>
+        </TD>
+      </TR>
+      <TR>
+        <TD ALIGN="CENTER" BGCOLOR="#D5F5E3" STYLE="rounded">
+          <FONT POINT-SIZE="15"><B>Node.js</B><BR/>Express.js<BR/>REST API</FONT>
+        </TD>
+        <TD ALIGN="CENTER" BGCOLOR="#D5F5E3" STYLE="rounded">
+          <FONT POINT-SIZE="15"><B>Socket.IO</B><BR/>Real-time<BR/>Bidding</FONT>
+        </TD>
+        <TD ALIGN="CENTER" BGCOLOR="#D5F5E3" STYLE="rounded">
+          <FONT POINT-SIZE="15"><B>Services</B><BR/>JWT · bcrypt<BR/>Cron Jobs</FONT>
+        </TD>
+      </TR>
+    </TABLE>
+  >];
+
+  // ── DATA LAYER ────────────────────────────────────────────────────────
+  Data [label=<
+    <TABLE BORDER="2" CELLBORDER="0" CELLSPACING="6" CELLPADDING="10"
+           BGCOLOR="#FEF9E7" COLOR="#D4A017" STYLE="rounded">
+      <TR>
+        <TD COLSPAN="3" BGCOLOR="#D4A017" ALIGN="CENTER">
+          <FONT COLOR="white" POINT-SIZE="17"><B>DATA LAYER (Persistence)</B></FONT>
+        </TD>
+      </TR>
+      <TR>
+        <TD ALIGN="CENTER" BGCOLOR="#FDEBD0" STYLE="rounded">
+          <FONT POINT-SIZE="15"><B>MongoDB Atlas</B><BR/>11 Collections<BR/>Mongoose ODM</FONT>
+        </TD>
+        <TD ALIGN="CENTER" BGCOLOR="#FDEBD0" STYLE="rounded">
+          <FONT POINT-SIZE="15"><B>Cloudinary</B><BR/>Image Storage<BR/>CDN</FONT>
+        </TD>
+        <TD ALIGN="CENTER" BGCOLOR="#FDEBD0" STYLE="rounded">
+          <FONT POINT-SIZE="15"><B>Firebase</B><BR/>Phone Auth<BR/>FCM Push</FONT>
+        </TD>
+      </TR>
+    </TABLE>
+  >];
+
+  // ── Arrows ─────────────────────────────────────────────────────────────
+  Client -> App [xlabel="  REST (HTTPS) / WebSocket  "];
+  App    -> Data [xlabel="  Mongoose / Cloudinary SDK  "];
+}

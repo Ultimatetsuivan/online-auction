@@ -306,6 +306,12 @@ export default function ProfileScreen() {
         {/* Saved & Settings */}
         <View style={[styles.menuSection, { backgroundColor: themeColors.sectionBg }]}>
           <MenuItem
+            icon="notifications"
+            title="Мэдэгдлүүд"
+            onPress={() => router.push("/(hidden)/notifications-inbox")}
+            themeColors={themeColors}
+          />
+          <MenuItem
             icon="heart-outline"
             title="Таалагдсан"
             onPress={() => router.push("/(tabs)/notifications")}

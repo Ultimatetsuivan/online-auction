@@ -5,12 +5,14 @@ import { useToast } from '../../../components/common/Toast';
 import { buildApiUrl } from '../../../config/api';
 import { useTheme } from '../../../context/ThemeContext';
 import { Button } from '../../../components/design-system';
+import { RegistrationNumberInput } from '../../../components/RegistrationNumberInput';
 
 export const Register = () => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
+    registrationNumber: '',
     password: '',
     confirmPassword: ''
   });
@@ -127,7 +129,7 @@ export const Register = () => {
       }
     } catch (error) {
       setErrors({
-        submit: error.response?.data?.message || 'Google нэвтрэлт амжилтгүй боллоо'
+        submit: error.response?.data?.error || error.response?.data?.message || 'Google нэвтрэлт амжилтгүй боллоо'
       });
     } finally {
       setIsGoogleLoading(false);
@@ -144,7 +146,7 @@ export const Register = () => {
 
   const validateForm = () => {
     const newErrors = {};
-    const { name, email, phone, password, confirmPassword } = formData;
+    const { name, email, phone, registrationNumber, password, confirmPassword } = formData;
 
     if (!name.trim()) newErrors.name = 'Нэрээ оруулна уу';
 
@@ -158,6 +160,10 @@ export const Register = () => {
       newErrors.phone = 'Утасны дугаараа оруулна уу';
     } else if (!/^[0-9]{8}$/.test(phone.trim())) {
       newErrors.phone = 'Зөв 8 оронтой утасны дугаар оруулна уу';
+    }
+
+    if (registrationNumber.trim() && !/^[А-ЯӨҮЁа-яөүё]{2}\d{8}$/.test(registrationNumber.trim())) {
+      newErrors.registrationNumber = 'Регистрийн дугаар буруу байна. Жишээ: УГ99999999';
     }
 
     if (!password) {
@@ -197,7 +203,7 @@ export const Register = () => {
       if (error.response?.status === 409) {
         setErrors({ email: 'Энэ имэйл хаяг аль хэдийн бүртгэлтэй байна' });
       } else {
-        setErrors({ submit: error.response?.data?.message || 'Код илгээхэд алдаа гарлаа' });
+        setErrors({ submit: error.response?.data?.error || error.response?.data?.message || 'Код илгээхэд алдаа гарлаа' });
       }
     } finally {
       setIsSubmitting(false);
@@ -224,7 +230,8 @@ export const Register = () => {
       const { confirmPassword, ...userData } = formData;
       const normalizedUserData = {
         ...userData,
-        email: registeredEmail, // Use the normalized email
+        email: registeredEmail,
+        registrationNumber: userData.registrationNumber.trim() || undefined,
         acceptEula: true
       };
 
@@ -247,7 +254,7 @@ export const Register = () => {
       }
     } catch (error) {
       console.error('Verification error:', error);
-      const errorMessage = error.response?.data?.message || 'Баталгаажуулах код буруу байна';
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Баталгаажуулах код буруу байна';
       setErrors({ submit: errorMessage });
       toast.error(errorMessage);
     } finally {
@@ -264,7 +271,7 @@ export const Register = () => {
       toast.success('Баталгаажуулах шинэ код имэйлээр илгээгдлээ!');
     } catch (error) {
       console.error('Resend code error:', error);
-      const errorMessage = error.response?.data?.message || 'Код дахин илгээхэд алдаа гарлаа';
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Код дахин илгээхэд алдаа гарлаа';
       setErrors({ submit: errorMessage });
       toast.error(errorMessage);
     }
@@ -478,6 +485,21 @@ export const Register = () => {
               />
               {errors.phone && <p className="text-bn-danger text-xs mt-1">{errors.phone}</p>}
               <p className="text-bn-text-secondary text-xs mt-1">8 оронтой утасны дугаар (жишээ: 99123456)</p>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-bn-text mb-1.5">
+                Регистрийн дугаар <span className="text-bn-text-secondary font-normal">(заавал биш)</span>
+              </label>
+              <RegistrationNumberInput
+                value={formData.registrationNumber}
+                onChange={(val) => {
+                  setFormData(prev => ({ ...prev, registrationNumber: val }));
+                  if (errors.registrationNumber) setErrors(prev => ({ ...prev, registrationNumber: null }));
+                }}
+                error={!!errors.registrationNumber}
+              />
+              {errors.registrationNumber && <p className="text-bn-danger text-xs mt-1">{errors.registrationNumber}</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-4 mb-4">

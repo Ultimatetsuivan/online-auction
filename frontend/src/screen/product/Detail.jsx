@@ -12,6 +12,15 @@ import { PriceHistoryChart } from '../../components/PriceHistoryChart';
 import { getErrorMessage, isConflictError } from '../../utils/errorHandler';
 import { post } from '../../utils/apiClient';
 
+function calcMinIncrement(startingPrice) {
+  if (startingPrice < 10000)    return 100;
+  if (startingPrice < 100000)   return 1000;
+  if (startingPrice < 1000000)  return 5000;
+  if (startingPrice < 10000000) return 50000;
+  if (startingPrice < 100000000) return 100000;
+  return 500000;
+}
+
 export const Details = () => {
   const toast = useToast();
   const { t } = useLanguage();
@@ -55,8 +64,13 @@ export const Details = () => {
   const [buyerInfo, setBuyerInfo] = useState(null);
   const [showWinModal, setShowWinModal] = useState(false);
   const [winData, setWinData] = useState(null);
-  const [depositInfo, setDepositInfo] = useState(null); // { depositRequired, hasDeposit, depositAmount }
+  const [depositInfo, setDepositInfo] = useState(null);
   const [depositLoading, setDepositLoading] = useState(false);
+  const [deliveryMethod, setDeliveryMethod] = useState('');
+  const [deliveryTracking, setDeliveryTracking] = useState('');
+  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [deliveryNote, setDeliveryNote] = useState('');
+  const [deliveryLoading, setDeliveryLoading] = useState(false);
   const historyPreviewCount = 8;
 
   const currentUser = useMemo(() => {
@@ -259,7 +273,7 @@ export const Details = () => {
         }
 
         const currentPrice = productInfo.data.currentBid || productInfo.data.price;
-        setUserBidAmount(currentPrice + Math.max(productInfo.data.minIncrement || 5000, 5000));
+        setUserBidAmount(currentPrice + calcMinIncrement(productInfo.data.price));
         fetchReviews(productId, productInfo.data.user?._id);
 
         // Fetch buyer info if owner and product is sold
@@ -301,13 +315,16 @@ export const Details = () => {
           user: prev.user || updatedProduct.user // Keep original user if available
         }));
         setReserveMet(!updatedProduct.reservePrice || (updatedProduct.currentBid || updatedProduct.price || 0) >= updatedProduct.reservePrice);
-        setUserBidAmount(updatedProduct.currentBid + Math.max(updatedProduct.minIncrement || 5000, 5000));
+        setUserBidAmount(updatedProduct.currentBid + calcMinIncrement(updatedProduct.price));
       }
     };
 
     const handleNewBidNotification = (newBid) => {
       if (newBid.product === productDetails._id) {
         setPastBids(previousBids => {
+          // Skip if already in list (own bid added optimistically on submit)
+          if (previousBids.some(b => b._id && b._id === newBid._id)) return previousBids;
+
           const updated = [newBid, ...previousBids];
 
           // Update winning status
@@ -376,7 +393,7 @@ export const Details = () => {
     // Unformat the bid amount to get the actual number
     const bidValue = parseFloat(unformatNumber(userBidAmount)) || 0;
 
-    const minimumBid = (productDetails.currentBid || productDetails.price) + Math.max(productDetails.minIncrement || 5000, 5000);
+    const minimumBid = (productDetails.currentBid || productDetails.price) + calcMinIncrement(productDetails.price);
     if (bidValue < minimumBid) {
       setBidError(`Та ₮${formatNumber(minimumBid.toString())}-аас дээш үнэ санал өгөх ёстой`);
       return;
@@ -445,11 +462,7 @@ export const Details = () => {
     }
   };
 
-  const handleOwnerManageShortcut = () => {
-    if (!productDetails) return;
-    localStorage.setItem('pendingProductManage', productDetails._id);
-    navigate(`/profile/tab/myProducts?highlight=${productDetails._id}`);
-  };
+  const handleOwnerManageShortcut = () => navigate('/profile/tab/myProducts');
 
   const handleBuyNow = async () => {
     const token = getAuthToken();
@@ -724,7 +737,14 @@ export const Details = () => {
 
             {/* Title + badges */}
             <div style={{ ...s.card, padding: 20 }}>
-              <h1 style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', margin: '0 0 12px', lineHeight: 1.35 }}>{productDetails.title}</h1>
+              <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: '0 0 10px', lineHeight: 1.3 }}>{productDetails.title}</h1>
+              {/* Brand highlight */}
+              {productDetails.itemSpecifics?.brand && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Брэнд</span>
+                  <span style={{ fontSize: 14, fontWeight: 800, color: '#0f172a' }}>{productDetails.itemSpecifics.brand}</span>
+                </div>
+              )}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {isFixedPrice
                   ? <span style={s.tag('#f0fdf4', '#16a34a')}>Тогтмол үнэ</span>
@@ -732,8 +752,11 @@ export const Details = () => {
                 {productDetails.sold
                   ? <span style={s.tag('#f1f5f9', '#64748b')}>Зарагдсан</span>
                   : <span style={s.tag('#f0fdf4', '#16a34a')}>Идэвхтэй</span>}
-                {(productDetails.category?.name || productDetails.category?.title) && (
-                  <span style={s.tag('#f1f5f9', '#475569')}>{productDetails.category?.name || productDetails.category?.title}</span>
+                {(productDetails.category?.titleMn || productDetails.category?.title) && (
+                  <span style={s.tag('#f1f5f9', '#475569')}>{productDetails.category?.titleMn || productDetails.category?.title}</span>
+                )}
+                {productDetails.condition && (
+                  <span style={s.tag('#eff6ff', '#3b82f6')}>{t(productDetails.condition)}</span>
                 )}
               </div>
             </div>
@@ -815,12 +838,12 @@ export const Details = () => {
                       </div>
                     )}
                     <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 8px' }}>
-                      Санал тавих (хамгийн бага ₮{formatNumber(((productDetails.currentBid || productDetails.price) + Math.max(productDetails.minIncrement || 5000, 5000)).toString())})
+                      Санал тавих (хамгийн бага ₮{formatNumber(((productDetails.currentBid || productDetails.price) + calcMinIncrement(productDetails.price)).toString())})
                     </p>
                     {/* Quick increment chips */}
                     {(() => {
                       const base = productDetails.currentBid || productDetails.price || 0;
-                      const inc = Math.max(productDetails.minIncrement || 5000, 5000);
+                      const inc = calcMinIncrement(productDetails.price);
                       const presets = [inc, inc * 2, inc * 5, inc * 10];
                       const disabled = depositInfo?.depositRequired && !depositInfo?.hasDeposit;
                       return (
@@ -841,7 +864,7 @@ export const Details = () => {
                     <div style={{ display: 'flex', gap: 8, marginBottom: 10, opacity: (depositInfo?.depositRequired && !depositInfo?.hasDeposit) ? 0.4 : 1 }}>
                       <div style={{ display: 'flex', border: '1.5px solid #e2e8f0', borderRadius: 10, overflow: 'hidden', flex: 1 }}>
                         <span style={{ display: 'flex', alignItems: 'center', padding: '0 13px', background: '#f8fafc', fontSize: 14, fontWeight: 700, color: '#64748b', borderRight: '1.5px solid #e2e8f0', flexShrink: 0 }}>₮</span>
-                        <input type="text" value={userBidAmount} onChange={(e) => setUserBidAmount(formatNumber(e.target.value))} placeholder={String((productDetails.currentBid || productDetails.price) + Math.max(productDetails.minIncrement || 5000, 5000))} disabled={depositInfo?.depositRequired && !depositInfo?.hasDeposit} style={{ flex: 1, padding: '11px 14px', border: 'none', outline: 'none', fontSize: 15, fontWeight: 600, color: '#0f172a', background: '#fff' }} />
+                        <input type="text" value={userBidAmount} onChange={(e) => setUserBidAmount(formatNumber(e.target.value))} placeholder={String((productDetails.currentBid || productDetails.price) + calcMinIncrement(productDetails.price))} disabled={depositInfo?.depositRequired && !depositInfo?.hasDeposit} style={{ flex: 1, padding: '11px 14px', border: 'none', outline: 'none', fontSize: 15, fontWeight: 600, color: '#0f172a', background: '#fff' }} />
                       </div>
                       <button onClick={submitBid} disabled={depositInfo?.depositRequired && !depositInfo?.hasDeposit} style={{ padding: '11px 20px', background: isUserOutbid ? '#dc2626' : 'var(--bn-primary)', color: '#fff', border: 'none', fontWeight: 700, fontSize: 14, cursor: (depositInfo?.depositRequired && !depositInfo?.hasDeposit) ? 'not-allowed' : 'pointer', borderRadius: 10, flexShrink: 0 }}>
                         {isUserOutbid ? 'Дахин санал тавих' : 'Санал тавих'}
@@ -899,66 +922,200 @@ export const Details = () => {
               </div>
             )}
 
-            {/* Owner — sold */}
-            {isOwner && productDetails.sold && (
-              <div style={{ ...s.card, padding: 20 }}>
-                <div style={{ textAlign: 'center', marginBottom: 16 }}>
-                  <div style={{ fontSize: 36, marginBottom: 8 }}>🎉</div>
-                  <p style={{ fontSize: 16, fontWeight: 700, color: '#16a34a', margin: '0 0 4px' }}>Бараа зарагдлаа!</p>
-                  <p style={{ fontSize: 26, fontWeight: 900, color: 'var(--bn-accent)', margin: '0 0 4px' }}>₮{formatNumber(productDetails.currentBid.toString())}</p>
-                  <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>{new Date(productDetails.soldAt).toLocaleString()} -д зарагдсан</p>
+            {/* Owner — sold + delivery management */}
+            {isOwner && productDetails.sold && (() => {
+              const ds = productDetails.deliveryStatus || 'pending';
+              const di = productDetails.deliveryInfo || {};
+              const statusLabel = { pending: 'Хүргэлт тохиролцоогүй', arranging: 'Тохиролцож байна', shipped: 'Хүргэгдсэн', delivered: '✓ Хүлээж авсан' }[ds] || ds;
+              const statusColor = { pending: '#f59e0b', arranging: '#3b82f6', shipped: '#8b5cf6', delivered: '#16a34a' }[ds] || '#64748b';
+
+              const handleSaveDelivery = async () => {
+                setDeliveryLoading(true);
+                try {
+                  const token = getAuthToken();
+                  await post(`/api/product/${productDetails._id}/delivery`, { method: deliveryMethod, trackingNumber: deliveryTracking, address: deliveryAddress, sellerNote: deliveryNote }, token);
+                  setProductDetails(prev => ({ ...prev, deliveryStatus: prev.deliveryStatus === 'pending' ? 'arranging' : prev.deliveryStatus, deliveryInfo: { ...prev.deliveryInfo, method: deliveryMethod, trackingNumber: deliveryTracking, address: deliveryAddress, sellerNote: deliveryNote } }));
+                  toast.success('Хүргэлтийн мэдээлэл хадгалагдлаа');
+                } catch { toast.error('Алдаа гарлаа'); } finally { setDeliveryLoading(false); }
+              };
+
+              const handleMarkShipped = async () => {
+                setDeliveryLoading(true);
+                try {
+                  const token = getAuthToken();
+                  await post(`/api/product/${productDetails._id}/delivery/ship`, {}, token);
+                  setProductDetails(prev => ({ ...prev, deliveryStatus: 'shipped', deliveryInfo: { ...prev.deliveryInfo, shippedAt: new Date().toISOString() } }));
+                  toast.success('Илгээсэн гэж тэмдэглэгдлээ');
+                } catch { toast.error('Алдаа гарлаа'); } finally { setDeliveryLoading(false); }
+              };
+
+              return (
+                <div style={{ ...s.card, padding: 20 }}>
+                  {/* Sold header */}
+                  <div style={{ textAlign: 'center', marginBottom: 16, paddingBottom: 14, borderBottom: '1px solid #f1f5f9' }}>
+                    <div style={{ fontSize: 32, marginBottom: 6 }}>🎉</div>
+                    <p style={{ fontSize: 15, fontWeight: 700, color: '#16a34a', margin: '0 0 4px' }}>Бараа зарагдлаа!</p>
+                    <p style={{ fontSize: 24, fontWeight: 900, color: 'var(--bn-accent)', margin: '0 0 4px' }}>₮{formatNumber(productDetails.currentBid.toString())}</p>
+                    <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 8px' }}>{new Date(productDetails.soldAt).toLocaleString('mn-MN')} -д зарагдсан</p>
+                    <span style={{ display: 'inline-block', background: `${statusColor}18`, color: statusColor, borderRadius: 999, padding: '3px 12px', fontSize: 12, fontWeight: 700 }}>{statusLabel}</span>
+                  </div>
+
+                  {/* Buyer contact */}
+                  {buyerInfo && (
+                    <div style={{ background: '#f8fafc', borderRadius: 10, padding: 12, marginBottom: 14 }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 8px' }}>Худалдан авагч</p>
+                      {[['Нэр', buyerInfo.name], ['И-мэйл', buyerInfo.email], ['Утас', buyerInfo.phone]].map(([label, val]) => (
+                        <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #f1f5f9' }}>
+                          <span style={{ fontSize: 12, color: '#94a3b8' }}>{label}</span>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{val || '—'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Delivery form — only if not yet delivered */}
+                  {ds !== 'delivered' && (
+                    <div style={{ background: '#eff6ff', borderRadius: 10, padding: 14, marginBottom: 12 }}>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: '#1d4ed8', margin: '0 0 12px' }}>📦 Хүргэлтийн мэдээлэл</p>
+                      <p style={{ fontSize: 11, color: '#64748b', margin: '0 0 8px' }}>Аргаа сонгоно уу</p>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+                        {[['meetup', '🤝 Биечлэн'], ['courier', '🚴 Курьер'], ['ubcab', '🚗 UB Cab'], ['mail', '📮 Шуудан']].map(([v, l]) => (
+                          <button key={v} onClick={() => setDeliveryMethod(v)}
+                            style={{ padding: '6px 12px', borderRadius: 8, border: `1.5px solid ${deliveryMethod === v ? '#3b82f6' : '#bfdbfe'}`, background: deliveryMethod === v ? '#3b82f6' : '#fff', color: deliveryMethod === v ? '#fff' : '#1d4ed8', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                            {l}
+                          </button>
+                        ))}
+                      </div>
+                      {deliveryMethod === 'meetup' && (
+                        <input placeholder="Уулзах цаг, байршил..." value={deliveryAddress} onChange={e => setDeliveryAddress(e.target.value)}
+                          style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #bfdbfe', borderRadius: 8, fontSize: 13, marginBottom: 8, boxSizing: 'border-box', outline: 'none' }} />
+                      )}
+                      {(deliveryMethod === 'courier' || deliveryMethod === 'ubcab') && (
+                        <>
+                          <input placeholder="Хүргэх хаяг..." value={deliveryAddress} onChange={e => setDeliveryAddress(e.target.value)}
+                            style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #bfdbfe', borderRadius: 8, fontSize: 13, marginBottom: 8, boxSizing: 'border-box', outline: 'none' }} />
+                          <input placeholder="Tracking дугаар (заавал биш)" value={deliveryTracking} onChange={e => setDeliveryTracking(e.target.value)}
+                            style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #bfdbfe', borderRadius: 8, fontSize: 13, marginBottom: 8, boxSizing: 'border-box', outline: 'none' }} />
+                        </>
+                      )}
+                      {deliveryMethod === 'mail' && (
+                        <input placeholder="Tracking дугаар..." value={deliveryTracking} onChange={e => setDeliveryTracking(e.target.value)}
+                          style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #bfdbfe', borderRadius: 8, fontSize: 13, marginBottom: 8, boxSizing: 'border-box', outline: 'none' }} />
+                      )}
+                      <textarea placeholder="Нэмэлт тайлбар..." value={deliveryNote} onChange={e => setDeliveryNote(e.target.value)} rows={2}
+                        style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #bfdbfe', borderRadius: 8, fontSize: 13, resize: 'none', marginBottom: 10, boxSizing: 'border-box', outline: 'none' }} />
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={handleSaveDelivery} disabled={!deliveryMethod || deliveryLoading}
+                          style={{ ...s.btn('#3b82f6', '#fff'), flex: 1, opacity: !deliveryMethod || deliveryLoading ? 0.5 : 1 }}>
+                          {deliveryLoading ? 'Хадгалж байна...' : 'Хадгалах'}
+                        </button>
+                        {ds === 'arranging' && (
+                          <button onClick={handleMarkShipped} disabled={deliveryLoading}
+                            style={{ ...s.btn('#16a34a', '#fff'), flex: 1, opacity: deliveryLoading ? 0.5 : 1 }}>
+                            Илгээсэн ✓
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {ds === 'delivered' && (
+                    <div style={{ background: '#f0fdf4', borderRadius: 10, padding: '12px 14px', marginBottom: 12, fontSize: 13, color: '#15803d', fontWeight: 600, textAlign: 'center' }}>
+                      ✓ Хүлээлгэн өгсөн — гүйлгээ дууссан
+                    </div>
+                  )}
+
+                  <button onClick={handleOwnerManageShortcut} style={{ ...s.btn('#f1f5f9', '#475569', '1.5px solid #e2e8f0'), width: '100%' }}>Миний зарууд</button>
                 </div>
-                {buyerInfo && (
-                  <div style={{ background: '#f8fafc', borderRadius: 10, padding: 14, marginBottom: 12 }}>
-                    <p style={{ fontSize: 11, fontWeight: 700, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 10px' }}>Худалдан авагчийн мэдээлэл</p>
-                    {[['Нэр', buyerInfo.name], ['И-мэйл', buyerInfo.email], ['Утас', buyerInfo.phone]].map(([label, val]) => (
+              );
+            })()}
+
+            {/* Winner panel — with delivery status */}
+            {productDetails.sold && isWinner && (() => {
+              const seller = productDetails.user || {};
+              const soldDateRaw = productDetails.soldAt || productDetails.updatedAt;
+              const soldLabel = soldDateRaw ? new Date(soldDateRaw).toLocaleString('mn-MN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : null;
+              const ds = productDetails.deliveryStatus || 'pending';
+              const di = productDetails.deliveryInfo || {};
+              const methodLabel = { meetup: '🤝 Биечлэн', courier: '🚴 Курьер', ubcab: '🚗 UB Cab', mail: '📮 Шуудан', other: 'Бусад' }[di.method] || di.method;
+              const dsLabel = { pending: '⏳ Хүргэлт тохирогдоогүй', arranging: '📋 Тохиролцож байна', shipped: '🚚 Хүргэгдсэн', delivered: '✅ Хүлээж авсан' }[ds];
+              const dsColor = { pending: '#f59e0b', arranging: '#3b82f6', shipped: '#8b5cf6', delivered: '#16a34a' }[ds] || '#64748b';
+
+              const handleConfirm = async () => {
+                setDeliveryLoading(true);
+                try {
+                  const token = getAuthToken();
+                  await post(`/api/product/${productDetails._id}/delivery/confirm`, { buyerNote: deliveryNote }, token);
+                  setProductDetails(prev => ({ ...prev, deliveryStatus: 'delivered' }));
+                  toast.success('Хүлээж авсан гэж баталгаажлаа!');
+                } catch { toast.error('Алдаа гарлаа'); } finally { setDeliveryLoading(false); }
+              };
+
+              return (
+                <div style={{ ...s.card, padding: 20, background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)' }}>
+                  <div style={{ textAlign: 'center', marginBottom: 14 }}>
+                    <div style={{ fontSize: 36, marginBottom: 6 }}>🏆</div>
+                    <p style={{ fontSize: 15, fontWeight: 700, color: '#15803d', margin: '0 0 4px' }}>Та хожлоо!</p>
+                    <p style={{ fontSize: 24, fontWeight: 900, color: '#16a34a', margin: '0 0 4px' }}>₮{formatNumber(productDetails.currentBid.toString())}</p>
+                    {soldLabel && <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 8px' }}>{soldLabel}</p>}
+                    <span style={{ display: 'inline-block', background: `${dsColor}20`, color: dsColor, borderRadius: 999, padding: '3px 12px', fontSize: 12, fontWeight: 700 }}>{dsLabel}</span>
+                  </div>
+
+                  {/* Seller contact */}
+                  <div style={{ background: '#fff', borderRadius: 10, padding: 12, marginBottom: 12 }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 8px' }}>Борлуулагч</p>
+                    {[['Нэр', seller.name], ['И-мэйл', seller.email], ['Утас', seller.phone]].map(([label, val]) => (
                       <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #f1f5f9' }}>
                         <span style={{ fontSize: 12, color: '#94a3b8' }}>{label}</span>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{val || 'N/A'}</span>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: val ? '#0f172a' : '#cbd5e1' }}>{val || '—'}</span>
                       </div>
                     ))}
                   </div>
-                )}
-                <button onClick={handleOwnerManageShortcut} style={{ ...s.btn('#f1f5f9', '#475569', '1.5px solid #e2e8f0'), width: '100%' }}>Миний зарууд</button>
-              </div>
-            )}
 
-            {/* Winner panel */}
-            {productDetails.sold && isWinner && (
-              <div style={{ ...s.card, padding: 20, background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)' }}>
-                {(() => {
-                  const seller = productDetails.user || {};
-                  const sellerName = seller.name || seller.username || seller.surname || null;
-                  const soldDateRaw = productDetails.soldAt || productDetails.bidDeadline || productDetails.updatedAt;
-                  const soldDate = soldDateRaw ? new Date(soldDateRaw) : null;
-                  const soldLabel = soldDate && !isNaN(soldDate)
-                    ? soldDate.toLocaleString('mn-MN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
-                    : null;
-                  return (
-                    <>
-                      <div style={{ textAlign: 'center', marginBottom: 14 }}>
-                        <div style={{ fontSize: 36, marginBottom: 8 }}>🏆</div>
-                        <p style={{ fontSize: 16, fontWeight: 700, color: '#15803d', margin: '0 0 4px' }}>Та хожлоо!</p>
-                        <p style={{ fontSize: 26, fontWeight: 900, color: '#16a34a', margin: '0 0 4px' }}>₮{formatNumber(productDetails.currentBid.toString())}</p>
-                        {soldLabel && <p style={{ fontSize: 12, color: '#6b7280', margin: 0 }}>{soldLabel}</p>}
+                  {/* Delivery info from seller */}
+                  {di.method && (
+                    <div style={{ background: '#eff6ff', borderRadius: 10, padding: 12, marginBottom: 12 }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8', margin: '0 0 8px' }}>📦 Хүргэлтийн мэдээлэл</p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 12, color: '#64748b' }}>Арга</span><span style={{ fontSize: 13, fontWeight: 600 }}>{methodLabel}</span></div>
+                        {di.address && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 12, color: '#64748b' }}>Байршил</span><span style={{ fontSize: 13, fontWeight: 600 }}>{di.address}</span></div>}
+                        {di.trackingNumber && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 12, color: '#64748b' }}>Tracking</span><span style={{ fontSize: 13, fontWeight: 700, fontFamily: 'monospace' }}>{di.trackingNumber}</span></div>}
+                        {di.sellerNote && <div style={{ marginTop: 6, fontSize: 12, color: '#475569', fontStyle: 'italic' }}>"{di.sellerNote}"</div>}
+                        {di.shippedAt && <div style={{ fontSize: 11, color: '#8b5cf6', marginTop: 4 }}>🚚 {new Date(di.shippedAt).toLocaleString('mn-MN')} -д илгээсэн</div>}
                       </div>
-                      <div style={{ background: '#fff', borderRadius: 10, padding: 14 }}>
-                        <p style={{ fontSize: 11, fontWeight: 700, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 10px' }}>Борлуулагчийн мэдээлэл</p>
-                        {[['Нэр', sellerName], ['И-мэйл', seller.email], ['Утас', seller.phone]].map(([label, val]) => (
-                          <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #f1f5f9' }}>
-                            <span style={{ fontSize: 12, color: '#94a3b8' }}>{label}</span>
-                            <span style={{ fontSize: 13, fontWeight: 600, color: val ? '#0f172a' : '#cbd5e1' }}>{val || '—'}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  );
-                })()}
-                <div style={{ marginTop: 10, background: '#dcfce7', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#15803d', fontWeight: 500 }}>
-                  ✓ Хүргэлт / авалтыг зохицуулахын тулд борлуулагчтай холбогдоно уу.
+                    </div>
+                  )}
+
+                  {/* Confirm receipt */}
+                  {ds === 'shipped' && (
+                    <div style={{ marginBottom: 10 }}>
+                      <textarea placeholder="Нэмэлт тайлбар (заавал биш)..." value={deliveryNote} onChange={e => setDeliveryNote(e.target.value)} rows={2}
+                        style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #86efac', borderRadius: 8, fontSize: 13, resize: 'none', marginBottom: 8, boxSizing: 'border-box', outline: 'none', background: '#fff' }} />
+                      <button onClick={handleConfirm} disabled={deliveryLoading}
+                        style={{ ...s.btn('#16a34a', '#fff'), width: '100%', opacity: deliveryLoading ? 0.5 : 1 }}>
+                        {deliveryLoading ? 'Боловсруулж байна...' : '✓ Хүлээж авсан'}
+                      </button>
+                    </div>
+                  )}
+
+                  {ds === 'pending' && (
+                    <div style={{ background: '#fff7ed', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#c2410c' }}>
+                      ⏳ Борлуулагч хүргэлтийн мэдээлэл оруулахыг хүлээж байна...
+                    </div>
+                  )}
+                  {ds === 'arranging' && (
+                    <div style={{ background: '#eff6ff', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#1d4ed8' }}>
+                      📋 Борлуулагч тохиролцож байна — удахгүй илгээнэ
+                    </div>
+                  )}
+                  {ds === 'delivered' && (
+                    <div style={{ background: '#f0fdf4', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#15803d', fontWeight: 600, textAlign: 'center' }}>
+                      ✅ Гүйлгээ амжилттай дууссан
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Sold — not winner, not owner */}
             {productDetails.sold && !isWinner && !isOwner && (
@@ -1029,31 +1186,23 @@ export const Details = () => {
 
         {/* Item Details grid */}
         <div style={{ ...s.card, marginBottom: 20, overflow: 'hidden' }}>
-          <div style={{ padding: '14px 22px', borderBottom: '1px solid #e2e8f0' }}>
+          <div style={{ padding: '14px 22px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 8 }}>
             <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: 0 }}>Барааны мэдээлэл</p>
           </div>
           <div style={{ padding: '20px 22px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
               {[
-                ['Ангилал', productDetails.category?.name || productDetails.category?.title],
-                ['Нийтэлсэн', new Date(productDetails.createdAt).toLocaleDateString()],
+                ['Ангилал', productDetails.category?.titleMn || productDetails.category?.title],
+                ['Нийтэлсэн', new Date(productDetails.createdAt).toLocaleDateString('mn-MN')],
                 productDetails.condition && ['Төлөв', t(productDetails.condition)],
-                productDetails.brand && ['Брэнд', productDetails.brand],
-                productDetails.color && ['Өнгө', productDetails.color],
                 productDetails.size && ['Хэмжээ', productDetails.size],
-                productDetails.year && ['Он', productDetails.year],
-                productDetails.make && ['Марк', productDetails.make],
-                productDetails.model && ['Загвар', productDetails.model],
-                productDetails.mileage && ['Гүйлт', `${productDetails.mileage.toLocaleString()} км`],
-                productDetails.vin && ['VIN', productDetails.vin],
-                ['Эхлэх үнэ', `₮${formatNumber(productDetails.price.toString())}`],
-                ['Нийт санал', String(pastBids.length)],
-                productDetails.reservePrice && ['Хамгийн бага үнэ', `₮${formatNumber(productDetails.reservePrice.toString())}`],
-                productDetails.minIncrement && ['Хамгийн бага нэмэлт', `₮${formatNumber(productDetails.minIncrement.toString())}`],
-                ...(productDetails.itemSpecifics ? Object.entries(productDetails.itemSpecifics).map(([k, v]) => [k, String(v)]) : []),
+                !isFixedPrice && ['Эхлэх үнэ', `₮${formatNumber(productDetails.price.toString())}`],
+                !isFixedPrice && ['Нийт санал', String(pastBids.length)],
+                !isFixedPrice && productDetails.reservePrice && ['Хамгийн бага үнэ', `₮${formatNumber(productDetails.reservePrice.toString())}`],
+                !isFixedPrice && productDetails.price && ['Хамгийн бага нэмэлт', `₮${formatNumber(calcMinIncrement(productDetails.price).toString())}`],
               ].filter(Boolean).map(([label, value]) => value && (
-                <div key={label} style={{ background: '#f8fafc', borderRadius: 10, padding: '10px 12px' }}>
-                  <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 3px', fontWeight: 600 }}>{label}</p>
+                <div key={label} style={{ background: '#f8fafc', borderRadius: 10, padding: '12px 14px', borderLeft: '3px solid #e2e8f0' }}>
+                  <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 4px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</p>
                   <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: 0 }}>{value}</p>
                 </div>
               ))}
@@ -1061,46 +1210,105 @@ export const Details = () => {
           </div>
         </div>
 
-        {/* Bid History + Price Chart (auction only) */}
-        {!isFixedPrice && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
-            {/* Bid History */}
+        {/* Category-specific specs — driven by fieldSchema + itemSpecifics (with fallback for any stored data) */}
+        {(() => {
+          const schema = productDetails.category?.fieldSchema || [];
+          const specs = productDetails.itemSpecifics || {};
+          const brandVal = typeof productDetails.brand === 'object' && productDetails.brand !== null
+            ? (productDetails.brand.name || productDetails.brand.titleMn || productDetails.brand.title || null)
+            : (productDetails.brand || null);
+          const legacyMap = {
+            brand: brandVal, make: productDetails.make, model: productDetails.model,
+            year: productDetails.year ? String(productDetails.year) : null,
+            mileage: productDetails.mileage ? String(productDetails.mileage) : null,
+            fuelType: productDetails.fuelType, transmission: productDetails.transmission,
+            vehicleTitle: productDetails.vehicleTitle, color: productDetails.color, vin: productDetails.vin,
+          };
+          const mergedSpecs = { ...Object.fromEntries(Object.entries(legacyMap).filter(([,v]) => v != null && v !== '')), ...specs };
+
+          // Schema-matched rows (with labels from fieldSchema)
+          const schemaRows = schema.filter(f => mergedSpecs[f.key] != null && mergedSpecs[f.key] !== '');
+
+          // Any itemSpecifics keys not covered by schema (show with nicely formatted key)
+          const schemaKeys = new Set(schema.map(f => f.key));
+          const fallbackLabels = { brand: 'Брэнд', make: 'Марк', model: 'Загвар', year: 'Он', mileage: 'Гүйлт', fuelType: 'Түлш', transmission: 'Хурдны хайрцаг', color: 'Өнгө', vin: 'VIN', area: 'Талбай', rooms: 'Өрөө', floor: 'Давхар', district: 'Дүүрэг' };
+          const rawRows = Object.entries(mergedSpecs)
+            .filter(([k, v]) => !schemaKeys.has(k) && v != null && v !== '')
+            .map(([k, v]) => ({ key: k, labelMn: fallbackLabels[k] || k, value: v, options: null, unit: k === 'mileage' ? 'км' : k === 'area' ? 'м²' : null }));
+
+          const allRows = schemaRows.length > 0 ? schemaRows : rawRows.length > 0 ? rawRows : null;
+          if (!allRows) return null;
+
+          return (
+            <div style={{ ...s.card, marginBottom: 20, overflow: 'hidden' }}>
+              <div style={{ padding: '14px 22px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: 0 }}>
+                  {productDetails.category?.titleMn || productDetails.category?.title} — дэлгэрэнгүй
+                </p>
+              </div>
+              <div style={{ padding: '20px 22px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
+                  {(schemaRows.length > 0 ? schemaRows.map(field => {
+                    const raw = mergedSpecs[field.key];
+                    const optLabel = field.options?.find(o => o.value === raw)?.labelMn;
+                    const displayVal = optLabel || (field.unit ? `${Number(raw).toLocaleString()} ${field.unit}` : String(raw));
+                    return { key: field.key, label: field.labelMn, value: displayVal };
+                  }) : rawRows.map(r => ({
+                    key: r.key,
+                    label: r.labelMn,
+                    value: r.unit ? `${Number(r.value).toLocaleString()} ${r.unit}` : String(r.value),
+                  }))).map(({ key, label, value }) => (
+                    <div key={key} style={{ background: '#f8fafc', borderRadius: 10, padding: '12px 14px', border: '1px solid #e2e8f0', borderTop: '3px solid var(--bn-primary)' }}>
+                      <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 4px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</p>
+                      <p style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', margin: 0 }}>{value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Bid / Transaction History (auction always; fixed-price only when sold) */}
+        {(!isFixedPrice || (isFixedPrice && productDetails.sold && pastBids.length > 0)) && (
+          <div style={{ display: 'grid', gridTemplateColumns: isFixedPrice ? '1fr' : '1fr 1fr', gap: 20, marginBottom: 20 }}>
+            {/* Bid / Purchase History */}
             <div style={{ ...s.card, overflow: 'hidden' }}>
               <div style={{ padding: '14px 22px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: 0 }}>Санлын түүх</p>
-                <span style={s.tag('#f1f5f9', '#64748b')}>{pastBids.length} санал</span>
+                <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: 0 }}>
+                  {isFixedPrice ? 'Худалдааны түүх' : 'Саналын түүх'}
+                </p>
+                <span style={s.tag('#f1f5f9', '#64748b')}>
+                  {isFixedPrice ? `${pastBids.length} гүйлгээ` : `${pastBids.length} санал`}
+                </span>
               </div>
               <div style={{ padding: '16px 20px' }}>
                 {pastBids.length > 0 ? (
                   <>
-                    {groupedHistory.length > 0 && (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
-                        {groupedHistory.slice(0, 4).map((g, i) => (
-                          <span key={i} style={s.tag('#f1f5f9', '#475569')}>{g.userName} · {g.count}</span>
-                        ))}
-                      </div>
-                    )}
                     <div style={{ maxHeight: 300, overflowY: 'auto' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                         <thead>
                           <tr style={{ borderBottom: '2px solid #f1f5f9' }}>
-                            {['Оролцогч', 'Дүн', 'Огноо'].map((h) => (
+                            {[isFixedPrice ? 'Худалдан авагч' : 'Оролцогч', 'Дүн', 'Огноо'].map((h) => (
                               <th key={h} style={{ textAlign: 'left', padding: '6px 8px', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
                             ))}
                           </tr>
                         </thead>
                         <tbody>
                           {visibleBids.map((bid, idx) => bid ? (
-                            <tr key={bid._id || bid.createdAt} style={{ borderBottom: '1px solid #f1f5f9', background: idx === 0 ? '#f0fdf4' : 'transparent' }}>
-                              <td style={{ padding: '9px 8px', fontWeight: idx === 0 ? 700 : 400, color: '#0f172a' }}>{idx === 0 && <span style={{ marginRight: 4 }}>🏆</span>}{bid.user?.name || 'Нэргүй'}</td>
-                              <td style={{ padding: '9px 8px', fontWeight: 700, color: 'var(--bn-accent)' }}>₮{formatNumber(bid.price?.toString() || '0')}</td>
+                            <tr key={bid._id || bid.createdAt} style={{ borderBottom: '1px solid #f1f5f9', background: idx === 0 ? (isFixedPrice ? '#eff6ff' : '#f0fdf4') : 'transparent' }}>
+                              <td style={{ padding: '9px 8px', fontWeight: idx === 0 ? 700 : 400, color: '#0f172a' }}>
+                                <span style={{ marginRight: 4 }}>{idx === 0 ? (isFixedPrice ? '🛒' : '🏆') : ''}</span>
+                                {bid.user?.name || 'Нэргүй'}
+                              </td>
+                              <td style={{ padding: '9px 8px', fontWeight: 700, color: isFixedPrice ? '#2563eb' : 'var(--bn-accent)' }}>₮{formatNumber(bid.price?.toString() || '0')}</td>
                               <td style={{ padding: '9px 8px', color: '#94a3b8', fontSize: 11 }}>{bid.createdAt ? new Date(bid.createdAt).toLocaleString('mn-MN') : '—'}</td>
                             </tr>
                           ) : null)}
                         </tbody>
                       </table>
                     </div>
-                    {hasMoreHistory && (
+                    {hasMoreHistory && !isFixedPrice && (
                       <div style={{ textAlign: 'center', marginTop: 12 }}>
                         <button onClick={() => setHistoryExpanded(p => !p)} style={{ ...s.btn('#f1f5f9', '#475569', '1.5px solid #e2e8f0'), padding: '7px 16px', fontSize: 12 }}>
                           {historyExpanded ? 'Хураах' : `Бүгдийг харах (${pastBids.length})`}
@@ -1109,23 +1317,27 @@ export const Details = () => {
                     )}
                   </>
                 ) : (
-                  <div style={{ textAlign: 'center', padding: '32px 16px', color: '#94a3b8' }}>
-                    <div style={{ fontSize: 32, marginBottom: 8 }}>🕐</div>
-                    <p style={{ margin: 0, fontSize: 13 }}>Одоогоор санал байхгүй. Эхнийх нь байгаарай!</p>
-                  </div>
+                  !isFixedPrice && (
+                    <div style={{ textAlign: 'center', padding: '32px 16px', color: '#94a3b8' }}>
+                      <div style={{ fontSize: 32, marginBottom: 8 }}>🕐</div>
+                      <p style={{ margin: 0, fontSize: 13 }}>Одоогоор санал байхгүй. Эхнийх нь байгаарай!</p>
+                    </div>
+                  )
                 )}
               </div>
             </div>
 
-            {/* Price Chart */}
-            <div style={{ ...s.card, overflow: 'hidden' }}>
-              <div style={{ padding: '14px 22px', borderBottom: '1px solid #e2e8f0' }}>
-                <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: 0 }}>Үнийн түүх</p>
+            {/* Price Chart — auction only */}
+            {!isFixedPrice && (
+              <div style={{ ...s.card, overflow: 'hidden' }}>
+                <div style={{ padding: '14px 22px', borderBottom: '1px solid #e2e8f0' }}>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: 0 }}>Үнийн түүх</p>
+                </div>
+                <div style={{ padding: '16px 20px' }}>
+                  <PriceHistoryChart bids={pastBids} startingPrice={productDetails.price} startDate={productDetails.createdAt || productDetails.auctionStart} endDate={productDetails.bidDeadline} />
+                </div>
               </div>
-              <div style={{ padding: '16px 20px' }}>
-                <PriceHistoryChart bids={pastBids} startingPrice={productDetails.price} startDate={productDetails.createdAt || productDetails.auctionStart} endDate={productDetails.bidDeadline} />
-              </div>
-            </div>
+            )}
           </div>
         )}
 

@@ -1,0 +1,122 @@
+digraph ERD_Support {
+  graph [
+    rankdir=LR,
+    fontname="Arial",
+    fontsize=18,
+    nodesep=1.0,
+    ranksep=2.0,
+    bgcolor="white"
+  ];
+
+  node [
+    shape=none,
+    fontname="Arial",
+    fontsize=16,
+    margin=0
+  ];
+
+  edge [
+    fontname="Arial Bold",
+    fontsize=16,
+    color="#333333",
+    arrowsize=1.3,
+    arrowhead=vee,
+    penwidth=2.2
+  ];
+
+  // Left column — simplified reference nodes
+  { rank=same; User; Product; }
+
+  User [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="12" BGCOLOR="#D6EAF8">
+      <TR><TD BGCOLOR="#2E86AB" ALIGN="CENTER" COLSPAN="2">
+        <FONT COLOR="white" POINT-SIZE="18"><B>User</B></FONT>
+      </TD></TR>
+      <TR><TD ALIGN="LEFT"><U><B>_id</B></U></TD><TD ALIGN="LEFT">ObjectId (PK)</TD></TR>
+      <TR><TD ALIGN="LEFT">name</TD><TD ALIGN="LEFT">String</TD></TR>
+      <TR><TD ALIGN="LEFT">email</TD><TD ALIGN="LEFT">String</TD></TR>
+      <TR><TD COLSPAN="2" ALIGN="CENTER"><I>(see Diagram 1)</I></TD></TR>
+    </TABLE>
+  >];
+
+  Product [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="12" BGCOLOR="#D5F5E3">
+      <TR><TD BGCOLOR="#1A9E6A" ALIGN="CENTER" COLSPAN="2">
+        <FONT COLOR="white" POINT-SIZE="18"><B>Product</B></FONT>
+      </TD></TR>
+      <TR><TD ALIGN="LEFT"><U><B>_id</B></U></TD><TD ALIGN="LEFT">ObjectId (PK)</TD></TR>
+      <TR><TD ALIGN="LEFT">title</TD><TD ALIGN="LEFT">String</TD></TR>
+      <TR><TD ALIGN="LEFT">auctionStatus</TD><TD ALIGN="LEFT">String</TD></TR>
+      <TR><TD COLSPAN="2" ALIGN="CENTER"><I>(see Diagram 1)</I></TD></TR>
+    </TABLE>
+  >];
+
+  // Right column — supporting entities
+  { rank=same; Watchlist; Transaction; Review; Notification; }
+
+  Watchlist [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="12" BGCOLOR="#F9EBEA">
+      <TR><TD BGCOLOR="#CB4335" ALIGN="CENTER" COLSPAN="2">
+        <FONT COLOR="white" POINT-SIZE="18"><B>Watchlist</B></FONT>
+      </TD></TR>
+      <TR><TD ALIGN="LEFT"><U><B>_id</B></U></TD><TD ALIGN="LEFT">ObjectId (PK)</TD></TR>
+      <TR><TD ALIGN="LEFT">user</TD><TD ALIGN="LEFT">→ User</TD></TR>
+      <TR><TD ALIGN="LEFT">product</TD><TD ALIGN="LEFT">→ Product</TD></TR>
+      <TR><TD ALIGN="LEFT">notifyOnStart</TD><TD ALIGN="LEFT">Boolean</TD></TR>
+      <TR><TD ALIGN="LEFT">notifyOnEndingSoon</TD><TD ALIGN="LEFT">Boolean</TD></TR>
+      <TR><TD ALIGN="LEFT">notifyOnPriceChange</TD><TD ALIGN="LEFT">Boolean</TD></TR>
+    </TABLE>
+  >];
+
+  Transaction [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="12" BGCOLOR="#EAFAF1">
+      <TR><TD BGCOLOR="#1E8449" ALIGN="CENTER" COLSPAN="2">
+        <FONT COLOR="white" POINT-SIZE="18"><B>Transaction</B></FONT>
+      </TD></TR>
+      <TR><TD ALIGN="LEFT"><U><B>_id</B></U></TD><TD ALIGN="LEFT">ObjectId (PK)</TD></TR>
+      <TR><TD ALIGN="LEFT">buyer</TD><TD ALIGN="LEFT">→ User</TD></TR>
+      <TR><TD ALIGN="LEFT">seller</TD><TD ALIGN="LEFT">→ User</TD></TR>
+      <TR><TD ALIGN="LEFT">product</TD><TD ALIGN="LEFT">→ Product</TD></TR>
+      <TR><TD ALIGN="LEFT">amount</TD><TD ALIGN="LEFT">Number</TD></TR>
+      <TR><TD ALIGN="LEFT">createdAt</TD><TD ALIGN="LEFT">Date</TD></TR>
+    </TABLE>
+  >];
+
+  Review [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="12" BGCOLOR="#FEF5E7">
+      <TR><TD BGCOLOR="#E67E22" ALIGN="CENTER" COLSPAN="2">
+        <FONT COLOR="white" POINT-SIZE="18"><B>Review</B></FONT>
+      </TD></TR>
+      <TR><TD ALIGN="LEFT"><U><B>_id</B></U></TD><TD ALIGN="LEFT">ObjectId (PK)</TD></TR>
+      <TR><TD ALIGN="LEFT">product</TD><TD ALIGN="LEFT">→ Product</TD></TR>
+      <TR><TD ALIGN="LEFT">fromUser</TD><TD ALIGN="LEFT">→ User</TD></TR>
+      <TR><TD ALIGN="LEFT">toUser</TD><TD ALIGN="LEFT">→ User</TD></TR>
+      <TR><TD ALIGN="LEFT">rating</TD><TD ALIGN="LEFT">Number (1–5)</TD></TR>
+      <TR><TD ALIGN="LEFT">comment</TD><TD ALIGN="LEFT">String</TD></TR>
+    </TABLE>
+  >];
+
+  Notification [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="12" BGCOLOR="#EBF5FB">
+      <TR><TD BGCOLOR="#1A5276" ALIGN="CENTER" COLSPAN="2">
+        <FONT COLOR="white" POINT-SIZE="18"><B>Notification</B></FONT>
+      </TD></TR>
+      <TR><TD ALIGN="LEFT"><U><B>_id</B></U></TD><TD ALIGN="LEFT">ObjectId (PK)</TD></TR>
+      <TR><TD ALIGN="LEFT">user</TD><TD ALIGN="LEFT">→ User</TD></TR>
+      <TR><TD ALIGN="LEFT">product</TD><TD ALIGN="LEFT">→ Product</TD></TR>
+      <TR><TD ALIGN="LEFT">type</TD><TD ALIGN="LEFT">outbid|won|sold|...</TD></TR>
+      <TR><TD ALIGN="LEFT">title / message</TD><TD ALIGN="LEFT">String</TD></TR>
+      <TR><TD ALIGN="LEFT">read</TD><TD ALIGN="LEFT">Boolean</TD></TR>
+    </TABLE>
+  >];
+
+  // Relationships
+  User    -> Watchlist    [label="  1:N  "];
+  Product -> Watchlist    [label="  1:N  "];
+  User    -> Transaction  [label="  1:N  "];
+  Product -> Transaction  [label="  1:1  "];
+  User    -> Review       [label="  1:N  "];
+  Product -> Review       [label="  1:N  "];
+  User    -> Notification [label="  1:N  "];
+  Product -> Notification [label="  1:N  "];
+}

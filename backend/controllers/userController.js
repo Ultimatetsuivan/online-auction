@@ -130,10 +130,10 @@ const sendVerificationCodeOnly = asyncHandler(async (req, res) => {
         throw new Error(`Регистрийн дугаар (${normalizedRegistrationNumber}) аль хэдийн бүртгэлтэй байна. Өөр регистрийн дугаар ашиглана уу.`);
       }
 
-      // Validate registration number format
-      if (!/^УГ\d{8}$/.test(normalizedRegistrationNumber)) {
+      // Validate registration number format — any 2 Cyrillic letters + 8 digits
+      if (!/^[А-ЯӨҮЁа-яөүё]{2}\d{8}$/.test(normalizedRegistrationNumber)) {
         res.status(400);
-        throw new Error("Регистрийн дугаар буруу байна. Жишээ: УГ99999999");
+        throw new Error("Регистрийн дугаар буруу байна. 2 үсэг + 8 тоо байх ёстой");
       }
     }
 
