@@ -732,12 +732,6 @@ const sellNowToTopBidder = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: "Product not found" });
   }
 
-    title: product.title,
-    sold: product.sold,
-    auctionStatus: product.auctionStatus,
-    currentBid: product.currentBid
-  });
-
   // Verify the seller is the owner
   if (product.user?._id?.toString() !== userId.toString()) {
     return res.status(403).json({ success: false, message: "You are not authorized to sell this product" });
@@ -806,12 +800,6 @@ const sellNowToTopBidder = asyncHandler(async (req, res) => {
   const buyerId = buyer._id;
   const salePrice = topBid.price;
 
-    bidder: buyer.name,
-    price: salePrice,
-    balance: buyer.balance,
-    skippedCount: skippedBidders.length
-  });
-
   try {
     // Execute sell now transaction with automatic transaction support detection
     await withTransaction(async (session) => {
@@ -829,11 +817,6 @@ const sellNowToTopBidder = asyncHandler(async (req, res) => {
       product.soldAt = new Date();
       product.available = false;
       product.auctionStatus = "ended";
-
-        sold: product.sold,
-        auctionStatus: product.auctionStatus,
-        available: product.available
-      });
 
       await product.save(updateOptions);
 
@@ -901,12 +884,6 @@ const sellNowToTopBidder = asyncHandler(async (req, res) => {
       .populate('user')
       .populate('category')
       .populate('soldTo');
-
-      sold: updatedProduct.sold,
-      auctionStatus: updatedProduct.auctionStatus,
-      available: updatedProduct.available
-    });
-
 
     let successMessage = `Successfully sold to ${buyer.name} for $${salePrice.toLocaleString()}`;
     if (skippedBidders.length > 0) {
