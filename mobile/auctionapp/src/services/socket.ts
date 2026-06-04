@@ -16,14 +16,12 @@ class SocketService {
 
   async connect() {
     if (this.socket?.connected) {
-      console.log("Socket already connected");
       return;
     }
 
     // Check network connection
     const isConnected = await networkManager.checkConnection();
     if (!isConnected) {
-      console.warn("No network connection. Socket connection delayed.");
       networkManager.showOfflineAlert();
       return;
     }
@@ -57,7 +55,6 @@ class SocketService {
     if (!this.socket) return;
 
     this.socket.on("connect", () => {
-      console.log("✓ Socket connected:", this.socket?.id);
       this.reconnectAttempts = 0;
       
       // Clear any pending reconnect timers
@@ -73,14 +70,12 @@ class SocketService {
     });
 
     this.socket.on("disconnect", (reason) => {
-      console.log("✗ Socket disconnected:", reason);
       this.emit("socketDisconnected", { reason });
       
       // Auto-reconnect unless manually disconnected
       if (!this.isManuallyDisconnected && reason !== "io client disconnect") {
         this.reconnectAttempts++;
         if (this.reconnectAttempts < this.maxReconnectAttempts) {
-          console.log(`Attempting to reconnect... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
           
           // Exponential backoff for reconnection
           const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
@@ -100,12 +95,10 @@ class SocketService {
     });
 
     this.socket.on("reconnect", (attemptNumber) => {
-      console.log("✓ Socket reconnected after", attemptNumber, "attempts");
       this.reconnectAttempts = 0;
     });
 
     this.socket.on("reconnect_attempt", (attemptNumber) => {
-      console.log("Attempting to reconnect...", attemptNumber);
     });
 
     this.socket.on("reconnect_error", (error) => {
@@ -140,7 +133,6 @@ class SocketService {
       this.socket = null;
       this.listeners.clear();
       this.reconnectAttempts = 0;
-      console.log("Socket disconnected manually");
     }
   }
 
@@ -217,7 +209,6 @@ class SocketService {
     if (this.socket?.connected) {
       this.socket.emit(event, data);
     } else {
-      console.warn("Socket not connected. Cannot send event:", event);
     }
   }
 
@@ -249,7 +240,6 @@ class SocketService {
     // Check connection health every 30 seconds
     this.connectionCheckInterval = setInterval(() => {
       if (this.socket && !this.socket.connected && !this.isManuallyDisconnected) {
-        console.log("Socket health check: connection lost, attempting reconnect...");
         this.reconnect();
       }
     }, 30000);

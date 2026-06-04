@@ -50,13 +50,10 @@ const notifyWatchlistAuctionStarting = async (productId) => {
                     });
                 }
             } catch (error) {
-                console.error(`Error notifying user ${item.user._id}:`, error);
             }
         }
 
-        console.log(`Notified ${watchlistItems.length} users about auction starting: ${productId}`);
     } catch (error) {
-        console.error('Error in notifyWatchlistAuctionStarting:', error);
     }
 };
 
@@ -107,13 +104,10 @@ const notifyWatchlistEndingSoon = async (productId) => {
                     });
                 }
             } catch (error) {
-                console.error(`Error notifying user ${item.user._id}:`, error);
             }
         }
 
-        console.log(`Notified ${watchlistItems.length} users about auction ending soon: ${productId}`);
     } catch (error) {
-        console.error('Error in notifyWatchlistEndingSoon:', error);
     }
 };
 
@@ -176,13 +170,10 @@ const notifyWatchlistPriceChange = async (productId, oldPrice, newPrice) => {
                     });
                 }
             } catch (error) {
-                console.error(`Error notifying user ${item.user._id}:`, error);
             }
         }
 
-        console.log(`Notified ${watchlistItems.length} users about price drop: ${productId}`);
     } catch (error) {
-        console.error('Error in notifyWatchlistPriceChange:', error);
     }
 };
 
@@ -245,13 +236,10 @@ const notifyWatchlistBuyNowChange = async (productId, oldPrice, newPrice) => {
                     });
                 }
             } catch (error) {
-                console.error(`Error notifying user ${item.user._id}:`, error);
             }
         }
 
-        console.log(`Notified ${watchlistItems.length} users about buy now price drop: ${productId}`);
     } catch (error) {
-        console.error('Error in notifyWatchlistBuyNowChange:', error);
     }
 };
 

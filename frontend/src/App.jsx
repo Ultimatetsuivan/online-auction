@@ -3,7 +3,6 @@ import React from 'react';
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Home, Layout, Login, Product, Register, Profile, Admin, Details, ForgotPassword, ResetPassword, About, EditProduct, Categories, Brands, MyList } from './routes';
 import UserProfile from './screen/home/UserProfile';
-import TestPage from './screen/test/TestPage';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import { ToastProvider } from './components/common/Toast';
 import { ThemeProvider } from './context/ThemeContext';
@@ -120,11 +119,6 @@ function App() {
            <Route path="/edit-product/:id" element={
           <Layout>
           <EditProduct
-           />
-           </Layout>} />
-           <Route path="/test" element={
-          <Layout>
-          <TestPage
            />
            </Layout>} />
 

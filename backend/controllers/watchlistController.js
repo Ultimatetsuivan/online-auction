@@ -50,7 +50,6 @@ exports.addToWatchlist = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Add to watchlist error:', error);
         res.status(500).json({
             error: 'Алдаа гарлаа',
             details: error.message
@@ -81,7 +80,6 @@ exports.removeFromWatchlist = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Remove from watchlist error:', error);
         res.status(500).json({
             error: 'Алдаа гарлаа',
             details: error.message
@@ -127,7 +125,6 @@ exports.getMyWatchlist = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Get watchlist error:', error);
         res.status(500).json({
             error: 'Алдаа гарлаа',
             details: error.message
@@ -150,7 +147,6 @@ exports.checkWatchlist = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Check watchlist error:', error);
         res.status(500).json({
             error: 'Алдаа гарлаа',
             details: error.message
@@ -171,7 +167,6 @@ exports.getWatchlistCount = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Get watchlist count error:', error);
         res.status(500).json({
             error: 'Алдаа гарлаа',
             details: error.message

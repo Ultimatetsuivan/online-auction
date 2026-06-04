@@ -76,7 +76,6 @@ exports.submitIdentityVerification = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Submit identity verification error:', error);
         res.status(500).json({
             error: 'Баталгаажуулалт илгээхэд алдаа гарлаа',
             details: error.message
@@ -110,7 +109,6 @@ exports.getMyVerificationStatus = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Get verification status error:', error);
         res.status(500).json({
             error: 'Төлөв татахад алдаа гарлаа'
         });
@@ -142,7 +140,6 @@ exports.getPendingVerifications = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Get pending verifications error:', error);
         res.status(500).json({
             error: 'Хүлээгдэж буй баталгаажуулалт татахад алдаа гарлаа'
         });
@@ -196,7 +193,6 @@ exports.approveVerification = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Approve verification error:', error);
         res.status(500).json({
             error: 'Баталгаажуулахад алдаа гарлаа',
             details: error.message
@@ -253,7 +249,6 @@ exports.rejectVerification = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Reject verification error:', error);
         res.status(500).json({
             error: 'Татгалзахад алдаа гарлаа',
             details: error.message
@@ -281,7 +276,6 @@ exports.getVerificationStats = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Get verification stats error:', error);
         res.status(500).json({
             error: 'Статистик татахад алдаа гарлаа'
         });

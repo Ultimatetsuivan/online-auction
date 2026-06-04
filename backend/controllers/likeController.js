@@ -38,7 +38,6 @@ exports.toggleLike = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Toggle like error:', error);
         res.status(500).json({
             error: 'Алдаа гарлаа',
             details: error.message
@@ -84,7 +83,6 @@ exports.getMyLikes = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Get likes error:', error);
         res.status(500).json({
             error: 'Алдаа гарлаа',
             details: error.message
@@ -106,7 +104,6 @@ exports.checkLike = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Check like error:', error);
         res.status(500).json({
             error: 'Алдаа гарлаа',
             details: error.message
@@ -127,7 +124,6 @@ exports.getLikeCount = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Get like count error:', error);
         res.status(500).json({
             error: 'Алдаа гарлаа',
             details: error.message

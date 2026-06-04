@@ -49,7 +49,6 @@ router.post("/upload", protect, upload.single("image"), (req, res) => {
       filename: req.file.filename
     });
   } catch (error) {
-    console.error('Upload error:', error);
     res.status(500).json({ error: 'Failed to upload image' });
   }
 });

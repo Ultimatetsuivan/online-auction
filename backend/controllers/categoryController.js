@@ -23,7 +23,6 @@ const createCategory = asyncHandler(async (req, res) => {
 
         res.status(201).json(category);
     } catch (error){
-        console.error("Create category error:", error);
         res.status(500).json({message: "Алдаа", error: error.message})
     }
 });
@@ -37,7 +36,6 @@ const getAllCategories = asyncHandler(async (req, res) => {
 
         res.json(categories);
     }catch(error){
-        console.error("Get categories error:", error);
         res.status(500).json({ message: "Категори унших алдаа", error: error.message });
     }
 });

@@ -36,7 +36,6 @@ exports.getNotifications = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Get notifications error:', error);
         res.status(500).json({
             error: 'Мэдэгдэл татахад алдаа гарлаа',
             details: error.message
@@ -68,7 +67,6 @@ exports.markAsRead = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Mark as read error:', error);
         res.status(500).json({
             error: 'Алдаа гарлаа',
             details: error.message
@@ -92,7 +90,6 @@ exports.markAllAsRead = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Mark all as read error:', error);
         res.status(500).json({
             error: 'Алдаа гарлаа',
             details: error.message
@@ -123,7 +120,6 @@ exports.deleteNotification = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Delete notification error:', error);
         res.status(500).json({
             error: 'Алдаа гарлаа',
             details: error.message
@@ -147,7 +143,6 @@ exports.clearReadNotifications = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Clear notifications error:', error);
         res.status(500).json({
             error: 'Алдаа гарлаа',
             details: error.message
@@ -171,7 +166,6 @@ exports.getUnreadCount = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Get unread count error:', error);
         res.status(500).json({
             error: 'Алдаа гарлаа',
             details: error.message
@@ -196,7 +190,6 @@ exports.createNotification = async (userId, data) => {
 
         return notification;
     } catch (error) {
-        console.error('Create notification error:', error);
         throw error;
     }
 };

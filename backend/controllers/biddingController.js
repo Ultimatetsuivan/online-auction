@@ -453,7 +453,6 @@ const sellProduct = asyncHandler(async (req, res) => {
         })
       ]);
     } catch (emailError) {
-      console.error('Имэйл илгээхэд алдаа гарлаа:', emailError);
     }
 
     // 6. Амжилттай хариу буцаах
@@ -470,7 +469,6 @@ const sellProduct = asyncHandler(async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Алдаа:', error);
     res.status(400).json({ 
       success: false,
       message: error.message || "Бараа зарах үед алдаа гарлаа",

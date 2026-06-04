@@ -42,7 +42,6 @@ exports.checkDepositStatus = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Check deposit status error:', error);
         res.status(500).json({ error: 'Алдаа гарлаа', details: error.message });
     }
 };
@@ -66,7 +65,6 @@ exports.releaseAuctionDeposits = async (productId, winnerId) => {
 
         return { success: true, released: deposits.length };
     } catch (error) {
-        console.error('Release auction deposits error:', error);
         return { success: false, error: error.message };
     }
 };
@@ -156,7 +154,6 @@ exports.placeDeposit = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Place deposit error:', error);
         res.status(500).json({
             error: 'Дэнчин байршуулахад алдаа гарлаа',
             details: error.message
@@ -185,7 +182,6 @@ exports.getMyDeposits = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Get deposits error:', error);
         res.status(500).json({
             error: 'Дэнчин татахад алдаа гарлаа',
             details: error.message
@@ -215,7 +211,6 @@ exports.returnDeposit = async (depositId, reason) => {
 
         return { success: true, deposit };
     } catch (error) {
-        console.error('Return deposit error:', error);
         return { success: false, error: error.message };
     }
 };
@@ -241,7 +236,6 @@ exports.forfeitDeposit = async (depositId, reason) => {
 
         return { success: true, deposit };
     } catch (error) {
-        console.error('Forfeit deposit error:', error);
         return { success: false, error: error.message };
     }
 };
@@ -280,7 +274,6 @@ exports.getAllDeposits = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Get all deposits error:', error);
         res.status(500).json({
             error: 'Алдаа гарлаа',
             details: error.message

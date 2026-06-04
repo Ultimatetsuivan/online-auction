@@ -18,7 +18,6 @@ exports.getNotificationSettings = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Get notification settings error:', error);
         res.status(500).json({
             error: 'Алдаа гарлаа',
             details: error.message
@@ -96,7 +95,6 @@ exports.updateNotificationSettings = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Update notification settings error:', error);
         res.status(500).json({
             error: 'Алдаа гарлаа',
             details: error.message
@@ -120,7 +118,6 @@ exports.resetNotificationSettings = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Reset notification settings error:', error);
         res.status(500).json({
             error: 'Алдаа гарлаа',
             details: error.message

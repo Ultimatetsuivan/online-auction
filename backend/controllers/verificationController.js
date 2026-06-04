@@ -35,7 +35,6 @@ exports.getVerificationRequirements = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Get requirements error:', error);
         res.status(500).json({
             error: 'Шаардлага татахад алдаа гарлаа'
         });
@@ -121,7 +120,6 @@ exports.requestVerification = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Request verification error:', error);
         res.status(500).json({
             error: 'Баталгаажуулалт хүсэхэд алдаа гарлаа',
             details: error.message
@@ -154,7 +152,6 @@ exports.getPendingVerifications = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Get pending verifications error:', error);
         res.status(500).json({
             error: 'Хүлээгдэж буй баталгаажуулалт татахад алдаа гарлаа'
         });
@@ -213,7 +210,6 @@ exports.approveVerification = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Approve verification error:', error);
         res.status(500).json({
             error: 'Баталгаажуулахад алдаа гарлаа',
             details: error.message
@@ -270,7 +266,6 @@ exports.rejectVerification = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Reject verification error:', error);
         res.status(500).json({
             error: 'Татгалзахад алдаа гарлаа',
             details: error.message
@@ -318,7 +313,6 @@ exports.getCertificate = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Get certificate error:', error);
         res.status(500).json({
             error: 'Гэрчилгээ татахад алдаа гарлаа'
         });
@@ -348,7 +342,6 @@ exports.getVerificationStatus = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Get verification status error:', error);
         res.status(500).json({
             error: 'Төлөв татахад алдаа гарлаа'
         });

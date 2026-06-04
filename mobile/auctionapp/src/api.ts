@@ -10,7 +10,6 @@ const API_BASE = ENV.API_BASE_URL;
 
 // Only log API URL in development
 if (__DEV__) {
-  console.log('🌐 API Base URL:', API_BASE);
 }
 
 export const api = axios.create({
@@ -27,8 +26,6 @@ api.interceptors.request.use(
   async (config) => {
     // Only log request details in development
     if (__DEV__) {
-      console.log(`📤 ${config.method?.toUpperCase()} ${config.url}`);
-      console.log('🔧 Full URL:', config.baseURL + config.url);
     }
 
     // Add auth token if available
@@ -37,7 +34,6 @@ api.interceptors.request.use(
       if (token && config.headers) {
         config.headers.Authorization = `Bearer ${token}`;
         if (__DEV__) {
-          console.log('🔑 Token attached to request');
         }
       }
     } catch (error) {
@@ -57,7 +53,6 @@ api.interceptors.response.use(
   (response) => {
     // Only log successful responses in development
     if (__DEV__) {
-      console.log(`✅ ${response.status} ${response.config.url}`);
     }
     
     // Cache GET requests
@@ -87,13 +82,11 @@ api.interceptors.response.use(
     // Handle 401 Unauthorized - token expired or invalid
     if (appError.type === ErrorType.AUTHENTICATION) {
       if (__DEV__) {
-        console.log('🔓 Token expired or invalid - clearing storage');
       }
       try {
         await AsyncStorage.removeItem('token');
         await AsyncStorage.removeItem('user');
         if (__DEV__) {
-          console.log('🔄 User logged out due to invalid token');
         }
       } catch (storageError) {
         console.error('Error clearing storage:', storageError);

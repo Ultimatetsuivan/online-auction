@@ -377,7 +377,6 @@ class CategoryClassifier {
    */
   async classifyWithAI(title, description = '') {
     if (!process.env.OPENAI_API_KEY) {
-      console.log('OpenAI API key not found, falling back to rule-based classifier');
       return this.classify(title, description);
     }
 
@@ -441,7 +440,6 @@ Analyze the product and return ONLY a JSON object in this exact format:
         method: 'AI (OpenAI GPT)'
       };
     } catch (error) {
-      console.error('OpenAI API error:', error.message);
       return this.classify(title, description);
     }
   }

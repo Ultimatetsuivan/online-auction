@@ -75,7 +75,6 @@ const createQPayInvoice = async (requestId, amount) => {
     _cachedToken = null;
     _tokenExpiresAt = null;
     const msg = error.response?.data?.message || error.message;
-    console.error('QPay invoice creation error:', error.response?.data || error.message);
     throw new Error('QPay нэхэмжлэл үүсгэхэд алдаа: ' + msg);
   }
 };
@@ -95,7 +94,6 @@ const checkQPayStatus = async (invoiceId) => {
     // QPay returns { count: N, paid_amount: X, ... } — count > 0 means paid
     return data?.count > 0;
   } catch (err) {
-    console.error('QPay status check error:', err.message);
     return false;
   }
 };

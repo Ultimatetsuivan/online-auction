@@ -11,8 +11,6 @@ const initializeFirebase = () => {
     try {
         // Check if credentials are provided
         if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.FIREBASE_PRIVATE_KEY) {
-            console.warn('Firebase credentials not found in environment variables. Push notifications will not work.');
-            console.warn('Please add FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY to .env file');
             return null;
         }
 
@@ -25,10 +23,8 @@ const initializeFirebase = () => {
         });
 
         firebaseInitialized = true;
-        console.log('Firebase Admin SDK initialized successfully');
         return admin;
     } catch (error) {
-        console.error('Failed to initialize Firebase Admin SDK:', error.message);
         return null;
     }
 };

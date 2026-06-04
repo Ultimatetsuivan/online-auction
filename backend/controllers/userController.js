@@ -48,8 +48,6 @@ const sendVerificationCodeOnly = asyncHandler(async (req, res) => {
 
     pendingVerifications.set(normalizedEmail, { code, expires });
 
-    console.log(`[OTP] Code sent to ${normalizedEmail}: ${code} (expires in 10 min)`);
-    console.log(`[OTP] Current pending verifications count:`, pendingVerifications.size);
 
     await sendCode(normalizedEmail, code);
 
@@ -61,32 +59,26 @@ const sendVerificationCodeOnly = asyncHandler(async (req, res) => {
     // Normalize email to lowercase and trim
     const normalizedEmail = email.toLowerCase().trim();
 
-    console.log(`[OTP] Verification attempt for ${normalizedEmail} with code: ${code}`);
-    console.log(`[OTP] Current pending verifications:`, Array.from(pendingVerifications.keys()));
 
     const record = pendingVerifications.get(normalizedEmail);
 
     if (!record) {
-      console.log(`[OTP] No record found for ${normalizedEmail}`);
       res.status(400);
       throw new Error("Баталгаажуулах код олдсонгүй. Код дахин илгээнэ үү.");
     }
 
     if (record.expires < Date.now()) {
-      console.log(`[OTP] Code expired for ${normalizedEmail}`);
       pendingVerifications.delete(normalizedEmail);
       res.status(400);
       throw new Error("Баталгаажуулах код хугацаа дууссан. Код дахин илгээнэ үү.");
     }
 
     if (record.code !== code) {
-      console.log(`[OTP] Invalid code for ${normalizedEmail}. Expected: ${record.code}, Got: ${code}`);
       res.status(400);
       throw new Error("Баталгаажуулах код буруу байна");
     }
 
     pendingVerifications.delete(normalizedEmail);
-    console.log(`[OTP] Verification successful for ${normalizedEmail}`);
 
     res.status(200).json({ message: "Имэйл баталгаажлаа" });
   });
@@ -116,7 +108,6 @@ const sendVerificationCodeOnly = asyncHandler(async (req, res) => {
     // Check if email already exists
     const existingEmail = await User.findOne({ email: normalizedEmail });
     if (existingEmail) {
-      console.log(`[Registration] Duplicate email attempt: ${normalizedEmail}`);
       res.status(409);
       throw new Error(`Имэйл хаяг (${normalizedEmail}) аль хэдийн бүртгэлтэй байна. Өөр имэйл ашиглана уу.`);
     }
@@ -125,7 +116,6 @@ const sendVerificationCodeOnly = asyncHandler(async (req, res) => {
     if (normalizedRegistrationNumber) {
       const existingRegNumber = await User.findOne({ registrationNumber: normalizedRegistrationNumber });
       if (existingRegNumber) {
-        console.log(`[Registration] Duplicate registration number attempt: ${normalizedRegistrationNumber}`);
         res.status(409);
         throw new Error(`Регистрийн дугаар (${normalizedRegistrationNumber}) аль хэдийн бүртгэлтэй байна. Өөр регистрийн дугаар ашиглана уу.`);
       }
@@ -141,7 +131,6 @@ const sendVerificationCodeOnly = asyncHandler(async (req, res) => {
     if (normalizedPhone) {
       const existingPhone = await User.findOne({ phone: normalizedPhone });
       if (existingPhone) {
-        console.log(`[Registration] Duplicate phone attempt: ${normalizedPhone}`);
         res.status(409);
         throw new Error(`Утасны дугаар (${normalizedPhone}) аль хэдийн бүртгэлтэй байна. Өөр утасны дугаар ашиглана уу.`);
       }
@@ -167,7 +156,6 @@ const sendVerificationCodeOnly = asyncHandler(async (req, res) => {
 
     await newUser.save();
 
-    console.log(`[Registration] User registered successfully: ${normalizedEmail}, regNum: ${normalizedRegistrationNumber}`);
 
     res.status(201).json({ message: "Хэрэглэгч амжилттай бүртгэгдлээ" });
   });
@@ -189,7 +177,6 @@ const sendVerificationCodeOnly = asyncHandler(async (req, res) => {
   
       res.status(200).json({ message: 'Balance updated successfully', user });
     } catch (error) {
-      console.error(error);
       res.status(500).json({ message: 'Server error' });
     }
   });
@@ -208,18 +195,15 @@ const loginUser = asyncHandler(async (req, res) => {
     // Check if input is phone number (8 digits) or email
     const isPhoneNumber = /^[0-9]{8}$/.test(normalizedInput);
 
-    console.log(`[Login] Attempt with: ${normalizedInput}, isPhone: ${isPhoneNumber}`);
 
     let user;
     if (isPhoneNumber) {
       // Login with phone number
       user = await User.findOne({ phone: normalizedInput });
-      console.log(`[Login] Phone lookup result:`, user ? `Found user: ${user.name}` : 'Not found');
     } else {
       // Login with email (normalize to lowercase)
       const normalizedEmail = normalizedInput.toLowerCase();
       user = await User.findOne({ email: normalizedEmail });
-      console.log(`[Login] Email lookup result:`, user ? `Found user: ${user.name}` : 'Not found');
     }
 
     if (!user) {
@@ -237,24 +221,20 @@ const loginUser = asyncHandler(async (req, res) => {
       if (tempPasswordIsCorrect) {
         // Check if temporary password is expired
         if (user.tempPasswordExpires && user.tempPasswordExpires < new Date()) {
-          console.log(`[Login] Temporary password expired for user: ${user.email}`);
           res.status(401);
           throw new Error("Түр нууц үгний хүчинтэй хугацаа дууссан байна");
         }
 
         passwordIsCorrect = true;
         usingTempPassword = true;
-        console.log(`[Login] Login with temporary password: ${user.email}`);
       }
     }
 
     if (!passwordIsCorrect) {
-      console.log(`[Login] Password incorrect for user: ${user.email}`);
       res.status(401);
       throw new Error("Email/Утас эсвэл нууц үг буруу байна");
     }
 
-    console.log(`[Login] Successful login: ${user.email}`);
 
     const token = generateToken(user._id);
 
@@ -340,15 +320,12 @@ const forgotPassword = asyncHandler(async (req, res) => {
       throw new Error("Имэйл хаягаа оруулна уу");
   }
 
-  console.log("Forgot password request for:", email); 
 
   const user = await User.findOne({ email });
 
   if (user) {
-      console.log("User found, generating reset token..."); 
       const resetToken = generateResetToken();
       const resetTokenExpiry = Date.now() + 3600000; 
-      console.log(resetToken,"asdadas")
 
       user.resetPasswordToken = resetToken;
       user.resetPasswordExpires = resetTokenExpiry;
@@ -356,13 +333,10 @@ const forgotPassword = asyncHandler(async (req, res) => {
 
       const resetUrl = `${process.env.BASE_URL}/reset-password/${resetToken}`;
 
-      console.log("Sending reset email to:", user.email, "with URL:", resetUrl); 
       
       try {
           await sendResetEmail(user.email, resetUrl);
-          console.log("Reset email sent successfully"); 
       } catch (error) {
-          console.error("Error sending reset email:", error);
           throw new Error("Имэйл илгээхэд алдаа гарлаа");
       }
   }
@@ -429,7 +403,6 @@ const googleLogin = asyncHandler(async (req, res) => {
   }
 
   try {
-    console.log('[Google Login] Verifying ID token...');
 
     const ticket = await client.verifyIdToken({
       idToken: credential,
@@ -439,7 +412,6 @@ const googleLogin = asyncHandler(async (req, res) => {
     const payload = ticket.getPayload();
     const { sub: googleId, email, name, picture } = payload;
 
-    console.log('[Google Login] Token verified for:', email);
 
     // Get active EULA
     const activeEula = await LegalDocument.findOne({ type: 'eula', isActive: true });
@@ -452,7 +424,6 @@ const googleLogin = asyncHandler(async (req, res) => {
     });
 
     if (!user) {
-      console.log('[Google Login] Creating new user');
       user = new User({
         googleId,
         name,
@@ -466,7 +437,6 @@ const googleLogin = asyncHandler(async (req, res) => {
       });
       await user.save();
     } else if (!user.googleId) {
-      console.log('[Google Login] Linking Google account to existing user');
       user.googleId = googleId;
       user.isVerified = true;
       if (!user.photo && picture) user.photo = picture;
@@ -480,7 +450,6 @@ const googleLogin = asyncHandler(async (req, res) => {
 
       await user.save();
     } else {
-      console.log('[Google Login] Existing Google user logging in');
 
       // Check and update EULA if needed
       if (!user.eulaAccepted && activeEula) {
@@ -501,7 +470,6 @@ const googleLogin = asyncHandler(async (req, res) => {
       secure: true,
     });
 
-    console.log('[Google Login] Success for:', user.email);
 
     res.status(200).json({
       _id: user._id,
@@ -515,8 +483,6 @@ const googleLogin = asyncHandler(async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[Google Login] Error:', error.message);
-    console.error('[Google Login] Stack:', error.stack);
     res.status(400);
     throw new Error(`Google нэвтрэх алдаа: ${error.message}`);
   }
@@ -531,7 +497,6 @@ const googleMobileLogin = asyncHandler(async (req, res) => {
   }
 
   try {
-    console.log('[Google Mobile Login] Processing login for:', email);
 
     // Get active EULA
     const activeEula = await LegalDocument.findOne({ type: 'eula', isActive: true });
@@ -544,7 +509,6 @@ const googleMobileLogin = asyncHandler(async (req, res) => {
     });
 
     if (!user) {
-      console.log('[Google Mobile Login] Creating new user');
       user = new User({
         googleId,
         name,
@@ -558,7 +522,6 @@ const googleMobileLogin = asyncHandler(async (req, res) => {
       });
       await user.save();
     } else if (!user.googleId) {
-      console.log('[Google Mobile Login] Linking Google account to existing user');
       user.googleId = googleId;
       user.isVerified = true;
       if (!user.photo && picture) user.photo = picture;
@@ -572,7 +535,6 @@ const googleMobileLogin = asyncHandler(async (req, res) => {
 
       await user.save();
     } else {
-      console.log('[Google Mobile Login] Existing Google user logging in');
 
       // Check and update EULA if needed
       if (!user.eulaAccepted && activeEula) {
@@ -585,7 +547,6 @@ const googleMobileLogin = asyncHandler(async (req, res) => {
 
     const token = generateToken(user._id);
 
-    console.log('[Google Mobile Login] Success for:', user.email);
 
     res.status(200).json({
       _id: user._id,
@@ -599,8 +560,6 @@ const googleMobileLogin = asyncHandler(async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[Google Mobile Login] Error:', error.message);
-    console.error('[Google Mobile Login] Stack:', error.stack);
     res.status(400);
     throw new Error(`Google нэвтрэх алдаа: ${error.message}`);
   }
@@ -654,7 +613,6 @@ const updateUserPhoto = asyncHandler(async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Error updating photo:", error);
     res.status(500).json({
       success: false,
       error: error.message || "Зураг шинэчлэхэд алдаа гарлаа"
@@ -702,7 +660,6 @@ const addTestFunds = asyncHandler(async (req, res) => {
   user.balance = (user.balance || 0) + amount;
   await user.save();
 
-  console.log(`Added ${amount}₮ test funds to user ${user.name}. New balance: ${user.balance}₮`);
 
   res.status(200).json({
     success: true,
@@ -753,7 +710,6 @@ const eMongoliaAuth = asyncHandler(async (req, res) => {
 
     await user.save();
 
-    console.log(`[eMongolia] User logged in via eMongolia: ${user.email || user.phone}`);
   } else {
     // New user, create account with eMongolia data
     // Generate a temporary email if not provided
@@ -782,7 +738,6 @@ const eMongoliaAuth = asyncHandler(async (req, res) => {
 
     await user.save();
 
-    console.log(`[eMongolia] New user created via eMongolia: ${registerNumber}`);
   }
 
   // Generate token
@@ -849,16 +804,12 @@ const forgotPasswordTemp = asyncHandler(async (req, res) => {
 
   await user.save();
 
-  console.log(`[ForgotPassword] Generated temporary password for user: ${user.email}`);
-  console.log(`[ForgotPassword] Temp password (for testing): ${tempPassword}`);
 
   // Send temporary password via email if user has email
   if (user.email) {
     try {
       await sendTempPasswordEmail(user.email, tempPassword);
-      console.log(`[ForgotPassword] Temp password email sent to: ${user.email}`);
     } catch (error) {
-      console.error(`[ForgotPassword] Error sending email:`, error);
       // Continue anyway - user can still use the password from response
     }
   }
@@ -924,7 +875,6 @@ const changePassword = asyncHandler(async (req, res) => {
 
   await user.save();
 
-  console.log(`[ChangePassword] Password changed successfully for user: ${user.email}`);
 
   res.status(200).json({
     success: true,

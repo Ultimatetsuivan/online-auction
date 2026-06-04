@@ -17,7 +17,6 @@ async function sendPushNotification(userId, notification) {
     const messaging = getMessaging();
 
     if (!messaging) {
-        console.log('Firebase not initialized. Skipping push notification.');
         return { success: false, reason: 'firebase_not_initialized' };
     }
 
@@ -25,7 +24,6 @@ async function sendPushNotification(userId, notification) {
         const user = await User.findById(userId);
 
         if (!user || !user.fcmTokens || user.fcmTokens.length === 0) {
-            console.log(`No FCM tokens found for user ${userId}`);
             return { success: false, reason: 'no_tokens' };
         }
 
@@ -50,7 +48,6 @@ async function sendPushNotification(userId, notification) {
 
         const response = await messaging.sendEachForMulticast(message);
 
-        console.log(`Push notification sent: ${response.successCount} successful, ${response.failureCount} failed`);
 
         // Remove invalid tokens
         if (response.failureCount > 0) {
@@ -58,7 +55,6 @@ async function sendPushNotification(userId, notification) {
             response.responses.forEach((resp, idx) => {
                 if (!resp.success) {
                     tokensToRemove.push(user.fcmTokens[idx]);
-                    console.log(`Removing invalid token: ${resp.error.code}`);
                 }
             });
 
@@ -77,7 +73,6 @@ async function sendPushNotification(userId, notification) {
         };
 
     } catch (error) {
-        console.error('Failed to send push notification:', error.message);
         return { success: false, error: error.message };
     }
 }
@@ -95,7 +90,6 @@ async function sendBulkPushNotifications(userIds, notification) {
     const successful = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
     const failed = results.length - successful;
 
-    console.log(`Bulk push notifications: ${successful} successful, ${failed} failed`);
 
     return {
         total: results.length,

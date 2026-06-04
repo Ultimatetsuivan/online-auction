@@ -38,17 +38,14 @@ async function sendOTP(phone, code) {
             default:
                 // Development mode: just log the OTP
                 if (process.env.NODE_ENV === 'development') {
-                    console.log(`[DEV MODE] OTP for ${phone}: ${code}`);
                     return { success: true, messageId: 'dev-mode' };
                 }
                 throw new Error(`Unsupported SMS provider: ${provider}`);
         }
     } catch (error) {
-        console.error('Failed to send SMS:', error.message);
 
         // In development, don't fail
         if (process.env.NODE_ENV === 'development') {
-            console.log(`[DEV MODE] OTP for ${phone}: ${code}`);
             return { success: true, messageId: 'dev-mode-fallback' };
         }
 

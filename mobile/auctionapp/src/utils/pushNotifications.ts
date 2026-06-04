@@ -27,7 +27,6 @@ export async function registerPushToken(): Promise<void> {
     }
 
     if (finalStatus !== 'granted') {
-      console.log('[Push] Permission denied — skipping token registration');
       return;
     }
 
@@ -46,7 +45,6 @@ export async function registerPushToken(): Promise<void> {
     const token = deviceToken.data;
 
     if (!token) {
-      console.log('[Push] No device token received');
       return;
     }
 
@@ -64,10 +62,8 @@ export async function registerPushToken(): Promise<void> {
     );
 
     await AsyncStorage.setItem(TOKEN_STORAGE_KEY, token);
-    console.log('[Push] Token registered successfully');
   } catch (err: any) {
     // Non-fatal — app works fine without push
-    console.warn('[Push] Token registration failed:', err?.message);
   }
 }
 
@@ -85,9 +81,7 @@ export async function unregisterPushToken(): Promise<void> {
     );
 
     await AsyncStorage.removeItem(TOKEN_STORAGE_KEY);
-    console.log('[Push] Token unregistered');
   } catch (err: any) {
-    console.warn('[Push] Token unregister failed:', err?.message);
   }
 }
 

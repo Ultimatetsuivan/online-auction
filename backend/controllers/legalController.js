@@ -21,7 +21,6 @@ exports.getCurrentEULA = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Get EULA error:', error);
         res.status(500).json({
             error: 'EULA татахад алдаа гарлаа',
             details: error.message
@@ -51,7 +50,6 @@ exports.getLegalDocument = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Get legal document error:', error);
         res.status(500).json({
             error: 'Баримт татахад алдаа гарлаа',
             details: error.message
@@ -90,7 +88,6 @@ exports.acceptEULA = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Accept EULA error:', error);
         res.status(500).json({
             error: 'EULA зөвшөөрөхөд алдаа гарлаа',
             details: error.message
@@ -120,7 +117,6 @@ exports.checkEULAStatus = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Check EULA status error:', error);
         res.status(500).json({
             error: 'Алдаа гарлаа',
             details: error.message
@@ -158,7 +154,6 @@ exports.createLegalDocument = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Create legal document error:', error);
         res.status(500).json({
             error: 'Баримт үүсгэхэд алдаа гарлаа',
             details: error.message
@@ -184,7 +179,6 @@ exports.getAllLegalDocuments = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Get all legal documents error:', error);
         res.status(500).json({
             error: 'Алдаа гарлаа',
             details: error.message

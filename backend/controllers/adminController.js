@@ -56,7 +56,6 @@ exports.getDashboardStats = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Get dashboard stats error:', error);
         res.status(500).json({
             error: 'Статистик татахад алдаа гарлаа',
             details: error.message
@@ -92,7 +91,6 @@ exports.getSalesChart = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Get sales chart error:', error);
         res.status(500).json({
             error: 'Алдаа гарлаа',
             details: error.message
@@ -116,7 +114,6 @@ exports.getRecentUsers = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Get recent users error:', error);
         res.status(500).json({
             error: 'Алдаа гарлаа',
             details: error.message
@@ -167,7 +164,6 @@ exports.getTopSellers = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Get top sellers error:', error);
         res.status(500).json({
             error: 'Алдаа гарлаа',
             details: error.message
@@ -198,7 +194,6 @@ exports.getCategoryStats = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Get category stats error:', error);
         res.status(500).json({
             error: 'Алдаа гарлаа',
             details: error.message
@@ -232,7 +227,6 @@ exports.getUserActivityChart = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Get user activity error:', error);
         res.status(500).json({
             error: 'Алдаа гарлаа',
             details: error.message

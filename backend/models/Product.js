@@ -334,18 +334,15 @@ function arrayLimit(val) {
 productSchema.pre('save', function(next) {
     const now = new Date();
 
-    console.log('[PRE-SAVE HOOK] Product:', this.title, 'Sold:', this.sold);
 
     // If already sold, don't override the status
     if (this.sold) {
-        console.log('[PRE-SAVE HOOK] Product is sold, setting status to ended');
         this.auctionStatus = 'ended';
         this.available = false;
         next();
         return;
     }
 
-    console.log('[PRE-SAVE HOOK] Product not sold, checking time-based status');
 
     // Update auction status based on time
     if (this.auctionStart && this.bidDeadline) {
@@ -385,7 +382,6 @@ productSchema.virtual('timeRemaining').get(function() {
 productSchema.statics.activateScheduledAuctions = async function() {
     // Check if MongoDB connection is ready
     if (mongoose.connection.readyState !== 1) {
-        console.warn('[Product Model] MongoDB connection not ready for activateScheduledAuctions');
         return 0;
     }
 
@@ -406,12 +402,10 @@ productSchema.statics.activateScheduledAuctions = async function() {
         );
 
         if (result.modifiedCount > 0) {
-            console.log(`[Auction Scheduler] Activated ${result.modifiedCount} scheduled auction(s)`);
         }
 
         return result.modifiedCount;
     } catch (error) {
-        console.error('[Product Model] Error in activateScheduledAuctions:', error.message || error);
         return 0;
     }
 };
@@ -420,7 +414,6 @@ productSchema.statics.activateScheduledAuctions = async function() {
 productSchema.statics.updateExpiredAuctions = async function() {
     // Check if MongoDB connection is ready
     if (mongoose.connection.readyState !== 1) {
-        console.warn('[Product Model] MongoDB connection not ready for updateExpiredAuctions');
         return 0;
     }
 
@@ -441,12 +434,10 @@ productSchema.statics.updateExpiredAuctions = async function() {
         );
 
         if (result.modifiedCount > 0) {
-            console.log(`[Auction Scheduler] Ended ${result.modifiedCount} expired auction(s)`);
         }
 
         return result.modifiedCount;
     } catch (error) {
-        console.error('[Product Model] Error in updateExpiredAuctions:', error.message || error);
         return 0;
     }
 };

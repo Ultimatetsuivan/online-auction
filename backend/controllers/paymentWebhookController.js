@@ -13,15 +13,12 @@ function verifyQPaySignature(payload, signature) {
     if (!process.env.QPAY_WEBHOOK_SECRET) {
         // QPay sandbox does not send signatures — allow in non-production
         if (process.env.NODE_ENV !== 'production') {
-            console.warn('QPAY_WEBHOOK_SECRET not set — skipping signature check (sandbox mode)');
             return true;
         }
-        console.error('QPAY_WEBHOOK_SECRET not configured in production — rejecting webhook');
         return false;
     }
 
     if (!signature) {
-        console.error('Webhook signature missing');
         return false;
     }
 
@@ -31,7 +28,6 @@ function verifyQPaySignature(payload, signature) {
         .digest('hex');
 
     const isValid = hash === signature;
-    if (!isValid) console.error('Invalid webhook signature');
     return isValid;
 }
 
@@ -45,7 +41,6 @@ exports.qpayWebhook = async (req, res) => {
 
         // Verify signature
         if (!verifyQPaySignature(req.body, signature)) {
-            console.error('Invalid QPay webhook signature');
             return res.status(401).json({
                 error: 'Invalid signature'
             });
@@ -53,7 +48,6 @@ exports.qpayWebhook = async (req, res) => {
 
         const { invoice_id, status, amount, payment_id } = req.body;
 
-        console.log('QPay webhook received:', { invoice_id, status, amount });
 
         // Handle different payment statuses
         switch (status) {
@@ -73,14 +67,12 @@ exports.qpayWebhook = async (req, res) => {
                 break;
 
             default:
-                console.log(`Unknown payment status: ${status}`);
         }
 
         // Always respond 200 OK to acknowledge receipt
         res.json({ success: true });
 
     } catch (error) {
-        console.error('QPay webhook error:', error);
         // Still respond 200 to prevent retries
         res.json({ success: false, error: error.message });
     }
@@ -95,13 +87,11 @@ async function handlePaidPayment(invoiceId, amount, paymentId) {
         const request = await Request.findOne({ 'payment.invoiceId': invoiceId });
 
         if (!request) {
-            console.error(`Payment request not found for invoice ${invoiceId}`);
             return;
         }
 
         // Check if already processed
         if (request.status === 'completed') {
-            console.log(`Payment ${invoiceId} already processed`);
             return;
         }
 
@@ -132,10 +122,8 @@ async function handlePaidPayment(invoiceId, amount, paymentId) {
             actionUrl: '/profile'
         });
 
-        console.log(`Payment ${invoiceId} processed successfully. Added ${amount}₮ to user ${request.user}`);
 
     } catch (error) {
-        console.error('Handle paid payment error:', error);
         throw error;
     }
 }
@@ -161,10 +149,8 @@ async function handleExpiredPayment(invoiceId) {
             type: 'payment_expired'
         });
 
-        console.log(`Payment ${invoiceId} expired`);
 
     } catch (error) {
-        console.error('Handle expired payment error:', error);
     }
 }
 
@@ -188,10 +174,8 @@ async function handleFailedPayment(invoiceId) {
             type: 'payment_failed'
         });
 
-        console.log(`Payment ${invoiceId} failed`);
 
     } catch (error) {
-        console.error('Handle failed payment error:', error);
     }
 }
 
@@ -236,7 +220,6 @@ exports.verifyPayment = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Verify payment error:', error);
         res.status(500).json({
             error: 'Төлбөр шалгахад алдаа гарлаа',
             details: error.message

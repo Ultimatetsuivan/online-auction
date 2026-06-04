@@ -38,7 +38,6 @@ const requireEulaAcceptance = async (req, res, next) => {
 
         next();
     } catch (error) {
-        console.error('EULA middleware error:', error);
         // Don't block request on error, just log it
         next();
     }
@@ -72,7 +71,6 @@ const checkEulaAcceptance = async (req, res, next) => {
 
         next();
     } catch (error) {
-        console.error('EULA check error:', error);
         next();
     }
 };

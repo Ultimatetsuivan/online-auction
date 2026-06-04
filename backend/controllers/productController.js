@@ -39,8 +39,6 @@ Product.activateScheduledAuctions();
 
 const postProduct = asyncHandler(async (req, res) => {
     try {
-        console.log('Request files:', req.files); // Debug log
-        console.log('Request body:', req.body); // Debug log
 
         const {
             title,
@@ -112,13 +110,11 @@ const postProduct = asyncHandler(async (req, res) => {
                 }
 
                 auctionStatus = 'scheduled';
-                console.log(`[Create Product] Scheduled auction: starts at ${auctionStart.toISOString()}`);
 
             } else {
                 // Immediate start: auction starts now
                 auctionStart = now;
                 auctionStatus = 'active';
-                console.log(`[Create Product] Immediate auction: starts now`);
             }
 
             // ===== Calculate Auction End Time =====
@@ -126,14 +122,11 @@ const postProduct = asyncHandler(async (req, res) => {
             const durationMs = parseInt(auctionDuration) * 24 * 60 * 60 * 1000;
             bidDeadline = new Date(auctionStart.getTime() + durationMs);
 
-            console.log(`[Create Product] Auction duration: ${auctionDuration} days`);
-            console.log(`[Create Product] Auction ends at: ${bidDeadline.toISOString()}`);
         } else {
             // Fixed-price product - set to immediately available with no end date
             auctionStart = now;
             auctionStatus = 'active';
             bidDeadline = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000); // 1 year from now
-            console.log(`[Create Product] Fixed-price product created`);
         }
         // ===== End of Start Mode Handling =====
 
@@ -154,11 +147,9 @@ const postProduct = asyncHandler(async (req, res) => {
      // Handle file uploads
 let fileData = [];
 if(req.files && req.files.length > 0) {
-  console.log(`[Upload] Processing ${req.files.length} images`);
 
   for (const file of req.files) {
     try {
-      console.log(`[Upload] File: ${file.originalname}, MIME: ${file.mimetype}, Size: ${file.size} bytes`);
 
       // Upload to Cloudinary (automatically converts HEIC to JPEG)
       const uploadFile = await cloudinary.uploader.upload(file.path, {
@@ -171,7 +162,6 @@ if(req.files && req.files.length > 0) {
         ]
       });
 
-      console.log(`[Upload] Successfully uploaded to Cloudinary: ${uploadFile.public_id}`);
 
       fileData.push({
         url: uploadFile.secure_url,
@@ -182,12 +172,9 @@ if(req.files && req.files.length > 0) {
       // Clean up the uploaded file
       try {
         await fs.promises.unlink(file.path);
-        console.log(`Successfully uploaded and cleaned up ${file.originalname}`);
       } catch (cleanupError) {
-        console.error(`Error cleaning up file ${file.originalname}:`, cleanupError);
       }
     } catch (error) {
-      console.error(`Failed to upload ${file.originalname}:`, error);
       
       // Clean up any remaining files
       await Promise.all(req.files.map(async (f) => {
@@ -195,7 +182,6 @@ if(req.files && req.files.length > 0) {
           try {
             await fs.promises.unlink(f.path);
           } catch (err) {
-            console.error(`Error cleaning up file ${f.originalname}:`, err);
           }
         }
       }));
@@ -215,7 +201,6 @@ if(req.files && req.files.length > 0) {
                 if (v !== '' && v !== null && v !== undefined) itemSpecifics.set(k, String(v));
             }
         } catch (e) {
-            console.warn('[postProduct] Failed to parse itemSpecificsJson:', e.message);
         }
 
         // Also handle legacy top-level vehicle fields for backward compat
@@ -260,14 +245,12 @@ if(req.files && req.files.length > 0) {
             ...vehicleFields,
         });
 
-        console.log('Product created successfully:', product._id);
         res.status(201).json({
             success: true,
             data: product,
         });
 
     } catch (error) {
-        console.error('Product creation failed:', error);
         
         if (req.files) {
             req.files.forEach(file => {
@@ -288,7 +271,6 @@ const getAllProducts = asyncHandler(async (req, res) => {
         const products = await Product.find({}).sort("-createdAt").populate("user").populate("category");
         res.json(products);
     } catch (error) {
-        console.error('Error fetching all products:', error);
         res.status(500).json({
             success: false,
             message: error.message || "Error fetching products"
@@ -377,7 +359,6 @@ const getAllAvailableProducts = asyncHandler(async (req, res) => {
         // Return array directly for frontend compatibility
         res.json(products);
     } catch (error) {
-        console.error('Error fetching available products:', error);
         res.status(500).json({ 
             success: false,
             message: error.message || "Error fetching available products"
@@ -410,7 +391,6 @@ const deleteProduct = asyncHandler(async (req, res) => {
         });
         await Promise.all(deletePromises);
     }catch(error) {
-        console.error('Error deleting images from Cloudinary:', error);
         // Continue with product deletion even if image deletion fails
     }
    }
@@ -424,8 +404,6 @@ const deleteProduct = asyncHandler(async (req, res) => {
 
 const updateProduct = asyncHandler(async (req, res) => {
     try {
-        console.log('Update Request files:', req.files);
-        console.log('Update Request body:', req.body);
 
         const { id } = req.params;
         const product = await Product.findById(id);
@@ -478,7 +456,6 @@ const updateProduct = asyncHandler(async (req, res) => {
                 }
             }
         } catch (e) {
-            console.warn('[updateProduct] Failed to parse itemSpecificsJson:', e.message);
         }
 
         // Handle images: combine existing + new uploads
@@ -493,7 +470,6 @@ const updateProduct = asyncHandler(async (req, res) => {
                     existingUrls.includes(img.url) || existingUrls.includes(img.filePath)
                 );
             } catch (error) {
-                console.error('Error parsing existingImages:', error);
             }
         }
 
@@ -519,7 +495,6 @@ const updateProduct = asyncHandler(async (req, res) => {
                         fs.unlinkSync(file.path);
                     }
                 } catch (error) {
-                    console.error('Image upload error:', error);
                 }
             }
         }
@@ -591,7 +566,6 @@ const updateProduct = asyncHandler(async (req, res) => {
 
         res.status(200).json(updatedProduct);
     } catch (error) {
-        console.error('Update product error:', error);
         res.status(500);
         throw error;
     }
@@ -744,26 +718,20 @@ const buyNowProduct = asyncHandler(async (req, res) => {
       soldTo: userId
     });
   } catch (error) {
-    console.error("Buy now error:", error);
     return res.status(500).json({ success: false, message: "Failed to complete buy now", error: error.message });
   }
 });
 
 const sellNowToTopBidder = asyncHandler(async (req, res) => {
-  console.log('=== SELL NOW TO TOP BIDDER CALLED ===');
   const userId = req.user._id;
   const { productId } = req.params;
-  console.log('User ID:', userId);
-  console.log('Product ID:', productId);
 
   // Find product and verify ownership
   const product = await Product.findById(productId).populate("user");
   if (!product) {
-    console.log('ERROR: Product not found');
     return res.status(404).json({ success: false, message: "Product not found" });
   }
 
-  console.log('Product found:', {
     title: product.title,
     sold: product.sold,
     auctionStatus: product.auctionStatus,
@@ -772,13 +740,11 @@ const sellNowToTopBidder = asyncHandler(async (req, res) => {
 
   // Verify the seller is the owner
   if (product.user?._id?.toString() !== userId.toString()) {
-    console.log('ERROR: User not authorized');
     return res.status(403).json({ success: false, message: "You are not authorized to sell this product" });
   }
 
   // Check if already sold
   if (product.sold || product.auctionStatus === "ended") {
-    console.log('ERROR: Product already sold or ended');
     return res.status(400).json({ success: false, message: "Product is already sold or auction has ended" });
   }
 
@@ -788,11 +754,9 @@ const sellNowToTopBidder = asyncHandler(async (req, res) => {
     .populate("user");
 
   if (!allBids || allBids.length === 0) {
-    console.log('ERROR: No bids found');
     return res.status(400).json({ success: false, message: "No bids found. Cannot sell to top bidder." });
   }
 
-  console.log(`Found ${allBids.length} bids, checking for bidders with sufficient balance...`);
 
   // Find the first bidder with sufficient balance
   let topBid = null;
@@ -801,13 +765,11 @@ const sellNowToTopBidder = asyncHandler(async (req, res) => {
 
   for (const bid of allBids) {
     if (!bid.user) {
-      console.log('Skipping bid with no user');
       continue;
     }
 
     const potentialBuyer = await User.findById(bid.user._id);
     if (!potentialBuyer) {
-      console.log(`Skipping bid - user ${bid.user.name} not found`);
       skippedBidders.push({ name: bid.user.name, price: bid.price, reason: 'User not found' });
       continue;
     }
@@ -816,10 +778,8 @@ const sellNowToTopBidder = asyncHandler(async (req, res) => {
       // Found a bidder with sufficient balance!
       topBid = bid;
       buyer = potentialBuyer;
-      console.log(`Selected bidder: ${buyer.name}, Balance: ${buyer.balance}₮, Bid: ${bid.price}₮`);
       break;
     } else {
-      console.log(`Skipping ${potentialBuyer.name} - Insufficient balance (Has: ${potentialBuyer.balance}₮, Needs: ${bid.price}₮)`);
       skippedBidders.push({
         name: potentialBuyer.name,
         price: bid.price,
@@ -830,7 +790,6 @@ const sellNowToTopBidder = asyncHandler(async (req, res) => {
   }
 
   if (!topBid || !buyer) {
-    console.log('ERROR: No bidders with sufficient balance');
     let errorMessage = "No bidders have sufficient balance to complete the sale.";
     if (skippedBidders.length > 0) {
       errorMessage += `\n\nSkipped bidders:\n${skippedBidders.map(b =>
@@ -847,7 +806,6 @@ const sellNowToTopBidder = asyncHandler(async (req, res) => {
   const buyerId = buyer._id;
   const salePrice = topBid.price;
 
-  console.log('Final selection:', {
     bidder: buyer.name,
     price: salePrice,
     balance: buyer.balance,
@@ -855,17 +813,14 @@ const sellNowToTopBidder = asyncHandler(async (req, res) => {
   });
 
   try {
-    console.log('Starting transaction...');
     // Execute sell now transaction with automatic transaction support detection
     await withTransaction(async (session) => {
       const updateOptions = session ? { session } : {};
 
-      console.log('Transferring funds...');
       // Transfer funds from buyer to seller
       await User.updateOne({ _id: buyerId }, { $inc: { balance: -salePrice } }, updateOptions);
       await User.updateOne({ _id: userId }, { $inc: { balance: salePrice } }, updateOptions);
 
-      console.log('Marking product as sold...');
       // Mark product as sold
       product.currentBid = salePrice;
       product.highestBidder = buyerId;
@@ -875,7 +830,6 @@ const sellNowToTopBidder = asyncHandler(async (req, res) => {
       product.available = false;
       product.auctionStatus = "ended";
 
-      console.log('Saving product with values:', {
         sold: product.sold,
         auctionStatus: product.auctionStatus,
         available: product.available
@@ -883,7 +837,6 @@ const sellNowToTopBidder = asyncHandler(async (req, res) => {
 
       await product.save(updateOptions);
 
-      console.log('Product saved successfully');
 
       // Create transaction record
       await Transaction.create([{
@@ -893,7 +846,6 @@ const sellNowToTopBidder = asyncHandler(async (req, res) => {
         amount: salePrice
       }], updateOptions);
 
-      console.log('Transaction completed successfully');
     });
 
     // Update trust scores
@@ -945,19 +897,16 @@ const sellNowToTopBidder = asyncHandler(async (req, res) => {
     ]);
 
     // Fetch updated product with populated fields
-    console.log('Fetching updated product...');
     const updatedProduct = await Product.findById(productId)
       .populate('user')
       .populate('category')
       .populate('soldTo');
 
-    console.log('Updated product status:', {
       sold: updatedProduct.sold,
       auctionStatus: updatedProduct.auctionStatus,
       available: updatedProduct.available
     });
 
-    console.log('=== SELL NOW COMPLETED SUCCESSFULLY ===');
 
     let successMessage = `Successfully sold to ${buyer.name} for $${salePrice.toLocaleString()}`;
     if (skippedBidders.length > 0) {
@@ -976,7 +925,6 @@ const sellNowToTopBidder = asyncHandler(async (req, res) => {
       skippedBidders: skippedBidders
     });
   } catch (error) {
-    console.error("Sell now error:", error);
     return res.status(500).json({
       success: false,
       message: "Failed to complete instant sale",
@@ -1181,7 +1129,6 @@ const getSimilarProducts = asyncHandler(async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Get similar products error:', error);
         res.status(500).json({
             success: false,
             message: error.message || "Алдаа гарлаа"
@@ -1240,7 +1187,6 @@ const getRecommendedProducts = asyncHandler(async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Get recommended products error:', error);
         res.status(500).json({
             success: false,
             message: error.message || "Алдаа гарлаа"
@@ -1306,7 +1252,6 @@ const updateVehicleInfo = asyncHandler(async (req, res) => {
             data: product
         });
     } catch (error) {
-        console.error('Update vehicle info error:', error);
         res.status(500).json({
             success: false,
             message: error.message || "Failed to update vehicle information"
@@ -1350,7 +1295,6 @@ const updateSellerDescription = asyncHandler(async (req, res) => {
             data: product
         });
     } catch (error) {
-        console.error('Update seller description error:', error);
         res.status(500).json({
             success: false,
             message: error.message || "Failed to update seller description"
@@ -1466,7 +1410,6 @@ const decodeVIN = asyncHandler(async (req, res) => {
             note: "This is a basic VIN decoder. For comprehensive vehicle information, integrate with NHTSA or commercial VIN API services."
         });
     } catch (error) {
-        console.error('VIN decode error:', error);
         res.status(500).json({
             success: false,
             message: error.message || "Failed to decode VIN"
@@ -1525,7 +1468,6 @@ const requestVehicleHistory = asyncHandler(async (req, res) => {
             note: "To integrate with Carfax/AutoCheck API, you need to sign up for their commercial API services and add API keys to .env file"
         });
     } catch (error) {
-        console.error('Vehicle history update error:', error);
         res.status(500).json({
             success: false,
             message: error.message || "Failed to update vehicle history report"
@@ -1566,7 +1508,6 @@ const suggestCategory = asyncHandler(async (req, res) => {
             availableCategories: categoryClassifier.getAvailableCategories()
         });
     } catch (error) {
-        console.error('Category suggestion error:', error);
         res.status(500).json({
             success: false,
             message: error.message || "Failed to suggest category"

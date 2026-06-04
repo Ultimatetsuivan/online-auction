@@ -67,7 +67,6 @@ exports.sendPhoneOTP = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Send OTP error:', error);
         res.status(500).json({
             error: 'Код илгээхэд алдаа гарлаа',
             details: error.message
@@ -158,7 +157,6 @@ exports.verifyPhoneOTP = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Verify OTP error:', error);
         res.status(500).json({
             error: 'Баталгаажуулахад алдаа гарлаа',
             details: error.message
@@ -213,7 +211,6 @@ exports.requestPhoneLink = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Link phone OTP error:', error);
         res.status(500).json({
             error: 'DsD_D\' D,D�D3�?�?�.�?D\' D�D�D\'D�D� D3D��?D�D�D�',
             details: error.message
@@ -275,7 +272,6 @@ exports.verifyPhoneLink = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Verify phone link error:', error);
         res.status(500).json({
             error: 'D`O_�?�,D3�?D�D\' D�D�D\'D�D� D3D��?D�D�D�',
             details: error.message
@@ -365,7 +361,6 @@ exports.registerWithPhone = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Register error:', error);
         res.status(500).json({
             error: 'Бүртгэлд алдаа гарлаа',
             details: error.message
@@ -404,7 +399,6 @@ exports.refreshAccessToken = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Refresh token error:', error);
         res.status(500).json({
             error: 'Token сэргээхэд алдаа гарлаа',
             details: error.message
@@ -433,7 +427,6 @@ exports.registerFCMToken = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Register FCM token error:', error);
         res.status(500).json({
             error: 'FCM token бүртгэхэд алдаа гарлаа',
             details: error.message
@@ -456,7 +449,6 @@ exports.removeFCMToken = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Remove FCM token error:', error);
         res.status(500).json({
             error: 'FCM token устгахад алдаа гарлаа',
             details: error.message
@@ -487,7 +479,6 @@ exports.logout = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Logout error:', error);
         res.status(500).json({
             error: 'Гарахад алдаа гарлаа',
             details: error.message

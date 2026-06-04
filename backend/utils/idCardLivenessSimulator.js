@@ -440,30 +440,19 @@ module.exports = {
 
 // Example usage (for testing)
 if (require.main === module) {
-  console.log('=== ID Card Liveness Detection Simulator ===\n');
 
   // Generate authentic card motion
-  console.log('1. Generating authentic card motion sequence...');
   const authenticFrames = generateTestCardMotionFrames({ duration: 3, fps: 15 });
-  console.log(`   Generated ${authenticFrames.length} frames`);
-  console.log('   Sample frame:', JSON.stringify(authenticFrames[20], null, 2));
 
   // Analyze authentic motion
-  console.log('\n2. Analyzing authentic motion...');
   const authenticResult = analyzeLiveness(authenticFrames);
-  console.log('   Result:', authenticResult);
 
   // Generate spoofed motion (paper)
-  console.log('\n3. Generating spoofed motion (paper)...');
   const spoofedFrames = generateSpoofedCardMotion('paper');
   const spoofResult = analyzeLiveness(spoofedFrames);
-  console.log('   Result:', spoofResult);
 
   // Generate spoofed motion (screen)
-  console.log('\n4. Generating spoofed motion (screen)...');
   const screenFrames = generateSpoofedCardMotion('screen');
   const screenResult = analyzeLiveness(screenFrames);
-  console.log('   Result:', screenResult);
 
-  console.log('\n=== Test Complete ===');
 }
