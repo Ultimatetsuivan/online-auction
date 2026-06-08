@@ -30,7 +30,7 @@
 
 % ── Color & page color ────────────────────────────────────────────────
 \usepackage[table]{xcolor}
-\definecolor{Cover}{RGB}{102,255,255}    % MUST cyan-blue cover
+\definecolor{Cover}{RGB}{255,255,255}    % white cover
 \definecolor{OliveGreen}{cmyk}{0.64,0,0.95,0.40}
 \definecolor{CadetBlue}{cmyk}{0.62,0.57,0.23,0}
 \definecolor{lightlightgray}{gray}{0.9}
@@ -204,8 +204,7 @@
 \begin{minipage}[t]{0.9\textwidth}
 \begin{flushleft}
 \normalsize
-Мэргэжлийн индекс: \degreeid \\
-Мэргэжил: \degreename \\[2cm]
+Хөтөлбөрийн индекс: \degreeid \\
 
 \emph{Удирдагч:} \supervisor \\
 \emph{Гүйцэтгэгч:} \authorshort \\
@@ -672,7 +671,7 @@ eBay (1995) — 190+ оронд үйл ажиллагаа явуулдаг дэ�
     \toprule
     \textbf{Шинж чанар} & \textbf{Yahoo!} & \textbf{Mercari} & \textbf{eBay} & \textbf{Shopee} & \textbf{Энэ систем} \\
     \midrule
-    Auction type & English & Fixed+negotn & Олон & Live video & English+BuyNow \\
+    Auction type & English & Fixed & Олон & Live video & English+BuyNow \\
     Real-time bid & \ding{51} & -- & \ding{51} & \ding{51} & \ding{51} \\
     Mobile parity & \ding{51} & \ding{51}\ding{51} & \ding{51} & \ding{51}\ding{51} & \ding{51}\ding{51} \\
     AI ангилал & \ding{51} & \ding{51} & \ding{51} & \ding{51} & \ding{51} \\
@@ -891,7 +890,7 @@ Auction-д тавьсан барааг агуулна. Чухал талбару
 
 \subsection{Bidding Collection}
 
-Өчүүхэн жижиг schema-тай боловч хамгийн өндөр write-нагрузка авдаг. Индекс: \texttt{\{ product: 1, price: -1, createdAt: -1 \}} — bid history-ийг үнээр буурах эрэмбээр шуурхай авах боломж.
+Өчүүхэн жижиг schema-тай боловч хамгийн өндөр write авдаг. Индекс: \texttt{\{ product: 1, price: -1, createdAt: -1 \}} — bid history-ийг үнээр буурах эрэмбээр шуурхай авах боломж.
 
 \section{API дизайны зарчим}
 

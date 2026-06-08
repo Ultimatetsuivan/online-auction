@@ -13,6 +13,7 @@ import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { deleteDraft } from "../../src/hooks/useAutosaveMobile";
 import theme from "../theme";
 import { api } from "../../src/api";
 import { useTheme } from "../../src/contexts/ThemeContext";
@@ -38,6 +39,8 @@ export default function ProfileScreen() {
       const userData = await AsyncStorage.getItem("user");
       if (userData) {
         setUser(JSON.parse(userData));
+      } else {
+        setUser(null);
       }
     } catch (error) {
       console.error("Error loading user:", error);
@@ -56,6 +59,7 @@ export default function ProfileScreen() {
           try {
             await AsyncStorage.removeItem("user");
             await AsyncStorage.removeItem("token");
+            await deleteDraft("addProduct");
             setUser(null);
             Alert.alert("Амжилттай", "Амжилттай гарлаа");
           } catch (error) {

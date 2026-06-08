@@ -588,6 +588,21 @@ const removeImage = (index) => {
   };
 
 
+  const handleDeleteUser = async (u) => {
+    if (!window.confirm(`"${u.name}" хэрэглэгчийг устгахдаа итгэлтэй байна уу? Энэ үйлдлийг буцаах боломжгүй.`)) return;
+    try {
+      const token = JSON.parse(localStorage.getItem('user'))?.token;
+      await axios.delete(`http://localhost:5000/api/users/${u._id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setUsers(prev => prev.filter(x => x._id !== u._id));
+      setTotalCount(prev => prev - 1);
+      toast.success(`"${u.name}" устгагдлаа`);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Хэрэглэгч устгахад алдаа гарлаа');
+    }
+  };
+
   const tabTitles = { dashboard: 'Хянах самбар', users: 'Хэрэглэгчид', userProducts: 'Хэрэглэгчийн бараанууд', categories: 'Ангилал удирдлага', verifications: 'Баталгаажуулалт', requests: 'Дансны хүсэлт', settings: 'Тохиргоо' };
   const s = { card: { background: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.07)', border: '1px solid #f1f5f9' }, tag: (bg, color) => ({ background: bg, color, fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20 }), btn: (bg, color, border) => ({ padding: '8px 18px', borderRadius: 10, border: border || 'none', background: bg, color, cursor: 'pointer', fontWeight: 600, fontSize: 14 }) };
 
@@ -904,6 +919,10 @@ const removeImage = (index) => {
                                 style={{ padding: '5px 12px', borderRadius: 8, border: '1.5px solid #22c55e', background: '#f0fdf4', color: '#15803d', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>Данс +</button>
                               <button onClick={(e) => { e.stopPropagation(); fetchUserProducts(u._id); }}
                                 style={{ padding: '5px 12px', borderRadius: 8, border: '1.5px solid #3b82f6', background: '#eff6ff', color: '#3b82f6', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>Бараа</button>
+                              {u.role !== 'admin' && (
+                                <button onClick={(e) => { e.stopPropagation(); handleDeleteUser(u); }}
+                                  style={{ padding: '5px 12px', borderRadius: 8, border: '1.5px solid #ef4444', background: '#fef2f2', color: '#dc2626', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>Устгах</button>
+                              )}
                             </div>
                           </td>
                         </tr>

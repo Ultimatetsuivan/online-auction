@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import theme from "../theme";
 import { api } from "../../src/api";
@@ -83,6 +83,14 @@ export default function BalanceScreen() {
     loadInitial();
     return () => stopPolling();
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      AsyncStorage.getItem("user").then(u => {
+        if (!u) router.replace("/(hidden)/login");
+      }).catch(() => {});
+    }, [])
+  );
 
   const loadInitial = async () => {
     try {

@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Picker } from '@react-native-picker/picker';
@@ -243,7 +243,7 @@ export default function AddProductScreen() {
             {
               text: 'Тэгье',
               onPress: () => {
-                setFormData({ ...formData, ...draft });
+                setFormData(prev => ({ ...prev, ...draft }));
                 Alert.alert('Амжилттай', 'Өмнө нь хийж байсан талбар сэргээгдлээ!');
               },
             },
@@ -260,6 +260,19 @@ export default function AddProductScreen() {
       setLastSaved(Date.now());
     }
   }, [savingStatus]);
+
+  // Auth guard — redirect to login before the user wastes time filling the form
+  useFocusEffect(
+    React.useCallback(() => {
+      const checkAuth = async () => {
+        const userData = await AsyncStorage.getItem('user');
+        if (!userData) {
+          router.replace('/(hidden)/login');
+        }
+      };
+      checkAuth();
+    }, [])
+  );
 
   useEffect(() => {
     fetchCategories();

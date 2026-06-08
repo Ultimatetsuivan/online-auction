@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import theme from "../theme";
 import { api } from "../../src/api";
@@ -32,6 +32,12 @@ export default function SellingScreen() {
     loadUserAndListings();
   }, []);
 
+  useFocusEffect(
+    React.useCallback(() => {
+      loadUserAndListings();
+    }, [])
+  );
+
   const loadUserAndListings = async () => {
     try {
       const userData = await AsyncStorage.getItem("user");
@@ -39,6 +45,11 @@ export default function SellingScreen() {
         const parsedUser = JSON.parse(userData);
         setUser(parsedUser);
         await fetchUserListings();
+      } else {
+        setUser(null);
+        setActiveListings([]);
+        setEndedListings([]);
+        setSoldListings([]);
       }
     } catch (error) {
       console.error("Error loading user listings:", error);

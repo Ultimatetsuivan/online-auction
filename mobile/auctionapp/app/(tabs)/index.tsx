@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useFocusEffect } from "expo-router";
 import {
   View,
   Text,
@@ -121,6 +122,21 @@ export default function HomeScreen() {
       if (u) setCurrentUserId(JSON.parse(u)?._id || null);
     }).catch(() => {});
   }, [fetchData]);
+
+  // Clear user-specific state when the tab comes into focus after logout
+  useFocusEffect(
+    React.useCallback(() => {
+      AsyncStorage.getItem("user").then(u => {
+        if (u) {
+          const parsed = JSON.parse(u);
+          setCurrentUserId(parsed._id || null);
+        } else {
+          setCurrentUserId(null);
+          setUserBalance(0);
+        }
+      }).catch(() => {});
+    }, [])
+  );
 
   // Load search history from AsyncStorage
   const loadSearchHistory = async () => {
@@ -439,13 +455,15 @@ export default function HomeScreen() {
                     {filtered.length} {filtered.length === 1 ? "" : "Бүтээгдэхүүн"}
                   </Text>
                 </View>
-                <TouchableOpacity
-                  style={styles.balanceCard}
-                  onPress={() => setPaymentModalVisible(true)}
-                >
-                  <Text style={styles.balanceLabel}>Мөнгө хийх</Text>
-                  <Text style={styles.balanceAmount}>₮{userBalance.toLocaleString()}</Text>
-                </TouchableOpacity>
+                {currentUserId && (
+                  <TouchableOpacity
+                    style={styles.balanceCard}
+                    onPress={() => setPaymentModalVisible(true)}
+                  >
+                    <Text style={styles.balanceLabel}>Мөнгө хийх</Text>
+                    <Text style={styles.balanceAmount}>₮{userBalance.toLocaleString()}</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </>
           }

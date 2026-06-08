@@ -1,5 +1,5 @@
 const express = require("express");
-const {registerUser, loginUser, loginstatus,googleLogin,googleMobileLogin,getGoogleClientId,updateUserPhoto, sendVerificationCodeOnly,forgotPassword, forgotPasswordTemp, changePassword, verifyResetToken, resetPassword, addBalanceToUser,verifyEmailCode, loggoutUser, getUser, getUserBalance, allUsers, commisisionBalance, deleteCurrentUser, addTestFunds, eMongoliaAuth} = require("../controllers/userController");
+const {registerUser, loginUser, loginstatus,googleLogin,googleMobileLogin,getGoogleClientId,updateUserPhoto, sendVerificationCodeOnly,forgotPassword, forgotPasswordTemp, changePassword, verifyResetToken, resetPassword, addBalanceToUser,verifyEmailCode, loggoutUser, getUser, getUserBalance, allUsers, commisisionBalance, deleteCurrentUser, deleteUserById, addTestFunds, eMongoliaAuth} = require("../controllers/userController");
 const { protect, admin } = require("../middleware/authMiddleware");
 const router = express.Router();
 const { upload } = require("../utils/fileUpload");
@@ -26,6 +26,7 @@ router.get('/google/client-id', getGoogleClientId);
 router.post('/emongolia', eMongoliaAuth);
 router.put('/photo', protect, upload.single('photo'), updateUserPhoto);
 router.delete('/me', protect, deleteCurrentUser);
+router.delete('/:id', protect, admin, deleteUserById);
 router.post('/add-test-funds', protect, addTestFunds);
 
 module.exports = router;

@@ -638,6 +638,25 @@ const deleteCurrentUser = asyncHandler(async (req, res) => {
   });
 });
 
+const deleteUserById = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const target = await User.findById(id);
+  if (!target) {
+    res.status(404);
+    throw new Error("Хэрэглэгч олдсонгүй");
+  }
+
+  if (target.role === 'admin') {
+    res.status(403);
+    throw new Error("Админ хэрэглэгчийг устгах боломжгүй");
+  }
+
+  await User.deleteOne({ _id: id });
+
+  res.json({ success: true, message: "Хэрэглэгч устгагдлаа." });
+});
+
 // Add test funds for development/testing purposes
 const addTestFunds = asyncHandler(async (req, res) => {
   const userId = req.user._id;
@@ -902,6 +921,7 @@ module.exports = {registerUser,
     getGoogleClientId,
     updateUserPhoto,
     deleteCurrentUser,
+    deleteUserById,
     addTestFunds,
     pendingVerifications,
     eMongoliaAuth
